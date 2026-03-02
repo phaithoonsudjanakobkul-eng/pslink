@@ -374,12 +374,35 @@
             font-weight: 600;
             letter-spacing: 0.02em;
         }
-        /* Price/numbers — mono font for alignment */
+        /* Price/numbers — mono + tabular-nums (digits same width, no layout shift) */
         #watchlist-table .price-cell,
         #watchlist-table .num-cell {
             font-family: var(--font-mono);
             font-weight: 500;
+            font-variant-numeric: tabular-nums;
         }
+        /* table-layout:fixed — columns never resize when content changes */
+        #watchlist-table { table-layout: fixed; }
+        #watchlist-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Fixed widths per column index */
+        #watchlist-table col:nth-child(1)  { width: 32px; }
+        #watchlist-table col:nth-child(2)  { width: 78px; }
+        #watchlist-table col:nth-child(3)  { width: 140px; }
+        #watchlist-table col:nth-child(4)  { width: 88px; }
+        #watchlist-table col:nth-child(5)  { width: 78px; }
+        #watchlist-table col:nth-child(6)  { width: 90px; }
+        #watchlist-table col:nth-child(7)  { width: 78px; }
+        #watchlist-table col:nth-child(8)  { width: 88px; }
+        #watchlist-table col:nth-child(9)  { width: 78px; }
+        #watchlist-table col:nth-child(10) { width: 78px; }
+        #watchlist-table col:nth-child(11) { width: 86px; }
+        #watchlist-table col:nth-child(12) { width: 78px; }
+        #watchlist-table col:nth-child(13) { width: 78px; }
+        #watchlist-table col:nth-child(14) { width: 78px; }
+        #watchlist-table col:nth-child(15) { width: 52px; }
+        #watchlist-table col:nth-child(16) { width: 52px; }
+        #watchlist-table col:nth-child(17) { width: 70px; }
+        #watchlist-table col:nth-child(18) { width: 34px; }
 
         #tab-dashboard {
             background: #f0f4f8;
@@ -622,7 +645,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r30</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r31</div>
                 </div>
             </div>
             
@@ -858,7 +881,11 @@
                     </div>
                     <h3 class="text-xl font-black text-gray-900 text-center mb-1">เชื่อมต่อ Finnhub</h3>
                     <p class="text-gray-400 text-center text-xs mb-6 leading-relaxed">ใส่ Finnhub API Key เพื่อดูราคาหุ้นสหรัฐ<br>Key จะเก็บใน browser ของคุณเท่านั้น</p>
-                    <input type="password" id="finnhub-key-input" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-teal-400 transition-all mb-4">
+                    <input type="password" id="finnhub-key-input" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-teal-400 transition-all mb-3">
+                    <div class="border-t border-gray-100 pt-3 mb-3">
+                        <p class="text-gray-400 text-center text-xs mb-2 leading-relaxed">ExchangeRate-API Key <span class="text-gray-300">(สำหรับ FX Rate แม่นยำ)</span></p>
+                        <input type="password" id="erapi-key-input" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-blue-400 transition-all">
+                    </div>
                     <div class="flex flex-col gap-2">
                         <button onclick="saveFinnhubKey()" class="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-bold transition-all active:scale-95 uppercase text-xs tracking-widest">บันทึกและเชื่อมต่อ</button>
                         <button onclick="document.getElementById('finnhub-modal').classList.add('hidden')" class="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-2xl font-bold transition-all uppercase text-xs tracking-widest">ยกเลิก</button>
@@ -960,6 +987,14 @@
             <div class="glass-card overflow-hidden">
                 <div style="overflow-x:auto;overflow-y:hidden;scrollbar-gutter:auto">
                 <table id="watchlist-table" class="w-full min-w-[700px]">
+                    <colgroup>
+                        <col style="width:32px"><col style="width:78px"><col style="width:140px">
+                        <col style="width:88px"><col style="width:78px"><col style="width:90px">
+                        <col style="width:78px"><col style="width:88px"><col style="width:78px">
+                        <col style="width:78px"><col style="width:86px"><col style="width:78px">
+                        <col style="width:78px"><col style="width:78px"><col style="width:52px">
+                        <col style="width:52px"><col style="width:70px"><col style="width:34px">
+                    </colgroup>
                     <thead>
                         <tr class="border-b" style="border-color:var(--border);background:var(--bg-card2)">
                             <th class="px-3 py-2 text-left text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) w-8">#</th>
@@ -1792,14 +1827,26 @@
         let dropdownSelectedIdx = -1;
         let dropdownResults = [];
 
+        function openFinnhubModal() {
+            const modal = document.getElementById('finnhub-modal');
+            modal.classList.remove('hidden');
+            const stored = localStorage.getItem('ps_erapi_key') || '';
+            const el = document.getElementById('erapi-key-input');
+            if (el && stored) el.value = stored;
+        }
         function getFinnhubKey() { return localStorage.getItem('ps_finnhub_key') || ''; }
 
         function saveFinnhubKey() {
             const key = document.getElementById('finnhub-key-input').value.trim();
             if (!key) return;
             localStorage.setItem('ps_finnhub_key', key);
+            const erapiEl = document.getElementById('erapi-key-input');
+            if (erapiEl && erapiEl.value.trim()) {
+                localStorage.setItem('ps_erapi_key', erapiEl.value.trim());
+            }
             document.getElementById('finnhub-modal').classList.add('hidden');
             refreshWatchlist();
+            fetchFxRate();
         }
 
         function saveWatchlist() {
@@ -1808,7 +1855,7 @@
 
         function showAddTickerInput() {
             if (!getFinnhubKey()) {
-                document.getElementById('finnhub-modal').classList.remove('hidden');
+                openFinnhubModal();
                 return;
             }
             const bar = document.getElementById('add-ticker-bar');
@@ -3425,135 +3472,101 @@ Analysis guidelines:
             const changeInvEl = document.getElementById('fx-change-inv');
             if (!rateEl) return;
 
-            // USD/THB must be 28–45 to be plausible
             const sane = v => typeof v === 'number' && isFinite(v) && v > 28 && v < 45;
+            const ERAPI_KEY = localStorage.getItem('ps_erapi_key') || '';
 
-            // ─── Try all sources, race to first valid answer ─────────────────
-            const tryFetch = async (url, extract) => {
+            let usdThb   = null;  // current mid rate
+            let prevRate = null;  // yesterday close for real % change
+
+            // ── Source 1: exchangerate-api.com (hourly, most accurate free tier) ──
+            if (ERAPI_KEY) {
                 try {
-                    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
-                    if (!r.ok) return null;
-                    const j = await r.json();
-                    const v = extract(j);
-                    return sane(v) ? v : null;
-                } catch(e) { return null; }
-            };
-
-            // Run all sources in parallel — take whichever resolves first with a valid value
-            const fKey = getFinnhubKey();
-
-            // For % change: try to get prev close from Finnhub (j.pc = previous close)
-            let prevCloseRate = null;
-            if (fKey) {
-                try {
-                    const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=OANDA:USD_THB&token=${fKey}`, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+                    const r = await fetch(
+                        `https://v6.exchangerate-api.com/v6/${ERAPI_KEY}/latest/USD`,
+                        { cache: 'no-store' }
+                    );
                     if (r.ok) {
                         const j = await r.json();
-                        if (sane(j.c))  { /* will be picked up in racers below */ }
-                        if (sane(j.pc)) { prevCloseRate = parseFloat(j.pc.toFixed(2)); }
+                        if (sane(j.conversion_rates?.THB)) usdThb = j.conversion_rates.THB;
                     }
+                } catch(e) {}
+
+                // Yesterday rate for real % change
+                if (usdThb) {
+                    try {
+                        const d = new Date(); d.setDate(d.getDate() - 1);
+                        const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+                        const r = await fetch(
+                            `https://v6.exchangerate-api.com/v6/${ERAPI_KEY}/history/USD/${y}/${d.getMonth()+1}/${d.getDate()}`,
+                            { cache: 'no-store' }
+                        );
+                        if (r.ok) {
+                            const j = await r.json();
+                            if (sane(j.conversion_rates?.THB)) prevRate = j.conversion_rates.THB;
+                        }
+                    } catch(e) {}
+                }
+            }
+
+            // ── Source 2: Finnhub OANDA (realtime interbank, has prev_close) ──
+            if (!usdThb) {
+                const fKey = getFinnhubKey();
+                if (fKey) {
+                    try {
+                        const r = await fetch(
+                            `https://finnhub.io/api/v1/quote?symbol=OANDA:USD_THB&token=${fKey}&_=${Date.now()}`,
+                            { cache: 'no-store' }
+                        );
+                        if (r.ok) {
+                            const j = await r.json();
+                            if (sane(j.c))  usdThb   = j.c;
+                            if (sane(j.pc)) prevRate = j.pc;
+                        }
+                    } catch(e) {}
+                }
+            }
+
+            // ── Source 3: Frankfurter ECB daily fallback ──
+            if (!usdThb) {
+                try {
+                    const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=THB', { cache: 'no-store' });
+                    if (r.ok) { const j = await r.json(); if (sane(j.rates?.THB)) usdThb = j.rates.THB; }
                 } catch(e) {}
             }
 
-            const racers = [
-                // S1: BOT (Bank of Thailand) official daily rate — closest to what banks use in TH
-                tryFetch(
-                    'https://apigw1.bot.or.th/bot/public/Stat-ExchangeRate/v2/daily-avg-exrt?currency=USD',
-                    j => {
-                        const d = j?.result?.data?.[0];
-                        // BOT gives selling_rate (what bank sells USD to you) and buying_rate
-                        const sell = parseFloat(d?.selling_rate);
-                        const buy  = parseFloat(d?.buying_rate);
-                        // Use selling_rate as USD→THB (you sell USD to get THB)
-                        return sane(sell) ? sell : (sane(buy) ? buy : null);
-                    }
-                ),
-                // S2: Wise (TransferWise) - very close to mid-market, updated frequently
-                tryFetch(
-                    'https://wise.com/rates/history+live?source=USD&target=THB&length=1&resolution=hourly&unit=day',
-                    j => {
-                        const v = j?.[j.length - 1]?.value;
-                        return parseFloat(v);
-                    }
-                ),
-                // S3: Finnhub OANDA realtime quote
-                fKey ? tryFetch(
-                    `https://finnhub.io/api/v1/quote?symbol=OANDA:USD_THB&token=${fKey}`,
-                    j => parseFloat(j?.c)
-                ) : Promise.resolve(null),
-                // S4: exchangerate.host (free, updated intraday)
-                tryFetch(
-                    'https://api.exchangerate.host/live?access_key=free&currencies=THB&source=USD',
-                    j => parseFloat(j?.quotes?.USDTHB)
-                ),
-                // S5: Open ER-API (hourly)
-                tryFetch(
-                    'https://open.er-api.com/v6/latest/USD',
-                    j => parseFloat(j?.rates?.THB)
-                ),
-                // S6: Frankfurter ECB daily
-                tryFetch(
-                    'https://api.frankfurter.app/latest?from=USD&to=THB',
-                    j => parseFloat(j?.rates?.THB)
-                ),
-            ];
-
-            // Race: take first non-null result
-            let usdThbSell = null;
-            let src = '?';
-            const srcNames = ['BOT','Wise','Finnhub','ER.host','ER-API','ECB'];
-            const results = await Promise.allSettled(racers);
-            for (let i = 0; i < results.length; i++) {
-                const v = results[i].status === 'fulfilled' ? results[i].value : null;
-                if (sane(v)) { usdThbSell = v; src = srcNames[i]; break; }
+            if (!sane(usdThb)) {
+                rateEl.textContent = '— THB'; rateInvEl.textContent = '— THB'; return;
             }
 
-            if (!sane(usdThbSell)) {
-                rateEl.textContent = '— THB';
-                rateInvEl.textContent = '— THB';
-                return;
-            }
+            // ── Compute rates ────────────────────────────────────────────────
+            // USD→THB sell rate: ขาย 1 USD ได้กี่บาท  (mid rate)
+            // THB→USD buy rate:  ซื้อ 1 USD ต้องใช้กี่บาท (mid + 0.4% spread ≈ Dime)
+            const sellRate = parseFloat(usdThb.toFixed(2));
+            const buyRate  = parseFloat((usdThb * 1.004).toFixed(2));
 
-            // ─── Compute both rates ──────────────────────────────────────────
-            //
-            //  USD → THB  (sell rate):  "ขาย 1 USD ได้กี่บาท"
-            //    = usdThbSell   e.g. 31.38
-            //
-            //  THB → USD  (buy rate):   "ซื้อ 1 USD ต้องใช้กี่บาท"
-            //    In real banks: buy_rate > sell_rate (spread ~0.2–0.5 THB)
-            //    Dime shows USD→THB=31.38, THB→USD=31.50 → spread ≈ +0.38%
-            //    We add 0.4% spread which gives ~0.12–0.15 THB difference
-            //
-            const sellRate = parseFloat(usdThbSell.toFixed(2));           // e.g. 31.38
-            const buyRate  = parseFloat((usdThbSell * 1.004).toFixed(2)); // e.g. 31.50
-
-            // Update DOM
             rateEl.textContent    = sellRate.toFixed(2) + ' THB';
             rateInvEl.textContent = buyRate.toFixed(2)  + ' THB';
-            rateEl.title    = `ขาย 1 USD ได้ ${sellRate} THB [${src}]`;
-            rateInvEl.title = `ซื้อ 1 USD ใช้ ${buyRate} THB [spread ~0.4%]`;
+            rateEl.title    = `ขาย 1 USD ได้ ${sellRate} THB • อัตราอ้างอิง interbank • อัตราจริงธนาคารไทยสูงกว่าเล็กน้อย`;
+            rateInvEl.title = `ซื้อ 1 USD ใช้ ${buyRate} THB • รวม spread ~0.4%`;
 
-            // ─── % Change vs session start ───────────────────────────────────
-            // fxPrevRate tracks the sell rate from the PREVIOUS fetch in this session
-            // On first load it's null → show change vs approx yesterday using BOT prev data
-            // Simple heuristic: if no prev, show 0.00% in green (neutral)
-            const fmtChg = (curr, prev, el) => {
-                if (prev === null) {
-                    el.textContent = '↗ 0.00%';
-                    el.style.color = '#94a3b8';
-                    return;
+            // ── % Change vs yesterday ────────────────────────────────────────
+            const baseSell = prevRate ?? fxPrevRate;
+            const baseBuy  = prevRate ? parseFloat((prevRate * 1.004).toFixed(2)) : fxPrevRateInv;
+
+            const fmtChg = (curr, base, el) => {
+                if (!base || !sane(base)) {
+                    el.textContent = '↗ 0.00%'; el.style.color = '#94a3b8'; return;
                 }
-                const diff = curr - prev;
-                const pct  = Math.abs((diff / prev) * 100);
-                const isUp = diff > 0.005;
+                const diff = curr - base;
+                const pct  = Math.abs((diff / base) * 100).toFixed(2);
+                const isUp = diff >  0.005;
                 const isDn = diff < -0.005;
-                // USD stronger (rate up) → shown as up arrow (green like Dime — Dime shows ↑ in green even when USD rises)
-                el.textContent = `${isUp ? '↗' : isDn ? '↘' : '—'} ${pct.toFixed(2)}%`;
-                el.style.color = (isUp || (!isUp && !isDn)) ? '#22c55e' : '#f43f5e';
+                el.textContent = `${isUp ? '↗' : isDn ? '↘' : '↗'} ${pct}%`;
+                el.style.color = isDn ? '#f43f5e' : '#22c55e';
             };
 
-            fmtChg(sellRate, fxPrevRate    ?? prevCloseRate, changeEl);
-            fmtChg(buyRate,  fxPrevRateInv ?? (prevCloseRate ? parseFloat((prevCloseRate * 1.004).toFixed(2)) : null), changeInvEl);
+            fmtChg(sellRate, baseSell, changeEl);
+            fmtChg(buyRate,  baseBuy,  changeInvEl);
 
             fxPrevRate    = sellRate;
             fxPrevRateInv = buyRate;
