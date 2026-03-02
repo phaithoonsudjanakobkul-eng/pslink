@@ -616,6 +616,16 @@
             padding-top: 10px;
             padding-bottom: 10px;
         }
+        
+        /* ── Quick Chart panel price colors ─────────────────────── */
+        :root {
+            --qc-up: #00a86b;
+            --qc-dn: #e8274b;
+        }
+        html.dark {
+            --qc-up: #00e676;
+            --qc-dn: #ff1744;
+        }
         </style>
 </head>
 
@@ -695,7 +705,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r63</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r64</div>
                 </div>
             </div>
             
@@ -2292,10 +2302,11 @@
             const priceEl = document.getElementById('qc-price');
             const changeEl = document.getElementById('qc-change');
             priceEl.innerText = price ? '$' + price.toFixed(2) : '';
-            priceEl.className = 'font-black text-lg ' + (price === null ? 'text-gray-400' : isUp ? 'text-emerald-600' : 'text-rose-500');
+            priceEl.className = 'font-black text-lg';
+priceEl.style.color = price === null ? '' : isUp ? 'var(--qc-up)' : 'var(--qc-dn)';
             if (changePct !== null) {
                 changeEl.innerText = (isUp ? '▲ +' : '▼ ') + changePct.toFixed(2) + '%';
-                changeEl.className = 'text-sm font-bold px-2 py-0.5 rounded ' + (isUp ? 'text-emerald-600 bg-emerald-50' : 'text-rose-500 bg-rose-50');
+                changeEl.className = 'text-sm font-bold px-2 py-0.5 rounded ' + (isUp ? 'wl-badge-up' : 'wl-badge-dn');
             }
 
             // TradingView link
