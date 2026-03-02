@@ -363,15 +363,7 @@
             font-size: 13px;
             color: var(--text-secondary);
         }
-        /* ── High-contrast price colors ─────────────────────────── */
-        /* Light mode: vivid green/red */
-        #watchlist-table td.text-emerald-600 { color: #00a86b !important; }
-        #watchlist-table td.text-rose-500    { color: #e8274b !important; }
-        #watchlist-table td.text-gray-300    { color: #94a3b8 !important; }
-        /* Dark mode: neon green / hot red — max contrast */
-        html.dark #watchlist-table td.text-emerald-600 { color: #00e676 !important; }
-        html.dark #watchlist-table td.text-rose-500    { color: #ff1744 !important; }
-        html.dark #watchlist-table td.text-gray-300    { color: #475569 !important; }
+        /* .wl-up/.wl-dn/.wl-neutral handle all watchlist data colors — see below */
         /* Symbol — bold + slightly larger, immediate scan */
         #watchlist-table .sym-cell {
             font-size: 14px;
@@ -624,6 +616,14 @@
             padding-bottom: 10px;
         }
         
+        
+        /* ── Watchlist data color classes — light + dark aware ───── */
+        .wl-up      { color: #00a86b; }
+        .wl-dn      { color: #e8274b; }
+        .wl-neutral { color: var(--text-dim); }
+        html.dark .wl-up      { color: #00e676; }
+        html.dark .wl-dn      { color: #ff1744; }
+        html.dark .wl-neutral { color: var(--text-dim); }
         </style>
 </head>
 
@@ -703,7 +703,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r65</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r66</div>
                 </div>
             </div>
             
@@ -1866,11 +1866,11 @@
             const logo      = d?.logo ?? '';
 
             const isUp        = changePct !== null ? changePct >= 0 : change !== null ? change >= 0 : true;
-            const priceColor  = price   === null ? 'text-gray-300' : isUp ? 'text-emerald-600' : 'text-rose-500';
-            const changeColor = change  === null ? 'text-gray-300' : isUp ? 'text-emerald-600' : 'text-rose-500';
-            const openColor   = open    === null ? ''              : open >= (prevClose ?? open) ? 'text-emerald-600' : 'text-rose-500';
-            const highColor   = 'text-emerald-600';
-            const lowColor    = 'text-rose-500';
+            const priceColor  = price   === null ? 'wl-neutral' : isUp ? 'wl-up' : 'wl-dn';
+            const changeColor = change  === null ? 'wl-neutral' : isUp ? 'wl-up' : 'wl-dn';
+            const openColor   = open    === null ? ''           : open >= (prevClose ?? open) ? 'wl-up' : 'wl-dn';
+            const highColor   = 'wl-up';
+            const lowColor    = 'wl-dn';
             const arrow       = isUp ? '▲' : '▼';
             const idx         = watchlist.indexOf(symbol) + 1;
 
@@ -1891,7 +1891,7 @@
             const preIsUp    = prePct !== null ? prePct >= 0 : true;
             const preMktHtml = prePrice !== null
                 ? `<div class="flex flex-col items-end gap-0.5">
-                     <span class="text-[10px] num-cell ${preIsUp ? 'text-emerald-500' : 'text-rose-400'}">${preIsUp ? '+' : ''}${prePct?.toFixed(2) ?? '—'}%</span>
+                     <span class="text-[10px] num-cell ${preIsUp ? 'wl-up' : 'wl-dn'}">${preIsUp ? '+' : ''}${prePct?.toFixed(2) ?? '—'}%</span>
                      <span class="text-[9px]" style="color:var(--text-dim)">$${fmt(prePrice)}</span>
                    </div>`
                 : (d ? '<span style="color:var(--text-dim)" class="text-xs">—</span>' : (sk(56) ?? ''));
@@ -1942,8 +1942,8 @@
                                         <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide" style="color:var(--text-secondary)">${sk(48) ?? (prevClose !== null ? '$' + fmt(prevClose) : '—')}</td>
                     <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide ${highColor}">${sk(48) ?? (high !== null ? '$' + fmt(high) : '—')}</td>
                     <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide ${lowColor}">${sk(48)  ?? (low  !== null ? '$' + fmt(low)  : '—')}</td>
-                    <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide" style="color:#10b981">${sk(52) ?? (d?.week52High != null ? '$' + fmt(d.week52High) : '—')}</td>
-                    <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide" style="color:#f43f5e">${sk(52) ?? (d?.week52Low  != null ? '$' + fmt(d.week52Low)  : '—')}</td>
+                    <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide" class="wl-up">${sk(52) ?? (d?.week52High != null ? '$' + fmt(d.week52High) : '—')}</td>
+                    <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide" class="wl-dn">${sk(52) ?? (d?.week52Low  != null ? '$' + fmt(d.week52Low)  : '—')}</td>
                     <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide" style="color:var(--text-secondary)">${sk(44) ?? (d?.marketCap  != null ? fmtCap(d.marketCap)     : '—')}</td>
                     <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide" style="color:var(--text-secondary)">${sk(44) ?? (d?.avgVol10d  != null ? fmtVol(d.avgVol10d)     : '—')}</td>
                     <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide" style="color:var(--text-secondary)">${sk(28) ?? (d?.beta       != null ? d.beta.toFixed(2)        : '—')}</td>
@@ -2230,12 +2230,12 @@
             const divYield  = data?.divYield   ?? null;
 
             const isUp = changePct >= 0;
-            const priceColor  = price === null ? 'text-gray-300' : isUp ? 'text-emerald-600' : 'text-rose-500';
-            const changeColor = change === null ? 'text-gray-300' : isUp ? 'text-emerald-600' : 'text-rose-500';
-            const openColor   = (open  && prevClose) ? (open  >= prevClose ? 'text-emerald-600' : 'text-rose-500') : '';
-            const highColor   = (high  && prevClose) ? (high  >= prevClose ? 'text-emerald-600' : 'text-rose-500') : '';
-            const lowColor    = (low   && prevClose) ? (low   >= prevClose ? 'text-emerald-600' : 'text-rose-500') : '';
-            const preMktColor = (preMktChg !== null)  ? (preMktChg >= 0 ? 'text-amber-500' : 'text-rose-400') : '';
+            const priceColor  = price === null ? 'wl-neutral' : isUp ? 'wl-up' : 'wl-dn';
+            const changeColor = change === null ? 'wl-neutral' : isUp ? 'wl-up' : 'wl-dn';
+            const openColor   = (open  && prevClose) ? (open  >= prevClose ? 'wl-up' : 'wl-dn') : '';
+            const highColor   = (high  && prevClose) ? (high  >= prevClose ? 'wl-up' : 'wl-dn') : '';
+            const lowColor    = (low   && prevClose) ? (low   >= prevClose ? 'wl-up' : 'wl-dn') : '';
+            const preMktColor = (preMktChg !== null)  ? (preMktChg >= 0 ? 'wl-up' : 'wl-dn') : '';
             const arrow = isUp ? '▲' : '▼';
             // Helper: only write className when it actually changes (avoids forced reflow per WS tick)
             const setClass = (el, cls) => { if (el.className !== cls) el.className = cls; };
