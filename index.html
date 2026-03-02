@@ -638,7 +638,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r47</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r48</div>
                 </div>
             </div>
             
@@ -3456,19 +3456,37 @@ Analysis guidelines:
         async function syncToGist() {
             const token = getGistToken();
             if (!token) { document.getElementById('gist-modal').classList.remove('hidden'); return; }
-            showGistStatus('SAVING...', 'text-blue-500');
+            showGistStatus('UPLOADING...', 'text-blue-500');
+            // Save locally first as fallback
+            try { localStorage.setItem('ps_records',   JSON.stringify(records));   } catch(e) {}
+            try { localStorage.setItem('ps_watchlist', JSON.stringify(watchlist)); } catch(e) {}
             try {
                 const exportData = {
                     meta: { avatar: db.avatar, dark: document.documentElement.classList.contains('dark') },
-                    records, watchlist
+                    records,
+                    watchlist
                 };
                 const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
                     method:  'PATCH',
-                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
                     body:    JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(exportData, null, 2) } } })
                 });
-                showGistStatus(res.ok ? 'SAVED ✓' : 'SAVE FAILED ✗', res.ok ? 'text-emerald-500' : 'text-rose-500');
-            } catch(e) { showGistStatus('ERROR ✗', 'text-rose-500'); }
+                if (res.ok) {
+                    _lastManualSyncTime = Date.now();
+                    showGistStatus('UPLOADED ✓', 'text-emerald-500');
+                } else if (res.status === 401) {
+                    showGistStatus('TOKEN หมดอายุ ✗', 'text-rose-500');
+                } else if (res.status === 403) {
+                    showGistStatus('TOKEN ไม่มีสิทธิ์ gist ✗', 'text-rose-500');
+                } else if (res.status === 404) {
+                    showGistStatus('ไม่พบ Gist ✗', 'text-rose-500');
+                } else {
+                    showGistStatus(`UPLOAD ERR ${res.status} — saved locally`, 'text-amber-400');
+                }
+            } catch(e) {
+                console.error('[Gist] syncToGist error:', e);
+                showGistStatus('OFFLINE — saved locally', 'text-amber-400');
+            }
         }
 
         async function syncFromGist(isInitialLoad = false) {
@@ -3477,47 +3495,73 @@ Analysis guidelines:
             showGistStatus('SYNCING...', 'text-blue-500');
             try {
                 const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-                    headers: { 'Authorization': `token ${token}` }
+                    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
                 });
-                if (!res.ok) { showGistStatus('SYNC FAILED ✗', 'text-rose-500'); return; }
+                // Specific HTTP error messages
+                if (res.status === 401) { showGistStatus('TOKEN หมดอายุ ✗', 'text-rose-500'); return; }
+                if (res.status === 403) { showGistStatus('TOKEN ไม่มีสิทธิ์ gist ✗', 'text-rose-500'); return; }
+                if (res.status === 404) { showGistStatus('ไม่พบ Gist ✗', 'text-rose-500'); return; }
+                if (!res.ok) { showGistStatus(`SYNC ERR ${res.status} ✗`, 'text-rose-500'); return; }
+
                 const gist = await res.json();
-                const content = gist.files[GIST_FILENAME]?.content;
-                if (!content) { showGistStatus('NO DATA', 'text-gray-400'); return; }
+
+                // Try GIST_FILENAME first, then any .json file as fallback
+                let content = gist.files?.[GIST_FILENAME]?.content;
+                if (!content) {
+                    const jsonFile = Object.values(gist.files || {}).find(f => f.filename?.endsWith('.json'));
+                    content = jsonFile?.content;
+                }
+                if (!content) { showGistStatus('ไม่มีข้อมูลใน Gist', 'text-gray-400'); return; }
 
                 const data = JSON.parse(content);
+
+                // Support both array format (legacy) and object format
                 if (Array.isArray(data)) {
                     records = data;
-                } else if (data.records) {
-                    records = data.records;
-                    if (data.watchlist) watchlist = data.watchlist;
-                    if (data.meta?.avatar) { db.avatar = data.meta.avatar; setAvatarImage(db.avatar); }
-                    if (data.meta?.dark !== undefined) {
+                } else {
+                    if (Array.isArray(data.records))  records   = data.records;
+                    if (Array.isArray(data.watchlist)) watchlist = data.watchlist;
+                    if (data.meta?.avatar) {
+                        db.avatar = data.meta.avatar;
+                        setAvatarImage(db.avatar);
+                        try { localStorage.setItem('ps_avatar', db.avatar); } catch(e) {}
+                    }
+                    if (typeof data.meta?.dark === 'boolean') {
                         applyDarkMode(data.meta.dark);
                         try { localStorage.setItem('ps_dark', data.meta.dark ? '1' : '0'); } catch(e) {}
                     }
                 }
 
-                try { localStorage.setItem('ps_records', JSON.stringify(records)); } catch(e) {}
+                // Persist everything to localStorage
+                try { localStorage.setItem('ps_records',   JSON.stringify(records));   } catch(e) {}
                 try { localStorage.setItem('ps_watchlist', JSON.stringify(watchlist)); } catch(e) {}
 
+                // Update db-name-display with gist description
                 const dbName = gist.description || GIST_FILENAME;
                 try { localStorage.setItem('ps_dbname', dbName); } catch(e) {}
                 const nameEl = document.getElementById('db-name-display');
-                if (nameEl) nameEl.innerText = dbName;
+                if (nameEl) { nameEl.innerText = dbName; nameEl.style.color = ''; }
 
+                // Reload records tab
                 loadMonth(curMonth);
 
-                // Render watchlist rows from synced data
-                watchlist.forEach(s => {
-                    if (!document.getElementById('wl-row-' + s))
-                        renderWatchlistRow(s, wlDataCache[s] || null);
-                });
+                // Re-render watchlist — clear old rows first to avoid duplicates
+                const tbody = document.getElementById('watchlist-rows');
+                if (tbody) tbody.innerHTML = '';
+                watchlist.forEach(s => renderWatchlistRow(s, wlDataCache[s] || null));
                 checkWlEmpty();
 
+                // Fetch fresh prices if on watchlist tab
+                if (watchlist.length > 0 && getFinnhubKey()) {
+                    setTimeout(() => refreshWatchlist(), 300);
+                    fetchFxRate();
+                }
+
+                _lastManualSyncTime = Date.now();
                 showGistStatus('SYNCED ✓', 'text-emerald-500');
             } catch(e) {
-                showGistStatus('ERROR ✗', 'text-rose-500');
                 console.error('[Gist] syncFromGist error:', e);
+                showGistStatus('ERR: ' + (e.message || 'unknown').slice(0, 22), 'text-rose-500');
             }
         }
 
@@ -3739,12 +3783,16 @@ Analysis guidelines:
 
         // ── Auto-save: debounced Gist sync, 5s after last change ───────────────
         let autoSaveTimer = null;
+        let _lastManualSyncTime = 0; // prevent autoSave from overwriting manual sync status
+
         function scheduleAutoSave() {
             if (!getGistToken() || (records.length === 0 && watchlist.length === 0)) return;
             clearTimeout(autoSaveTimer);
             autoSaveTimer = setTimeout(async () => {
                 const token = getGistToken();
                 if (!token) return;
+                // Don't show status if user just did a manual sync in the last 10s
+                const silent = (Date.now() - _lastManualSyncTime) < 10000;
                 const exportData = {
                     meta: { avatar: db.avatar, dark: document.documentElement.classList.contains('dark') },
                     records,
@@ -3756,9 +3804,9 @@ Analysis guidelines:
                         headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
                         body:    JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(exportData, null, 2) } } })
                     });
-                    showGistStatus(res.ok ? 'AUTO SAVED ✓' : 'SAVE FAILED ✗', res.ok ? 'text-emerald-400' : 'text-rose-500');
+                    if (!silent) showGistStatus(res.ok ? 'AUTO SAVED ✓' : 'SAVE FAILED ✗', res.ok ? 'text-emerald-400' : 'text-rose-500');
                 } catch(e) {
-                    showGistStatus('OFFLINE — saved locally', 'text-amber-400');
+                    if (!silent) showGistStatus('OFFLINE — saved locally', 'text-amber-400');
                 }
             }, 5000);
         }
