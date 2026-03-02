@@ -33,20 +33,26 @@
             --text-primary: #0f2030;
             --text-secondary: #64748b;
             --text-dim: #94a3b8;
+            --qc-up: #00a86b;
+            --qc-dn: #e8274b;
         }
 
         html.dark {
-            --bg-dark: #0f172a;
-            --bg-card: #1e293b;
-            --bg-card2: #162032;
-            --border: #334155;
-            --accent: #14b8a6;
-            --accent2: #0d9488;
-            --danger: #f43f5e;
-            --warning: #f59e0b;
-            --text-primary: #f1f5f9;
-            --text-secondary: #cbd5e1;
-            --text-dim: #64748b;
+            --bg-dark: #0a0f1a;
+            --bg-card: #111827;
+            --bg-card2: #0f1623;
+            --border: #1e2d40;
+            --accent: #00e676;
+            --accent2: #00c853;
+            --danger: #ff1744;
+            --warning: #ffab00;
+            --text-primary: #f0f6ff;
+            --text-secondary: #94a3b8;
+            --text-dim: #475569;
+            --qc-up: #00e676;
+            --qc-dn: #ff1744;
+            --chart-up: #00e676;
+            --chart-dn: #ff1744;
         }
 
         html.dark body {
@@ -379,13 +385,14 @@
             font-size: 13px;
             font-weight: 500;
             font-variant-numeric: tabular-nums;
-            letter-spacing: -0.02em;
+            letter-spacing: 0.03em;
         }
         /* Other numbers — mono, medium weight */
         #watchlist-table .num-cell {
             font-family: var(--font-mono);
             font-weight: 500;
             font-variant-numeric: tabular-nums;
+            letter-spacing: 0.02em;
         }
         #watchlist-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         /* Fixed widths per column index */
@@ -617,15 +624,6 @@
             padding-bottom: 10px;
         }
         
-        /* ── Quick Chart panel price colors ─────────────────────── */
-        :root {
-            --qc-up: #00a86b;
-            --qc-dn: #e8274b;
-        }
-        html.dark {
-            --qc-up: #00e676;
-            --qc-dn: #ff1744;
-        }
         </style>
 </head>
 
@@ -705,7 +703,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r64</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r65</div>
                 </div>
             </div>
             
@@ -1714,7 +1712,7 @@
                     data: {
                         labels: ['Fixed '+pct(fixedAmt)+'%', 'Variable '+pct(dynAmt)+'%', 'Savings '+pct(savingsAmt)+'%'],
                         datasets: [{ data: [fixedAmt, dynAmt, savingsAmt],
-                            backgroundColor: ['#2563eb','#f97316','#10b981'], borderWidth: 0 }]
+                            backgroundColor: isDark ? ['#448aff','#ff6d00','#b388ff'] : ['#2563eb','#f97316','#10b981'], borderWidth: 0 }]
                     },
                     options: {
                         cutout: '78%', maintainAspectRatio: false,
@@ -1731,14 +1729,15 @@
             const displayData = validRecords.slice(-rangeLimit);
             const ctxComp = document.getElementById('compareChart');
             if (ctxComp) {
+                const isDark = document.documentElement.classList.contains('dark');
                 if (compareChart) compareChart.destroy();
                 compareChart = new Chart(ctxComp.getContext('2d'), {
                     type: 'bar',
                     data: {
                         labels: displayData.map(r => r.id),
                         datasets: [
-                            { label:'Income',  data: displayData.map(r => r.payday || 0), backgroundColor:'#10b981', borderRadius:4 },
-                            { label:'Expense', data: displayData.map(r => sumArr(r.fixed)+sumArr(r.dynamic)), backgroundColor:'#ef4444', borderRadius:4 }
+                            { label:'Income',  data: displayData.map(r => r.payday || 0), backgroundColor: isDark ? '#00e676' : '#10b981', borderRadius:4 },
+                            { label:'Expense', data: displayData.map(r => sumArr(r.fixed)+sumArr(r.dynamic)), backgroundColor: isDark ? '#ff1744' : '#ef4444', borderRadius:4 }
                         ]
                     },
                     options: {
@@ -2596,12 +2595,17 @@ priceEl.style.color = price === null ? '' : isUp ? 'var(--qc-up)' : 'var(--qc-dn
                 });
                 const prices = points.map(p => p.c);
                 const isUp = prices[prices.length - 1] >= prices[0];
-                const lineColor = isUp ? '#059669' : '#e11d48';
-                const fillColor = isUp ? 'rgba(5,150,105,0.08)' : 'rgba(225,29,72,0.08)';
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                const lineColor = isUp
+                    ? (isDarkMode ? '#00e676' : '#059669')
+                    : (isDarkMode ? '#ff1744' : '#e11d48');
+                const fillColor = isUp
+                    ? (isDarkMode ? 'rgba(0,230,118,0.10)' : 'rgba(5,150,105,0.08)')
+                    : (isDarkMode ? 'rgba(255,23,68,0.10)'  : 'rgba(225,29,72,0.08)');
 
                 const isDark = document.documentElement.classList.contains('dark');
                 const gridColor  = isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9';
-                const tickColor  = isDark ? '#334155' : '#9ca3af';
+                const tickColor  = isDark ? '#475569' : '#9ca3af';
                 const tooltipBg  = isDark ? '#1e293b' : '#ffffff';
                 const tooltipBdr = isDark ? '#334155' : '#e5e7eb';
                 const tooltipTtl = isDark ? '#64748b' : '#6b7280';
@@ -3531,12 +3535,26 @@ Analysis guidelines:
         }
 
         function updateChartThemes(isDark) {
-            const gridColor  = isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9';
-            const tickColor  = isDark ? '#334155' : '#9ca3af';
-            const tooltipBg  = isDark ? '#1e293b' : '#fff';
-            const tooltipBorder = isDark ? '#334155' : '#e5e7eb';
-            const tooltipTitle  = isDark ? '#64748b' : '#6b7280';
-            const tooltipBody   = isDark ? '#f1f5f9' : '#111827';
+            const gridColor     = isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9';
+            const tickColor     = isDark ? '#475569' : '#9ca3af';
+            const tooltipBg     = isDark ? '#111827' : '#fff';
+            const tooltipBorder = isDark ? '#1e2d40' : '#e5e7eb';
+            const tooltipTitle  = isDark ? '#475569' : '#6b7280';
+            const tooltipBody   = isDark ? '#f0f6ff' : '#111827';
+            const legendColor   = isDark ? '#94a3b8' : '#6b7280';
+
+            // Update compareChart (bar) — income/expense colors
+            if (compareChart?.data?.datasets?.length >= 2) {
+                compareChart.data.datasets[0].backgroundColor = isDark ? '#00e676' : '#10b981';
+                compareChart.data.datasets[1].backgroundColor = isDark ? '#ff1744' : '#ef4444';
+            }
+            // Update distChart (donut) — fixed/variable/savings colors
+            if (distChart?.data?.datasets?.[0]) {
+                distChart.data.datasets[0].backgroundColor = isDark
+                    ? ['#448aff', '#ff6d00', '#b388ff']
+                    : ['#2563eb', '#f97316', '#10b981'];
+            }
+
             [compareChart, distChart].forEach(chart => {
                 if (!chart) return;
                 if (chart.options.scales) {
@@ -3551,9 +3569,16 @@ Analysis guidelines:
                     chart.options.plugins.tooltip.titleColor = tooltipTitle;
                     chart.options.plugins.tooltip.bodyColor = tooltipBody;
                 }
+                if (chart.options.plugins?.legend?.labels) {
+                    chart.options.plugins.legend.labels.color = legendColor;
+                }
                 chart.update('none');
             });
-            if (qcChart) {
+
+            // qcChart (line) — re-open to pick up new lineColor/fillColor
+            if (qcCurrentSymbol) {
+                openQuickChart(qcCurrentSymbol, false);
+            } else if (qcChart) {
                 if (qcChart.options.scales) {
                     Object.values(qcChart.options.scales).forEach(scale => {
                         if (scale.grid) scale.grid.color = gridColor;
