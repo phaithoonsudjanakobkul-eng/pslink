@@ -381,8 +381,7 @@
             font-weight: 500;
             font-variant-numeric: tabular-nums;
         }
-        /* table-layout:fixed — columns never resize when content changes */
-        #watchlist-table { table-layout: fixed; }
+        /* table-layout auto — let colgroup widths guide without forced reflow */
         #watchlist-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         /* Fixed widths per column index */
         #watchlist-table col:nth-child(1)  { width: 32px; }
@@ -645,7 +644,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r31</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r32</div>
                 </div>
             </div>
             
@@ -926,6 +925,16 @@
                             <span class="text-[8px] font-semibold" style="color:var(--text-dim)">THB</span>
                         </div>
                     </div>
+                </div>
+                <!-- ExchangeRate-API key prompt — shows only when key not set -->
+                <div id="erapi-prompt" class="flex items-center gap-1.5 flex-shrink-0" style="display:none!important">
+                    <input id="erapi-inline-input" type="text" placeholder="ExchangeRate-API key..."
+                        class="text-[10px] px-2.5 py-1.5 rounded-lg outline-none"
+                        style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-primary);width:180px;font-family:var(--font-mono)"
+                        onkeydown="if(event.key==='Enter')saveErapiKey()">
+                    <button onclick="saveErapiKey()" class="text-[9px] font-bold px-2.5 py-1.5 rounded-lg uppercase tracking-wide"
+                        style="background:linear-gradient(135deg,#1a73e8,#34a853);color:white">บันทึก</button>
+                    <a href="https://app.exchangerate-api.com" target="_blank" class="text-[8px] underline" style="color:var(--text-dim)">สมัครฟรี</a>
                 </div>
 
                 <!-- AI Chat input — stretches to fill remaining space -->
@@ -1834,6 +1843,21 @@
             const el = document.getElementById('erapi-key-input');
             if (el && stored) el.value = stored;
         }
+        function getErapiKey() { return localStorage.getItem('ps_erapi_key') || ''; }
+        function saveErapiKey() {
+            const el = document.getElementById('erapi-inline-input');
+            const key = el ? el.value.trim() : '';
+            if (!key) return;
+            localStorage.setItem('ps_erapi_key', key);
+            document.getElementById('erapi-prompt').style.setProperty('display','none','important');
+            fetchFxRate();
+        }
+        function checkErapiPrompt() {
+            const el = document.getElementById('erapi-prompt');
+            if (!el) return;
+            if (!getErapiKey()) el.style.removeProperty('display');
+            else el.style.setProperty('display','none','important');
+        }
         function getFinnhubKey() { return localStorage.getItem('ps_finnhub_key') || ''; }
 
         function saveFinnhubKey() {
@@ -2352,14 +2376,16 @@
             const priceColor  = price === null ? 'text-gray-300' : isUp ? 'text-emerald-600' : 'text-rose-500';
             const changeColor = change === null ? 'text-gray-300' : isUp ? 'text-emerald-600' : 'text-rose-500';
             const arrow = isUp ? '▲' : '▼';
+            // Helper: only write className when it actually changes (avoids forced reflow per WS tick)
+            const setClass = (el, cls) => { if (el.className !== cls) el.className = cls; };
+            // Helper: only write text when changed
+            const setText = (el, txt) => { if (el.innerText !== txt) el.innerText = txt; };
             const fmt = v => v !== null ? v.toFixed(2) : '—';
 
             // idx:0=#, 1=symbol, 2=name, 3=price, 4=change, 5=%change, 6=open, 7=prev, 8=high, 9=low
             // 10=52wH, 11=52wL, 12=mktcap, 13=vol, 14=beta, 15=pe, 16=div, 17=delete
-            cells[3].className = `px-3 py-1.5 text-right font-black text-sm ${priceColor}`;
-            cells[3].innerText = price !== null ? '$' + fmt(price) : '—';
-            cells[4].className = `px-3 py-1.5 text-right text-xs ${changeColor} wl-col-hide`;
-            cells[4].innerText = change !== null ? (isUp ? '+' : '') + fmt(change) : '—';
+            setClass(cells[3], `px-3 py-1.5 text-right font-black text-sm ${priceColor}`);
+            setText(cells[3], price !== null ? '$' + fmt(price) : '—');
             cells[5].innerHTML = changePct !== null
                 ? `<span class="inline-block px-2 py-0.5 rounded text-xs ${changeColor} ${isUp ? 'bg-emerald-50' : 'bg-rose-50'}">${arrow} ${Math.abs(changePct).toFixed(2)}%</span>`
                 : '<span class="text-gray-300 text-xs">—</span>';
@@ -3473,7 +3499,7 @@ Analysis guidelines:
             if (!rateEl) return;
 
             const sane = v => typeof v === 'number' && isFinite(v) && v > 28 && v < 45;
-            const ERAPI_KEY = localStorage.getItem('ps_erapi_key') || '';
+            const ERAPI_KEY = getErapiKey();
 
             let usdThb   = null;  // current mid rate
             let prevRate = null;  // yesterday close for real % change
