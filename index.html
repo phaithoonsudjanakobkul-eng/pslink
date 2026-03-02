@@ -658,7 +658,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r59</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r60</div>
                 </div>
             </div>
             
@@ -2200,7 +2200,7 @@
             // idx:0=#, 1=symbol, 2=name, 3=price, 4=change, 5=%change
             // 6=preMkt, 7=open, 8=prev, 9=high, 10=low
             // 11=52wH, 12=52wL, 13=mktcap, 14=vol, 15=beta, 16=pe, 17=div, 18=delete
-            setClass(cells[3], `px-3 py-1.5 text-right font-black text-sm ${priceColor}`);
+            setClass(cells[3], `px-3 py-1.5 text-right price-cell text-sm ${priceColor}`);
             setText(cells[3], price !== null ? '$' + fmt(price) : '—');
         }
 
@@ -3878,10 +3878,11 @@ Analysis guidelines:
             document.getElementById('monthInput').value = curMonth;
             const savedTab = localStorage.getItem('ps_tab') || 'dashboard';
             showTab(savedTab, false, true);
-            loadMonth(curMonth);
+            loadMonth(curMonth); // sets isLoading=true then false — must complete before WL render
 
             if (getGistToken()) {
-                // Step 1: Render from localStorage cache INSTANTLY — user sees data immediately
+                // Step 1: Render from localStorage cache AFTER loadMonth (isLoading=false now)
+                // This prevents skeleton class being applied to cached rows
                 if (savedTab === 'watchlist' && watchlist.length > 0) {
                     watchlist.forEach(sym => {
                         if (!document.getElementById('wl-row-' + sym))
