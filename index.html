@@ -644,7 +644,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r33</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r34</div>
                 </div>
             </div>
             
@@ -683,6 +683,21 @@
                         Upload
                     </button>
                 </div>
+                <!-- Divider -->
+                <div class="w-px h-5" style="background:var(--border)"></div>
+                <!-- Settings Button -->
+                <button onclick="openSettingsModal()" title="API Keys & Settings"
+                    class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
+                    style="color:var(--text-dim);font-family:var(--font-main);border:1px solid transparent"
+                    onmouseover="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'"
+                    onmouseout="this.style.borderColor='transparent';this.style.color='var(--text-dim)'">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Settings
+                </button>
                 <!-- Divider -->
                 <div class="w-px h-5" style="background:var(--border)"></div>
                 <!-- Dark Mode Toggle -->
@@ -2314,30 +2329,40 @@
                 }
             });
 
-            // Auto-retry failed symbols once after 3s (handles Finnhub 429 rate limit)
+            // Auto-retry failed symbols with 3-stage backoff (handles Finnhub 429)
             if (failedSymbols.length > 0) {
-                setTimeout(async () => {
-                    await throttledAll(failedSymbols, 2, async (symbol) => {
+                const retryWithBackoff = async (symbols, attempt, delay) => {
+                    if (symbols.length === 0 || attempt > 3) return;
+                    await new Promise(r => setTimeout(r, delay));
+                    const stillFailed = [];
+                    await throttledAll(symbols, 2, async (symbol) => {
                         try {
                             const data = await fetchQuote(symbol);
                             if (data?.logo) preloadLogo(data.logo);
                             renderWatchlistRow(symbol, data);
                         } catch(e) {
-                            // If still fails, mark row as error state (not blank skeleton)
-                            const row = document.getElementById('wl-row-' + symbol);
-                            if (row) {
-                                const cells = row.querySelectorAll('.is-skeleton');
-                                cells.forEach(c => {
-                                    c.classList.remove('is-skeleton');
-                                    c.style.background = '';
-                                    c.style.borderRadius = '';
-                                    c.style.color = 'var(--text-dim)';
-                                    c.innerText = '—';
-                                });
-                            }
+                            stillFailed.push(symbol);
                         }
                     });
-                }, 3000);
+                    if (stillFailed.length > 0 && attempt < 3) {
+                        await retryWithBackoff(stillFailed, attempt + 1, delay * 2);
+                    } else if (stillFailed.length > 0) {
+                        // Final attempt failed — clear skeleton, show dash
+                        stillFailed.forEach(symbol => {
+                            const row = document.getElementById('wl-row-' + symbol);
+                            if (!row) return;
+                            row.querySelectorAll('td').forEach(td => {
+                                if (td.style.background || td.classList.contains('is-skeleton')) {
+                                    td.style.background = '';
+                                    td.style.borderRadius = '';
+                                    td.style.color = 'var(--text-dim)';
+                                    if (!td.innerText.trim()) td.innerText = '—';
+                                }
+                            });
+                        });
+                    }
+                };
+                retryWithBackoff(failedSymbols, 1, 3000); // 3s → 6s → 12s
             };
 
             // Phase B: symbols with cached profile → quote-only refresh
@@ -3639,6 +3664,85 @@ Analysis guidelines:
             fxPrevRateInv = buyRate;
         }
 
+        // --- Settings Modal ---
+        function openSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            modal.classList.remove('hidden');
+            // Pre-fill all saved keys
+            const fill = (inputId, storageKey) => {
+                const el = document.getElementById(inputId);
+                if (el) el.value = localStorage.getItem(storageKey) || '';
+            };
+            fill('s-finnhub-input',    'ps_finnhub_key');
+            fill('s-erapi-input',      'ps_erapi_key');
+            fill('s-openrouter-input', 'ps_openrouter_key');
+            fill('s-gist-input',       'ps_gist_token');
+            // Update status badges
+            updateSettingsBadges();
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function updateSettingsBadges() {
+            const badge = (id, storageKey) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const has = !!localStorage.getItem(storageKey);
+                el.textContent = has ? '✓ บันทึกแล้ว' : 'ยังไม่ได้ใส่';
+                el.style.background = has ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)';
+                el.style.color = has ? '#10b981' : '#64748b';
+            };
+            badge('s-finnhub-badge',    'ps_finnhub_key');
+            badge('s-erapi-badge',      'ps_erapi_key');
+            badge('s-openrouter-badge', 'ps_openrouter_key');
+            badge('s-gist-badge',       'ps_gist_token');
+        }
+
+        function saveAllSettings() {
+            const save = (inputId, storageKey, validator) => {
+                const el = document.getElementById(inputId);
+                if (!el) return;
+                const val = el.value.trim();
+                if (val) {
+                    if (!validator || validator(val)) {
+                        localStorage.setItem(storageKey, val);
+                    }
+                }
+            };
+            save('s-finnhub-input',    'ps_finnhub_key');
+            save('s-erapi-input',      'ps_erapi_key');
+            save('s-openrouter-input', 'ps_openrouter_key', v => v.startsWith('sk-or-'));
+            save('s-gist-input',       'ps_gist_token');
+
+            closeSettingsModal();
+
+            // Trigger refresh with new keys
+            const hasNewFinnhub = !!localStorage.getItem('ps_finnhub_key');
+            if (hasNewFinnhub) {
+                refreshWatchlist();
+                updateAiStatus();
+            }
+            fetchFxRate();
+        }
+
+        function clearAllSettings() {
+            if (!confirm('ล้าง API keys ทั้งหมดใช่ไหม?')) return;
+            ['ps_finnhub_key','ps_erapi_key','ps_openrouter_key','ps_gist_token'].forEach(k => localStorage.removeItem(k));
+            ['s-finnhub-input','s-erapi-input','s-openrouter-input','s-gist-input'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            updateSettingsBadges();
+        }
+
+        function toggleVisibility(inputId) {
+            const el = document.getElementById(inputId);
+            if (!el) return;
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+
         // --- Dark Mode ---
         function toggleDarkMode() {
             const isDark = document.documentElement.classList.toggle('dark');
@@ -3888,5 +3992,169 @@ Analysis guidelines:
         </div>
     </div>
 
+
+    <!-- ── Settings Modal ──────────────────────────────────────────────── -->
+    <div id="settings-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4">
+        <div class="fixed inset-0" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)"
+            onclick="closeSettingsModal()"></div>
+        <div class="relative z-10 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
+            style="background:var(--bg-main);border:1px solid var(--border)">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b" style="border-color:var(--border)">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#0f2030,#1e3a5f)">
+                        <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-black" style="color:var(--text-primary);font-family:var(--font-main)">Settings</h2>
+                        <p class="text-[10px]" style="color:var(--text-dim)">API Keys จะถูกเก็บเฉพาะใน browser ของคุณเท่านั้น</p>
+                    </div>
+                </div>
+                <button onclick="closeSettingsModal()" class="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                    style="color:var(--text-dim);background:var(--bg-card2)"
+                    onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-dim)'">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="px-6 py-5 space-y-5 overflow-y-auto" style="max-height:70vh">
+
+                <!-- Finnhub -->
+                <div class="rounded-xl p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#0f9d58">
+                                <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold" style="color:var(--text-primary)">Finnhub</p>
+                                <p class="text-[10px]" style="color:var(--text-dim)">ราคาหุ้น real-time · finnhub.io</p>
+                            </div>
+                        </div>
+                        <span id="s-finnhub-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="s-finnhub-input" type="password" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx"
+                            class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
+                            onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-finnhub-input')" class="px-2.5 rounded-lg text-[10px]"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    </div>
+                    <p class="text-[9px] mt-2" style="color:var(--text-dim)">
+                        สมัครฟรีที่ <a href="https://finnhub.io" target="_blank" class="underline" style="color:#0f9d58">finnhub.io</a>
+                        · 60 req/min · ไม่ต้องผูกบัตร
+                    </p>
+                </div>
+
+                <!-- ExchangeRate-API -->
+                <div class="rounded-xl p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#1a73e8">
+                                <span class="text-white text-[10px] font-black">FX</span>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold" style="color:var(--text-primary)">ExchangeRate-API</p>
+                                <p class="text-[10px]" style="color:var(--text-dim)">อัตราแลกเปลี่ยน USD/THB · exchangerate-api.com</p>
+                            </div>
+                        </div>
+                        <span id="s-erapi-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="s-erapi-input" type="password" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx"
+                            class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
+                            onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-erapi-input')" class="px-2.5 rounded-lg text-[10px]"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    </div>
+                    <p class="text-[9px] mt-2" style="color:var(--text-dim)">
+                        สมัครฟรีที่ <a href="https://app.exchangerate-api.com" target="_blank" class="underline" style="color:#1a73e8">app.exchangerate-api.com</a>
+                        · 1,500 req/month · ฟรีตลอดชีพ
+                    </p>
+                </div>
+
+                <!-- OpenRouter AI -->
+                <div class="rounded-xl p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+                                <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold" style="color:var(--text-primary)">OpenRouter AI</p>
+                                <p class="text-[10px]" style="color:var(--text-dim)">AI Stock Analyst · openrouter.ai</p>
+                            </div>
+                        </div>
+                        <span id="s-openrouter-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="s-openrouter-input" type="password" placeholder="sk-or-v1-..."
+                            class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
+                            onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-openrouter-input')" class="px-2.5 rounded-lg text-[10px]"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    </div>
+                    <p class="text-[9px] mt-2" style="color:var(--text-dim)">
+                        สมัครฟรีที่ <a href="https://openrouter.ai" target="_blank" class="underline" style="color:#6366f1">openrouter.ai</a>
+                        → API Keys → Create Key · ต้องขึ้นต้นด้วย <strong>sk-or-v1-</strong>
+                    </p>
+                </div>
+
+                <!-- GitHub Gist Sync -->
+                <div class="rounded-xl p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#24292e">
+                                <svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold" style="color:var(--text-primary)">GitHub Gist Sync</p>
+                                <p class="text-[10px]" style="color:var(--text-dim)">สำรองข้อมูลอัตโนมัติ · github.com</p>
+                            </div>
+                        </div>
+                        <span id="s-gist-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="s-gist-input" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                            class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
+                            onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-gist-input')" class="px-2.5 rounded-lg text-[10px]"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    </div>
+                    <p class="text-[9px] mt-2" style="color:var(--text-dim)">
+                        GitHub → Settings → Developer settings → Personal access tokens (Classic) · เลือก scope: <strong>gist</strong>
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between px-6 py-4 border-t" style="border-color:var(--border)">
+                <button onclick="clearAllSettings()" class="text-[10px] font-bold px-3 py-2 rounded-lg uppercase tracking-wider transition-all"
+                    style="color:var(--text-dim);background:var(--bg-card2);border:1px solid var(--border)"
+                    onmouseover="this.style.color='#f43f5e'" onmouseout="this.style.color='var(--text-dim)'">
+                    ล้างทั้งหมด
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeSettingsModal()" class="text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider"
+                        style="color:var(--text-dim);background:var(--bg-card2);border:1px solid var(--border)">ยกเลิก</button>
+                    <button onclick="saveAllSettings()" class="text-[10px] font-bold px-5 py-2 rounded-lg uppercase tracking-wider text-white transition-all active:scale-95"
+                        style="background:linear-gradient(135deg,#0d9488,#0891b2)">
+                        บันทึกทั้งหมด
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
