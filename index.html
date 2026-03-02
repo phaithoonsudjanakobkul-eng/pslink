@@ -658,7 +658,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r57</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r58</div>
                 </div>
             </div>
             
@@ -3672,21 +3672,35 @@ Analysis guidelines:
                 // Reload records tab
                 loadMonth(curMonth);
 
-                // Re-render watchlist — clear old rows first to avoid duplicates
-                const tbody = document.getElementById('watchlist-rows');
-                if (tbody) tbody.innerHTML = '';
-                watchlist.forEach(sym => {
-                    try { renderWatchlistRow(sym, wlDataCache[sym] || null); } catch(e) {
-                        console.warn('[Gist] renderWatchlistRow failed for', sym, e.message);
-                    }
-                });
-                checkWlEmpty();
+                if (isInitialLoad) {
+                    // Rows already pre-rendered from localStorage cache in window.onload
+                    // Just add any NEW symbols that came from Gist but weren't in cache
+                    watchlist.forEach(sym => {
+                        if (!document.getElementById('wl-row-' + sym)) {
+                            try { renderWatchlistRow(sym, wlDataCache[sym] || null); } catch(e) {}
+                        }
+                    });
+                    // Remove rows for symbols no longer in watchlist (e.g. deleted on another device)
+                    document.querySelectorAll('[id^="wl-row-"]').forEach(row => {
+                        const sym = row.id.replace('wl-row-', '');
+                        if (!watchlist.includes(sym)) row.remove();
+                    });
+                    checkWlEmpty();
+                } else {
+                    // Manual sync — clear and re-render completely
+                    const tbody = document.getElementById('watchlist-rows');
+                    if (tbody) tbody.innerHTML = '';
+                    watchlist.forEach(sym => {
+                        try { renderWatchlistRow(sym, wlDataCache[sym] || null); } catch(e) {
+                            console.warn('[Gist] renderWatchlistRow failed for', sym, e.message);
+                        }
+                    });
+                    checkWlEmpty();
+                }
 
-                // Fetch fresh prices — single refreshWatchlist() call
-                // isInitialLoad: called from window.onload, rows just rendered above — refresh immediately
-                // manual sync: called by user pressing SYNC — refresh after short delay so UI settles
+                // Single refreshWatchlist call — fetch live prices
                 if (watchlist.length > 0 && getFinnhubKey()) {
-                    setTimeout(() => refreshWatchlist(), isInitialLoad ? 100 : 300);
+                    setTimeout(() => refreshWatchlist(), 300);
                     fetchFxRate();
                 }
 
@@ -3860,9 +3874,17 @@ Analysis guidelines:
             loadMonth(curMonth);
 
             if (getGistToken()) {
-                // Don't pre-render here — syncFromGist() will render rows and call refreshWatchlist()
-                // Pre-rendering then clearing in syncFromGist causes a visible double-refresh
-                syncFromGist(true); // isInitialLoad=true
+                // Step 1: Render from localStorage cache INSTANTLY — user sees data immediately
+                if (savedTab === 'watchlist' && watchlist.length > 0) {
+                    watchlist.forEach(sym => {
+                        if (!document.getElementById('wl-row-' + sym))
+                            renderWatchlistRow(sym, wlDataCache[sym] || null);
+                    });
+                    checkWlEmpty();
+                    fetchFxRate();
+                }
+                // Step 2: Sync from Gist in background — updates data, then refreshWatchlist once
+                syncFromGist(true); // isInitialLoad=true → skips re-render, just refreshes prices
             } else {
                 if (savedTab === 'watchlist' && watchlist.length > 0) {
                     watchlist.forEach(s => {
