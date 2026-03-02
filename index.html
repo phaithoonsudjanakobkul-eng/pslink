@@ -644,7 +644,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r42</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r43</div>
                 </div>
             </div>
             
@@ -3564,10 +3564,26 @@ Analysis guidelines:
             fhWsSubscribed.clear();
         }
 
+        function isUSDST(date) {
+            // US DST: starts 2nd Sunday March, ends 1st Sunday November
+            const y = date.getUTCFullYear();
+            let sc=0, dstStart;
+            for(let d=1;d<=31;d++){const dd=new Date(Date.UTC(y,2,d));if(dd.getUTCDay()===0&&++sc===2){dstStart=dd;break;}}
+            let dstEnd;
+            for(let d=1;d<=30;d++){const dd=new Date(Date.UTC(y,10,d));if(dd.getUTCDay()===0){dstEnd=dd;break;}}
+            const s=dstStart.getTime()+7*3600*1000; // 2am ET standard → 7am UTC
+            const e=dstEnd.getTime()  +6*3600*1000; // 2am ET DST → 6am UTC
+            return date.getTime()>=s && date.getTime()<e;
+        }
         function isMarketOpen() {
             const now = new Date();
-            const bkkTotal = ((now.getUTCHours() + 7) % 24) * 60 + now.getUTCMinutes();
-            return bkkTotal >= 21 * 60 + 30 || bkkTotal < 3 * 60;
+            const day = now.getUTCDay(); // 0=Sun,6=Sat
+            if (day===0||day===6) return false;
+            const utcMins = now.getUTCHours()*60+now.getUTCMinutes();
+            const dst  = isUSDST(now);
+            const open  = dst ? 13*60+30 : 14*60+30; // 9:30 ET in UTC
+            const close = dst ? 20*60    : 21*60;     // 16:00 ET in UTC
+            return utcMins>=open && utcMins<close;
         }
 
         function updateMarketStatus(isLive = false) {
