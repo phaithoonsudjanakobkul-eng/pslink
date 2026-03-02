@@ -638,7 +638,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r51</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r55</div>
                 </div>
             </div>
             
@@ -1293,6 +1293,7 @@
             let val = parseFloat(document.getElementById(hiddenId).value) || 0;
             el.value = val > 0 ? formatNumber(val) : "";
             saveAndCalc();
+            scheduleAutoSave(true); // immediate — user left the payday field
         }
 
         const sumArr     = (arr) => arr ? arr.reduce((s, i) => s + (parseFloat(i.val) || parseFloat(i.amount) || 0), 0) : 0;
@@ -1332,6 +1333,7 @@
             }
             if (t !== 'watchlist') disconnectFinnhubWs(); // save API quota when not viewing
             if (save) try { localStorage.setItem('ps_tab', t); } catch(e) {}
+            scheduleAutoSave(true); // flush any pending save immediately on tab switch
         }
 
         function stepMonth(delta) {
@@ -1357,14 +1359,14 @@
                 <div id="${id}" class="flex gap-2 items-center group p-1 rounded-xl transition-colors ${isPaid ? 'row-paid' : ''}">
                     <input type="checkbox" onchange="togglePaidStatus('${id}', this.checked)" ${isPaid ? 'checked' : ''}
                         class="w-5 h-5 rounded-md border-gray-200 text-blue-600 focus:ring-blue-500 cursor-pointer">
-                    <input type="text" value="${name}" oninput="saveAndCalc()" placeholder="รายการ..."
+                    <input type="text" value="${name}" oninput="saveAndCalc()" onblur="scheduleAutoSave(true)" placeholder="รายการ..."
                         class="flex-grow bg-white border border-gray-100 rounded-xl px-4 py-2 text-sm font-medium outline-none shadow-sm focus:border-blue-300 transition-all">
                     <div class="relative w-40 flex-shrink-0">
-                        <input type="text" value="${displayVal}" oninput="handleCurrencyInput(this, '${hiddenId}')"
+                        <input type="text" value="${displayVal}" oninput="handleCurrencyInput(this, '${hiddenId}')" onblur="scheduleAutoSave(true)"
                             placeholder="0.00" class="w-full bg-white border border-gray-100 rounded-xl px-4 py-2 text-right text-sm font-semibold outline-none shadow-sm focus:border-blue-300 transition-all">
                         <input type="hidden" id="${hiddenId}" value="${val}">
                     </div>
-                    <button onclick="document.getElementById('${id}').remove(); saveAndCalc();"
+                    <button onclick="document.getElementById('${id}').remove(); saveAndCalc(); scheduleAutoSave(true);"
                         class="text-gray-200 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1390,6 +1392,7 @@
                 row.querySelectorAll('input[type=text]').forEach(inp => inp.style.textDecoration = '');
             }
             saveAndCalc();
+            scheduleAutoSave(true); // immediate — checkbox is a discrete completed action
         }
 
         function getListItems(type) {
@@ -1486,24 +1489,25 @@
                 togglePaidStatus(cb.closest('[id^="row-"]')?.id, !allChecked);
             });
             btn.textContent = allChecked ? 'Uncheck All' : 'Check All';
+            scheduleAutoSave(true); // immediate — all checkboxes toggled
         }
 
         function checkSafetyLock(monthId) {
-            const [y, m] = (monthId || curMonth).split('-').map(Number);
-            const cutoff = new Date();
-            cutoff.setMonth(cutoff.getMonth() - 3);
-            const isLocked = new Date(y, m - 1, 1) < cutoff;
+            const id = monthId || curMonth;
+            // ล็อคทุกเดือนที่ไม่ใช่เดือนปัจจุบัน
+            const now = new Date();
+            const thisMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            const isLocked = id !== thisMonth;
 
-            // Support both button IDs (clear-btn is the current HTML id)
             const clearBtn = document.getElementById('clear-btn') || document.getElementById('clear-month-btn');
             const lockTip  = document.getElementById('lock-tooltip');
             if (clearBtn) {
                 clearBtn.disabled = isLocked;
-                clearBtn.title = isLocked ? 'ล็อคอยู่: เดือนที่ผ่านมาเกิน 3 เดือนไม่สามารถแก้ไขได้' : '';
+                clearBtn.title = isLocked ? 'ล็อคอยู่: แก้ไขได้เฉพาะเดือนปัจจุบันเท่านั้น' : '';
             }
             if (lockTip) lockTip.style.display = isLocked ? '' : 'none';
 
-            // Lock all editable inputs in the records form
+            // Lock / unlock all editable fields
             const editables = [
                 ...document.querySelectorAll('#fixed-list input, #dynamic-list input'),
                 document.getElementById('paydayDisplay'),
@@ -1514,7 +1518,6 @@
                 el.style.opacity = isLocked ? '0.5' : '';
                 el.style.cursor  = isLocked ? 'not-allowed' : '';
             });
-            // Lock Add buttons
             document.querySelectorAll('[onclick*="addInput"], [onclick*="toggleCheckAll"]').forEach(btn => {
                 btn.disabled = isLocked;
                 btn.style.opacity = isLocked ? '0.4' : '';
@@ -1716,7 +1719,7 @@
 
         function saveWatchlist() {
             try { localStorage.setItem('ps_watchlist', JSON.stringify(watchlist)); } catch(e) {}
-            scheduleAutoSave();
+            scheduleAutoSave(true); // immediate — user explicitly changed watchlist
         }
 
         function preloadLogo(url) {
@@ -3511,7 +3514,7 @@ Analysis guidelines:
                 db.avatar = ev.target.result;
                 setAvatarImage(db.avatar);
                 try { localStorage.setItem('ps_avatar', db.avatar); } catch(e) {}
-                scheduleAutoSave();
+                scheduleAutoSave(true); // immediate — avatar upload is a one-shot action
             };
             reader.readAsDataURL(file);
         }
@@ -3788,11 +3791,10 @@ Analysis guidelines:
         // ── Clear/Reset month ─────────────────────────────────────────────────
         // ── requestClear / clearMonth / executeClear ──────────────────────────
         function requestClear() {
-            // Re-verify lock before showing confirm modal
-            const [y, m] = curMonth.split('-').map(Number);
-            const cutoff = new Date();
-            cutoff.setMonth(cutoff.getMonth() - 3);
-            if (new Date(y, m - 1, 1) < cutoff) return;
+            // Only allow clearing the current month
+            const now = new Date();
+            const thisMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            if (curMonth !== thisMonth) return;
             const nameEl = document.getElementById('modal-month-name');
             if (nameEl) nameEl.innerText = curMonth;
             document.getElementById('confirm-modal').classList.remove('hidden');
@@ -3809,7 +3811,7 @@ Analysis guidelines:
             try { localStorage.setItem('ps_records', JSON.stringify(records)); } catch(e) {}
             closeModal();
             loadMonth(curMonth);
-            scheduleAutoSave();
+            scheduleAutoSave(true); // immediate — month cleared
         }
 
         window.onload = () => {
@@ -3899,44 +3901,80 @@ Analysis guidelines:
             updateAiStatus();
         };
 
-        // ── Auto-save: debounced Gist sync, 5s after last change ───────────────
-        let autoSaveTimer = null;
-        let _lastManualSyncTime = 0; // prevent autoSave from overwriting manual sync status
+        // ── Auto-save: 2-tier smart sync ──────────────────────────────────────
+        // Tier 1: scheduleAutoSave(immediate=false) — debounce 1.5s (called while typing)
+        // Tier 2: scheduleAutoSave(immediate=true)  — flush now    (called on blur/tab switch/checkbox)
+        let autoSaveTimer   = null;
+        let _isSaving       = false;   // prevent concurrent PATCH requests
+        let _pendingSave    = false;   // flag: another save requested while one was in-flight
+        let _lastSavedHash  = '';
+        let _lastManualSyncTime = 0;
 
-        function scheduleAutoSave() {
-            if (!getGistToken() || (records.length === 0 && watchlist.length === 0)) return;
-            clearTimeout(autoSaveTimer);
-            autoSaveTimer = setTimeout(async () => {
-                const token = getGistToken();
-                if (!token) return;
-                // Don't show status if user just did a manual sync in the last 10s
-                const silent = (Date.now() - _lastManualSyncTime) < 10000;
-                const exportData = {
-                    meta: { avatar: db.avatar, dark: document.documentElement.classList.contains('dark') },
-                    records,
-                    watchlist
-                };
-                try {
-                    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-                        method:  'PATCH',
-                        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
-                        body:    JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(exportData, null, 2) } } })
-                    });
-                    if (!silent) showGistStatus(res.ok ? 'AUTO SAVED ✓' : 'SAVE FAILED ✗', res.ok ? 'text-emerald-400' : 'text-rose-500');
-                } catch(e) {
-                    if (!silent) showGistStatus('OFFLINE — saved locally', 'text-amber-400');
+        async function _pushToGist(silent = false) {
+            if (!getGistToken()) return;
+            if (_isSaving) { _pendingSave = true; return; } // queue it
+            const hash = _dataHash();
+            if (hash === _lastSavedHash) return; // nothing changed — skip
+            _isSaving = true;
+            const token = getGistToken();
+            const exportData = {
+                meta: { avatar: db.avatar, dark: document.documentElement.classList.contains('dark') },
+                records,
+                watchlist
+            };
+            try {
+                const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                    method:  'PATCH',
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(exportData, null, 2) } } })
+                });
+                if (res.ok) {
+                    _lastSavedHash = hash; // only update hash on confirmed success
+                    if (!silent) showGistStatus('AUTO SAVED ✓', 'text-emerald-400');
+                } else {
+                    if (!silent) showGistStatus('SAVE FAILED ✗', 'text-rose-500');
                 }
-            }, 5000);
+            } catch(e) {
+                if (!silent) showGistStatus('OFFLINE — saved locally', 'text-amber-400');
+            } finally {
+                _isSaving = false;
+                if (_pendingSave) {         // flush the queued save
+                    _pendingSave = false;
+                    await _pushToGist(true);
+                }
+            }
         }
 
-        // ── Periodic safety-net: sync every 30s only if data changed ──────────
-        let lastSavedHash = '';
+        function scheduleAutoSave(immediate = false) {
+            if (!getGistToken()) return;
+            clearTimeout(autoSaveTimer);
+            if (immediate) {
+                autoSaveTimer = null;
+                _pushToGist((Date.now() - _lastManualSyncTime) < 10000);
+            } else {
+                // Debounce 1.5s — waits for user to pause typing
+                autoSaveTimer = setTimeout(() => {
+                    autoSaveTimer = null;
+                    _pushToGist((Date.now() - _lastManualSyncTime) < 10000);
+                }, 1500);
+            }
+        }
+
+        // ── Periodic safety-net: sync every 30s if data changed but wasn't saved ─
+        // Uses _lastSavedHash from _pushToGist — only fires if something slipped through
+        function _dataHash() {
+            const rHash = records.map(r =>
+                r.id + '|' + r.payday + '|' +
+                (r.fixed  ||[]).map(x=>(x.name||'')+(x.val||x.amount||0)+(x.isPaid?1:0)).join(',') + '|' +
+                (r.dynamic||[]).map(x=>(x.name||'')+(x.val||x.amount||0)+(x.isPaid?1:0)).join(',')
+            ).join(';');
+            return rHash + '::wl:' + watchlist.join(',');
+        }
         setInterval(() => {
-            if (!getGistToken() || (records.length === 0 && watchlist.length === 0)) return;
-            const hash = JSON.stringify({ r: records.length, w: watchlist.length });
-            if (hash === lastSavedHash) return;
-            lastSavedHash = hash;
-            scheduleAutoSave();
+            if (!getGistToken()) return;
+            const hash = _dataHash();
+            if (hash === _lastSavedHash) return; // already saved — skip
+            _pushToGist(true); // silent catch-all
         }, 30 * 1000);
 
         // ── Save on tab close / navigate away ─────────────────────────────────
@@ -3950,6 +3988,16 @@ Analysis guidelines:
                     body: JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(exportData, null, 2) } } }),
                     keepalive: true
                 });
+            }
+        });
+
+        // ── Flush pending auto-save immediately when tab becomes visible again ─
+        // (browsers throttle setTimeout in background tabs — this ensures data
+        //  saved while tab was hidden gets pushed to Gist as soon as user returns)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                // Flush any pending save immediately when user returns to the page
+                scheduleAutoSave(true);
             }
         });
     </script>
