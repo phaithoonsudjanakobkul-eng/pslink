@@ -638,7 +638,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r48</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r49</div>
                 </div>
             </div>
             
@@ -1686,12 +1686,38 @@
 
         // ── Watchlist ────────────────────────────────────────────────────────
         let watchlist = [];
-        const wlDataCache = {};
+        let isWlRefreshing = false;
+        const wlDataCache   = {};
+        const logoCache     = {}; // preloaded logo URLs — avoids re-fetching on every render
         const quoteTsCache = {};
 
         function saveWatchlist() {
             try { localStorage.setItem('ps_watchlist', JSON.stringify(watchlist)); } catch(e) {}
             scheduleAutoSave();
+        }
+
+        function preloadLogo(url) {
+            if (!url || logoCache[url]) return;
+            const img = new Image();
+            img.src = url;
+            logoCache[url] = true;
+        }
+
+        function saveWlCache() {
+            try {
+                const payload = { wl: wlDataCache, profile: profileCache, ts: Date.now() };
+                localStorage.setItem('ps_wl_cache', JSON.stringify(payload));
+            } catch(e) {}
+        }
+
+        function loadWlCache() {
+            try {
+                const raw = localStorage.getItem('ps_wl_cache');
+                if (!raw) return;
+                const payload = JSON.parse(raw);
+                Object.assign(wlDataCache,   payload.wl      || {});
+                Object.assign(profileCache,  payload.profile || {});
+            } catch(e) {}
         }
 
         function checkWlEmpty() {
@@ -1731,6 +1757,52 @@
         let wlDragSrc = null;
 
         function renderWatchlistRow(symbol, data, remove = false) {
+            const existing = document.getElementById('wl-row-' + symbol);
+            if (remove) { if (existing) existing.remove(); delete wlDataCache[symbol]; checkWlEmpty(); return; }
+            if (data) wlDataCache[symbol] = data;
+            const d = data || wlDataCache[symbol] || null;
+
+            const price     = d?.c    ?? null;
+            const change    = d?.d    ?? null;
+            const changePct = d?.dp   ?? null;
+            const open      = d?.o    ?? null;
+            const prevClose = d?.pc   ?? null;
+            const high      = d?.h    ?? null;
+            const low       = d?.l    ?? null;
+            const name      = d?.name ?? '';
+            const type      = d?.type ?? '';
+            const logo      = d?.logo ?? '';
+
+            const isUp        = changePct !== null ? changePct >= 0 : change !== null ? change >= 0 : true;
+            const priceColor  = price   === null ? 'text-gray-300' : isUp ? 'text-emerald-600' : 'text-rose-500';
+            const changeColor = change  === null ? 'text-gray-300' : isUp ? 'text-emerald-600' : 'text-rose-500';
+            const openColor   = open    === null ? ''              : open >= (prevClose ?? open) ? 'text-emerald-600' : 'text-rose-500';
+            const highColor   = 'text-emerald-600';
+            const lowColor    = 'text-rose-500';
+            const arrow       = isUp ? '▲' : '▼';
+            const idx         = watchlist.indexOf(symbol) + 1;
+
+            const typeBadge = type === 'ETF'
+                ? `<span class="text-[8px] font-black px-1.5 py-0.5 rounded bg-purple-50 text-purple-500 ml-1">ETF</span>`
+                : '';
+            const logoHtml = logo
+                ? `<img src="${logo}" loading="eager" decoding="sync" class="w-6 h-6 rounded-full object-contain bg-white border flex-shrink-0" style="border-color:var(--border)" onerror="this.style.display='none'">`
+                : `<div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0"><span class="text-[8px] font-black text-gray-400">${symbol.slice(0,2)}</span></div>`;
+            const fmt = (v) => v !== null ? v.toFixed(2) : '—';
+
+            // Skeleton shimmer for loading state
+            const sk = (w) => d ? null : `<span class="is-skeleton inline-block rounded" style="width:${w}px;height:12px;background:var(--bg-card2)"></span>`;
+
+            // Pre-market data
+            const prePrice   = d?.preMarketPrice     ?? null;
+            const prePct     = d?.preMarketChangePct ?? null;
+            const preIsUp    = prePct !== null ? prePct >= 0 : true;
+            const preMktHtml = prePrice !== null
+                ? `<div class="flex flex-col items-end gap-0.5">
+                     <span class="text-[10px] num-cell ${preIsUp ? 'text-emerald-500' : 'text-rose-400'}">${preIsUp ? '+' : ''}${prePct?.toFixed(2) ?? '—'}%</span>
+                     <span class="text-[9px]" style="color:var(--text-dim)">$${fmt(prePrice)}</span>
+                   </div>`
+                : (d ? '<span style="color:var(--text-dim)" class="text-xs">—</span>' : (sk(56) ?? ''));
 
             const html = `
                 <tr id="wl-row-${symbol}" draggable="true" ${isLoading ? 'class="is-skeleton"' : ''}
@@ -3506,10 +3578,20 @@ Analysis guidelines:
                 const gist = await res.json();
 
                 // Try GIST_FILENAME first, then any .json file as fallback
-                let content = gist.files?.[GIST_FILENAME]?.content;
-                if (!content) {
-                    const jsonFile = Object.values(gist.files || {}).find(f => f.filename?.endsWith('.json'));
-                    content = jsonFile?.content;
+                let fileObj = gist.files?.[GIST_FILENAME];
+                if (!fileObj) {
+                    fileObj = Object.values(gist.files || {}).find(f => f.filename?.endsWith('.json'));
+                }
+                if (!fileObj) { showGistStatus('ไม่มีข้อมูลใน Gist', 'text-gray-400'); return; }
+
+                // Handle GitHub's truncation for large files (> 1MB) — must fetch raw_url
+                let content = fileObj.content;
+                if (fileObj.truncated && fileObj.raw_url) {
+                    const rawRes = await fetch(fileObj.raw_url, {
+                        headers: { 'Authorization': `token ${token}` }
+                    });
+                    if (!rawRes.ok) { showGistStatus(`RAW ERR ${rawRes.status} ✗`, 'text-rose-500'); return; }
+                    content = await rawRes.text();
                 }
                 if (!content) { showGistStatus('ไม่มีข้อมูลใน Gist', 'text-gray-400'); return; }
 
@@ -3709,6 +3791,7 @@ Analysis guidelines:
                 if (savedName) document.getElementById('db-name-display').innerText = savedName;
                 const savedWl = localStorage.getItem('ps_watchlist');
                 if (savedWl) watchlist = JSON.parse(savedWl);
+                loadWlCache(); // restore price/profile cache for instant display
             } catch(e) {}
             const savedMonth = localStorage.getItem('ps_month');
             if (savedMonth) curMonth = savedMonth;
