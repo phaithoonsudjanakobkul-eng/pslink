@@ -3399,6 +3399,258 @@ Analysis guidelines:
             }
         }
 
+        // ── Avatar ────────────────────────────────────────────────────────────
+        function setAvatarImage(src) {
+            const img = document.getElementById('avatarImg');
+            const ph  = document.getElementById('avatarPlaceholder');
+            if (!img) return;
+            img.src = src;
+            img.style.display = 'block';
+            if (ph) ph.style.display = 'none';
+        }
+
+        function handleAvatar(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                db.avatar = ev.target.result;
+                setAvatarImage(db.avatar);
+                try { localStorage.setItem('ps_avatar', db.avatar); } catch(e) {}
+                scheduleAutoSave();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ── GitHub Gist Sync ──────────────────────────────────────────────────
+        const GIST_ID       = '5f913baf7d6636bf42da5e5d07a1570c';
+        const GIST_FILENAME = 'PS-Smart-Finance.json';
+
+        function getGistToken() { return localStorage.getItem('ps_gist_token') || ''; }
+
+        function saveGistToken() {
+            const token = document.getElementById('gist-token-input').value.trim();
+            if (!token) return;
+            localStorage.setItem('ps_gist_token', token);
+            document.getElementById('gist-modal').classList.add('hidden');
+            syncFromGist();
+        }
+
+        let gistStatusTimer = null;
+        function showGistStatus(msg, color = 'text-gray-400') {
+            const el = document.getElementById('db-name-display');
+            if (!el) return;
+            if (gistStatusTimer) clearTimeout(gistStatusTimer);
+            el.className = `text-[10px] font-bold uppercase tracking-widest leading-none ${color}`;
+            el.innerText = msg;
+            // Auto-restore after 2.5s (only for non-loading messages)
+            if (!msg.endsWith('...')) {
+                gistStatusTimer = setTimeout(() => {
+                    el.className = 'text-[10px] font-bold uppercase tracking-widest leading-none';
+                    el.style.color = 'var(--text-dim)';
+                    el.innerText = localStorage.getItem('ps_dbname') || 'Ready';
+                }, 2500);
+            }
+        }
+
+        async function syncToGist() {
+            const token = getGistToken();
+            if (!token) { document.getElementById('gist-modal').classList.remove('hidden'); return; }
+            showGistStatus('SAVING...', 'text-blue-500');
+            try {
+                const exportData = {
+                    meta: { avatar: db.avatar, dark: document.documentElement.classList.contains('dark') },
+                    records, watchlist
+                };
+                const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                    method:  'PATCH',
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(exportData, null, 2) } } })
+                });
+                showGistStatus(res.ok ? 'SAVED ✓' : 'SAVE FAILED ✗', res.ok ? 'text-emerald-500' : 'text-rose-500');
+            } catch(e) { showGistStatus('ERROR ✗', 'text-rose-500'); }
+        }
+
+        async function syncFromGist(isInitialLoad = false) {
+            const token = getGistToken();
+            if (!token) { document.getElementById('gist-modal').classList.remove('hidden'); return; }
+            showGistStatus('SYNCING...', 'text-blue-500');
+            try {
+                const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                if (!res.ok) { showGistStatus('SYNC FAILED ✗', 'text-rose-500'); return; }
+                const gist = await res.json();
+                const content = gist.files[GIST_FILENAME]?.content;
+                if (!content) { showGistStatus('NO DATA', 'text-gray-400'); return; }
+
+                const data = JSON.parse(content);
+                if (Array.isArray(data)) {
+                    records = data;
+                } else if (data.records) {
+                    records = data.records;
+                    if (data.watchlist) watchlist = data.watchlist;
+                    if (data.meta?.avatar) { db.avatar = data.meta.avatar; setAvatarImage(db.avatar); }
+                    if (data.meta?.dark !== undefined) {
+                        applyDarkMode(data.meta.dark);
+                        try { localStorage.setItem('ps_dark', data.meta.dark ? '1' : '0'); } catch(e) {}
+                    }
+                }
+
+                try { localStorage.setItem('ps_records', JSON.stringify(records)); } catch(e) {}
+                try { localStorage.setItem('ps_watchlist', JSON.stringify(watchlist)); } catch(e) {}
+
+                const dbName = gist.description || GIST_FILENAME;
+                try { localStorage.setItem('ps_dbname', dbName); } catch(e) {}
+                const nameEl = document.getElementById('db-name-display');
+                if (nameEl) nameEl.innerText = dbName;
+
+                loadMonth(curMonth);
+
+                // Render watchlist rows from synced data
+                watchlist.forEach(s => {
+                    if (!document.getElementById('wl-row-' + s))
+                        renderWatchlistRow(s, wlDataCache[s] || null);
+                });
+                checkWlEmpty();
+
+                showGistStatus('SYNCED ✓', 'text-emerald-500');
+            } catch(e) {
+                showGistStatus('ERROR ✗', 'text-rose-500');
+                console.error('[Gist] syncFromGist error:', e);
+            }
+        }
+
+        // ── Import / Export JSON ──────────────────────────────────────────────
+        function exportJSON() {
+            const exportData = {
+                meta: { avatar: db.avatar, dark: document.documentElement.classList.contains('dark') },
+                records, watchlist
+            };
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = `ps-finance-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (Array.isArray(data)) {
+                        records = data;
+                    } else if (data.records) {
+                        records = data.records;
+                        if (data.watchlist) watchlist = data.watchlist;
+                        if (data.meta?.avatar) { db.avatar = data.meta.avatar; setAvatarImage(db.avatar); }
+                    } else {
+                        alert('ไฟล์ไม่ถูกต้อง'); return;
+                    }
+                    try { localStorage.setItem('ps_records', JSON.stringify(records)); } catch(e) {}
+                    try { localStorage.setItem('ps_watchlist', JSON.stringify(watchlist)); } catch(e) {}
+                    loadMonth(curMonth);
+                    checkWlEmpty();
+                    showGistStatus('IMPORTED ✓', 'text-emerald-500');
+                } catch(err) { alert('อ่านไฟล์ไม่ได้: ' + err.message); }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        }
+
+        // ── Settings Modal ────────────────────────────────────────────────────
+        function getFinnhubKey() { return localStorage.getItem('ps_finnhub_key') || ''; }
+        function getErapiKey()   { return localStorage.getItem('ps_erapi_key')   || ''; }
+
+        function openSettingsModal() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            const fill = (inputId, key) => {
+                const el = document.getElementById(inputId);
+                if (el) el.value = localStorage.getItem(key) || '';
+            };
+            fill('s-finnhub-input',    'ps_finnhub_key');
+            fill('s-erapi-input',      'ps_erapi_key');
+            fill('s-openrouter-input', 'ps_openrouter_key');
+            fill('s-gist-input',       'ps_gist_token');
+            updateSettingsBadges();
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function updateSettingsBadges() {
+            const badge = (id, key) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const has = !!localStorage.getItem(key);
+                el.textContent     = has ? '✓ บันทึกแล้ว' : 'ยังไม่ได้ใส่';
+                el.style.background = has ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)';
+                el.style.color      = has ? '#10b981' : '#64748b';
+            };
+            badge('s-finnhub-badge',    'ps_finnhub_key');
+            badge('s-erapi-badge',      'ps_erapi_key');
+            badge('s-openrouter-badge', 'ps_openrouter_key');
+            badge('s-gist-badge',       'ps_gist_token');
+        }
+
+        function saveAllSettings() {
+            const save = (inputId, storageKey, validator) => {
+                const el  = document.getElementById(inputId);
+                if (!el) return;
+                const val = el.value.trim();
+                if (val && (!validator || validator(val)))
+                    localStorage.setItem(storageKey, val);
+            };
+            save('s-finnhub-input',    'ps_finnhub_key');
+            save('s-erapi-input',      'ps_erapi_key');
+            save('s-openrouter-input', 'ps_openrouter_key', v => v.startsWith('sk-or-'));
+            save('s-gist-input',       'ps_gist_token');
+            closeSettingsModal();
+            // Trigger refresh with new keys
+            if (getFinnhubKey()) { refreshWatchlist(); updateAiStatus(); }
+            fetchFxRate();
+        }
+
+        function clearAllSettings() {
+            if (!confirm('ล้าง API keys ทั้งหมดใช่ไหม?')) return;
+            ['ps_finnhub_key','ps_erapi_key','ps_openrouter_key','ps_gist_token'].forEach(k => localStorage.removeItem(k));
+            ['s-finnhub-input','s-erapi-input','s-openrouter-input','s-gist-input'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            updateSettingsBadges();
+        }
+
+        function toggleVisibility(inputId) {
+            const el = document.getElementById(inputId);
+            if (!el) return;
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+
+        // ── Clear/Reset month ─────────────────────────────────────────────────
+        function clearMonth() {
+            document.getElementById('modal-month-name').innerText = curMonth;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+        }
+
+        function executeClear() {
+            records = records.filter(r => r.id !== curMonth);
+            try { localStorage.setItem('ps_records', JSON.stringify(records)); } catch(e) {}
+            closeModal();
+            loadMonth(curMonth);
+            scheduleAutoSave();
+        }
+
         window.onload = () => {
             // Apply dark mode immediately before render
             const savedDark = localStorage.getItem('ps_dark');
