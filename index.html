@@ -644,7 +644,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r41</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r42</div>
                 </div>
             </div>
             
@@ -917,7 +917,7 @@
                     <div class="flex items-center gap-2 flex-shrink-0">
                         <h3 class="font-black text-sm uppercase tracking-tight" style="color:var(--text-primary);font-family:var(--font-main)">Watchlist</h3>
                         <span id="wl-last-update" class="text-[9px] font-bold uppercase tracking-widest" style="color:var(--text-dim);min-width:68px;display:inline-block"></span>
-                        <span id="wl-market-status" class="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest" style="min-width:44px;text-align:center"></span>
+                        <span id="wl-market-status" class="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest" style="width:88px;text-align:center;flex-shrink:0;display:inline-block"></span>
                     </div>
 
                     <!-- FX Widget — fixed size cards, no flex-grow -->
@@ -926,7 +926,7 @@
                         <div class="flex flex-col justify-center px-2.5 py-1 rounded-xl border"
                             style="background:var(--bg-card2);border-color:var(--border);height:34px;width:148px;overflow:hidden;flex-shrink:0;white-space:nowrap">
                             <div class="flex items-center gap-1">
-                                <span class="text-[8px] font-semibold leading-none" style="color:var(--text-dim)">🇺🇸→🇹🇭 USD→THB</span>
+                                <span class="text-[8px] font-semibold leading-none" style="color:var(--text-dim)">us→ท USD→THB</span>
                                 <span id="fx-src-badge" class="text-[7px] font-bold px-1 rounded" style="background:rgba(16,185,129,0.15);color:#10b981;display:none"></span>
                             </div>
                             <div class="flex items-baseline gap-1 mt-0.5" style="overflow:hidden">
@@ -939,7 +939,8 @@
                         <div class="flex flex-col justify-center px-2.5 py-1 rounded-xl border"
                             style="background:var(--bg-card2);border-color:var(--border);height:34px;width:148px;overflow:hidden;flex-shrink:0;white-space:nowrap">
                             <div class="flex items-center gap-1">
-                                <span class="text-[8px] font-semibold leading-none" style="color:var(--text-dim)">🇹🇭→🇺🇸 THB→USD</span>
+                                <span class="text-[8px] font-semibold leading-none" style="color:var(--text-dim)">ท→us THB→USD</span>
+                                <span id="fx-src-badge2" class="text-[7px] font-bold px-1 rounded" style="background:rgba(16,185,129,0.15);color:#10b981;display:none"></span>
                             </div>
                             <div class="flex items-baseline gap-1 mt-0.5" style="overflow:hidden">
                                 <span id="fx-change-inv" class="text-[9px] font-bold flex-shrink-0" style="color:#22c55e;font-family:var(--font-mono)">↑ 0.00%</span>
@@ -3579,11 +3580,11 @@ Analysis guidelines:
                 el.style.background = 'rgba(5,150,105,0.15)';
                 el.style.color = '#059669';
             } else if (open) {
-                el.textContent = '● MARKET OPEN';
+                el.textContent = '● OPEN';
                 el.style.background = 'rgba(234,179,8,0.15)';
                 el.style.color = '#ca8a04';
             } else {
-                el.textContent = '● MARKET CLOSED';
+                el.textContent = '● CLOSED';
                 el.style.background = 'rgba(100,116,139,0.15)';
                 el.style.color = '#64748b';
             }
@@ -3598,150 +3599,148 @@ Analysis guidelines:
 
             const sane = v => typeof v === 'number' && isFinite(v) && v > 28 && v < 45;
 
-            // ── Spread constants ─────────────────────────────────────────
-            // ExchangeRate-API gives mid-market rate (e.g. 31.06)
-            // Dime! shows Thai retail selling rate (~31.33) → spread ≈ +0.87%
-            // USD→THB: mid × 1.0087  (retail selling, "ขาย 1 USD ได้กี่บาท")
-            // THB→USD: mid × 1.0087 × 1.004  (retail buying, "ซื้อ 1 USD ใช้กี่บาท")
-            const SELL_SPREAD = 1.0077;  // ~0.24 THB on 31.06 base → 31.30
-            const BUY_SPREAD  = 1.0077 * 1.004; // THB→USD side → ~31.46
+            // Retail spread constants (mid-market → Thai retail bank rate)
+            // ERAPI/Finnhub give mid-market; Thai banks add ~0.77% sell spread
+            const SELL_SPREAD = 1.0077;
+            const BUY_SPREAD  = 1.0077 * 1.004;
 
-            rateEl.textContent    = '...';
-            rateInvEl.textContent = '...';
+            let midRate = null;
+            let prevMid = null;
+            let src = '';
 
-            let midRate  = null;
-            let prevMid  = null;  // yesterday mid for % change
-            let src      = '';
+            const fKey     = getFinnhubKey();
+            const erapiKey = getErapiKey();
 
-            // ── Source 1: ExchangeRate-API v6 (hourly updates) ───────────
-            const ERAPI_KEY = getErapiKey();
-            if (ERAPI_KEY) {
+            // ── Source 1: Finnhub OANDA — realtime interbank (~15s updates) ──
+            // Best for intraday movement. j.c = current, j.pc = prev close
+            if (fKey) {
                 try {
-                    const url = `https://v6.exchangerate-api.com/v6/${ERAPI_KEY}/latest/USD?_=${Date.now()}`;
-                    const r = await fetch(url, { cache: 'no-store' });
+                    const r = await fetch(
+                        `https://finnhub.io/api/v1/quote?symbol=OANDA:USD_THB&token=${fKey}&_=${Date.now()}`,
+                        { cache: 'no-store' }
+                    );
                     if (r.ok) {
                         const j = await r.json();
-                        if (j.result === 'error') {
-                            console.warn('[FX] ERAPI error:', j['error-type']);
-                            rateEl.title = 'ERAPI error: ' + j['error-type'];
-                        } else if (sane(j.conversion_rates?.THB)) {
-                            midRate = j.conversion_rates.THB;
-                            src = 'ExchangeRate-API';
-                            console.log('[FX] ERAPI mid:', midRate.toFixed(4));
-                        }
-                    } else {
-                        console.warn('[FX] ERAPI HTTP', r.status);
+                        if (sane(j.c))  { midRate = j.c;  src = 'Finnhub'; }
+                        if (sane(j.pc)) { prevMid = j.pc; }
+                        console.log('[FX] Finnhub mid:', j.c?.toFixed(4), 'prev:', j.pc?.toFixed(4));
                     }
-                } catch(e) {
-                    console.warn('[FX] ERAPI fetch error:', e.message);
+                } catch(e) { console.warn('[FX] Finnhub err:', e.message); }
+            }
+
+            // ── Source 2: ERAPI — use for yesterday close (more accurate % change) ──
+            // Free tier updates once/day but history endpoint gives exact yesterday close
+            if (erapiKey) {
+                if (!midRate) {
+                    // Use as current rate only if Finnhub failed
+                    try {
+                        const r = await fetch(
+                            `https://v6.exchangerate-api.com/v6/${erapiKey}/latest/USD?_=${Date.now()}`,
+                            { cache: 'no-store' }
+                        );
+                        if (r.ok) {
+                            const j = await r.json();
+                            if (j.result === 'error') {
+                                console.warn('[FX] ERAPI error:', j['error-type']);
+                            } else if (sane(j.conversion_rates?.THB)) {
+                                midRate = j.conversion_rates.THB;
+                                src = 'ExchangeRate-API';
+                                console.log('[FX] ERAPI mid:', midRate?.toFixed(4));
+                            }
+                        }
+                    } catch(e) { console.warn('[FX] ERAPI err:', e.message); }
                 }
 
-                // Yesterday rate → real % change
-                if (midRate) {
+                // Always try to get yesterday close from ERAPI for accurate % change
+                if (!prevMid) {
                     try {
                         const d = new Date();
                         d.setDate(d.getDate() - 1);
                         const yr = d.getFullYear(), mo = d.getMonth()+1, dy = d.getDate();
                         const r2 = await fetch(
-                            `https://v6.exchangerate-api.com/v6/${ERAPI_KEY}/history/USD/${yr}/${mo}/${dy}`,
+                            `https://v6.exchangerate-api.com/v6/${erapiKey}/history/USD/${yr}/${mo}/${dy}`,
                             { cache: 'no-store' }
                         );
                         if (r2.ok) {
                             const j2 = await r2.json();
                             if (sane(j2.conversion_rates?.THB)) {
                                 prevMid = j2.conversion_rates.THB;
-                                console.log('[FX] ERAPI yesterday mid:', prevMid.toFixed(4));
+                                console.log('[FX] ERAPI yesterday mid:', prevMid?.toFixed(4));
                             }
                         }
                     } catch(e) {}
                 }
             }
 
-            // ── Source 2: Finnhub OANDA (realtime interbank + prev_close) ─
-            if (!midRate) {
-                const fKey = getFinnhubKey();
-                if (fKey) {
-                    try {
-                        const r = await fetch(
-                            `https://finnhub.io/api/v1/quote?symbol=OANDA:USD_THB&token=${fKey}&_=${Date.now()}`,
-                            { cache: 'no-store' }
-                        );
-                        if (r.ok) {
-                            const j = await r.json();
-                            if (sane(j.c))  { midRate = j.c;  src = 'Finnhub'; }
-                            if (sane(j.pc)) { prevMid = j.pc; }
-                            console.log('[FX] Finnhub mid:', j.c, 'prev:', j.pc);
-                        }
-                    } catch(e) {}
-                }
-            }
-
-            // ── Source 3: Frankfurter ECB (daily fallback) ───────────────
+            // ── Source 3: ECB fallback ────────────────────────────────────────
             if (!midRate) {
                 try {
                     const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=THB', { cache: 'no-store' });
                     if (r.ok) {
                         const j = await r.json();
-                        if (sane(j.rates?.THB)) {
-                            midRate = j.rates.THB;
-                            src = 'ECB';
-                            console.log('[FX] ECB mid:', midRate.toFixed(4));
-                        }
+                        if (sane(j.rates?.THB)) { midRate = j.rates.THB; src = 'ECB'; }
                     }
                 } catch(e) {}
             }
 
-            // ── No rate available ─────────────────────────────────────────
             if (!midRate) {
-                const noKey = !ERAPI_KEY && !getFinnhubKey();
+                const noKey = !fKey && !erapiKey;
                 rateEl.textContent    = noKey ? 'ใส่ Key' : '— THB';
                 rateInvEl.textContent = noKey ? 'Settings' : '— THB';
                 rateEl.style.fontSize = noKey ? '9px' : '';
                 rateInvEl.style.fontSize = noKey ? '9px' : '';
-                const b = document.getElementById('fx-src-badge');
-                if (b) { b.textContent='no src'; b.style.display='inline'; b.style.background='rgba(244,63,94,0.15)'; b.style.color='#f43f5e'; }
                 return;
             }
 
-            // ── Apply retail spread ───────────────────────────────────────
-            // sellRate = "ขาย 1 USD ได้กี่บาท" → mid × SELL_SPREAD ≈ Dime USD→THB
-            // buyRate  = "ซื้อ 1 USD ต้องใช้กี่บาท" → slightly higher than sell
+            // ── Apply retail spread ───────────────────────────────────────────
             const sellRate = midRate * SELL_SPREAD;
             const buyRate  = midRate * BUY_SPREAD;
-            console.log('[FX] Display → USD→THB:', sellRate.toFixed(4), '| THB→USD:', buyRate.toFixed(4), '| src:', src);
+            console.log('[FX] sell:', sellRate.toFixed(4), 'buy:', buyRate.toFixed(4), '['+src+']');
 
             rateEl.textContent    = sellRate.toFixed(4) + ' THB';
             rateInvEl.textContent = buyRate.toFixed(4)  + ' THB';
             rateEl.style.fontSize = '';
             rateInvEl.style.fontSize = '';
 
-            const ts = new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-            rateEl.title    = `mid: ${midRate.toFixed(4)} × ${SELL_SPREAD} = ${sellRate.toFixed(4)} THB · [${src}] ${ts}`;
-            rateInvEl.title = `mid: ${midRate.toFixed(4)} × ${BUY_SPREAD.toFixed(5)} = ${buyRate.toFixed(4)} THB · [${src}] ${ts}`;
+            const ts = new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+            rateEl.title    = `mid ${midRate.toFixed(4)} × ${SELL_SPREAD} = ${sellRate.toFixed(4)} · [${src}] ${ts}`;
+            rateInvEl.title = `mid ${midRate.toFixed(4)} × ${BUY_SPREAD.toFixed(5)} = ${buyRate.toFixed(4)} · [${src}] ${ts}`;
 
-            const srcBadge = document.getElementById('fx-src-badge');
-            if (srcBadge) {
-                srcBadge.textContent = src;
-                srcBadge.style.display = 'inline';
-                srcBadge.style.background = src === 'ExchangeRate-API' ? 'rgba(16,185,129,0.2)' : 'rgba(100,116,139,0.2)';
-                srcBadge.style.color = src === 'ExchangeRate-API' ? '#10b981' : '#94a3b8';
-            }
+            // Source badge on both cards
+            const badge1 = document.getElementById('fx-src-badge');
+            const badge2 = document.getElementById('fx-src-badge2');
+            const badgeColor = src === 'Finnhub' ? '#22c55e' : src === 'ExchangeRate-API' ? '#10b981' : '#94a3b8';
+            const badgeBg    = src === 'Finnhub' ? 'rgba(34,197,94,0.15)' : src === 'ExchangeRate-API' ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)';
+            const badgeLabel = src === 'Finnhub' ? 'LIVE' : src === 'ExchangeRate-API' ? 'ERAPI' : 'ECB';
+            [badge1, badge2].forEach(b => {
+                if (!b) return;
+                b.textContent = badgeLabel;
+                b.style.display = 'inline';
+                b.style.background = badgeBg;
+                b.style.color = badgeColor;
+            });
 
-            // ── % Change vs yesterday ─────────────────────────────────────
-            const prevSell = prevMid ? prevMid * SELL_SPREAD : fxPrevRate;
-            const prevBuy  = prevMid ? prevMid * BUY_SPREAD  : fxPrevRateInv;
+            // ── % change vs yesterday close ────────────────────────────────────
+            // Use prevMid (from Finnhub j.pc or ERAPI yesterday) for real daily change
+            const baseMid = prevMid ?? (fxPrevRate ? fxPrevRate / SELL_SPREAD : null);
 
             const fmtChg = (curr, base, el) => {
                 if (!base || !sane(base)) {
-                    el.textContent = '↗ 0.00%'; el.style.color = '#94a3b8'; return;
+                    // No base yet — show neutral
+                    el.textContent = '↗ 0.00%';
+                    el.style.color = '#94a3b8';
+                    return;
                 }
                 const diff = curr - base;
                 const pct  = Math.abs((diff / base) * 100).toFixed(2);
-                const isUp = diff >  0.001;
-                const isDn = diff < -0.001;
-                el.textContent = `${isUp ? '↗' : isDn ? '↘' : '↗'} ${pct}%`;
+                const isUp = diff >  0.0005;
+                const isDn = diff < -0.0005;
+                el.textContent = `${isDn ? '↘' : '↗'} ${pct}%`;
                 el.style.color = isDn ? '#f43f5e' : '#22c55e';
             };
+
+            const prevSell = baseMid ? baseMid * SELL_SPREAD : null;
+            const prevBuy  = baseMid ? baseMid * BUY_SPREAD  : null;
 
             fmtChg(sellRate, prevSell, changeEl);
             fmtChg(buyRate,  prevBuy,  changeInvEl);
@@ -3843,8 +3842,22 @@ Analysis guidelines:
             // FX rate: refresh every 30s (API updates ~every 60s, 30s keeps it feeling live)
             setInterval(() => {
                 const wlVisible = !document.getElementById('tab-watchlist').classList.contains('hidden');
-                if (wlVisible) fetchFxRate();
-            }, 60 * 1000);
+                if (!wlVisible) return;
+                // Poll fast during market hours (Finnhub OANDA ~15s), slow otherwise
+                fetchFxRate();
+            }, isMarketOpen() ? 15000 : 60000);
+
+            // Re-register fast interval when market opens
+            let _fxIntervalFast = false;
+            setInterval(() => {
+                const wlVisible = !document.getElementById('tab-watchlist').classList.contains('hidden');
+                if (!wlVisible) return;
+                const shouldBeFast = isMarketOpen();
+                if (shouldBeFast !== _fxIntervalFast) {
+                    _fxIntervalFast = shouldBeFast;
+                    fetchFxRate(); // trigger immediately on market open/close
+                }
+            }, 30000);
 
             // Fallback polling every 1 min — only when WebSocket is NOT connected and market is open
             setInterval(() => {
