@@ -638,7 +638,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r49</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r50</div>
                 </div>
             </div>
             
@@ -1866,16 +1866,15 @@
 
             if (existing) {
                 if (existing.classList.contains('is-skeleton') || isLoading) {
-                    existing.outerHTML = html; // replace skeleton with real row
+                    existing.outerHTML = html;
                 }
-                // non-skeleton existing row already handled above (updateWatchlistPriceCells)
             } else {
-                document.getElementById('wl-empty').classList.add('hidden');
-                document.getElementById('watchlist-rows').insertAdjacentHTML('beforeend', html);
+                const emptyEl = document.getElementById('wl-empty');
+                const rowsEl  = document.getElementById('watchlist-rows');
+                if (emptyEl) emptyEl.classList.add('hidden');
+                if (rowsEl)  rowsEl.insertAdjacentHTML('beforeend', html);
             }
         }
-
-        // --- Drag & Drop ---
         let dragSrc = null;
 
         function onDragStart(e, symbol) {
@@ -3630,7 +3629,11 @@ Analysis guidelines:
                 // Re-render watchlist — clear old rows first to avoid duplicates
                 const tbody = document.getElementById('watchlist-rows');
                 if (tbody) tbody.innerHTML = '';
-                watchlist.forEach(s => renderWatchlistRow(s, wlDataCache[s] || null));
+                watchlist.forEach(sym => {
+                    try { renderWatchlistRow(sym, wlDataCache[sym] || null); } catch(e) {
+                        console.warn('[Gist] renderWatchlistRow failed for', sym, e.message);
+                    }
+                });
                 checkWlEmpty();
 
                 // Fetch fresh prices if on watchlist tab
