@@ -638,7 +638,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r50</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r51</div>
                 </div>
             </div>
             
@@ -1489,16 +1489,39 @@
         }
 
         function checkSafetyLock(monthId) {
-            // Lock editing for months older than 3 months
-            const [y, m] = monthId.split('-').map(Number);
-            const monthDate = new Date(y, m - 1, 1);
+            const [y, m] = (monthId || curMonth).split('-').map(Number);
             const cutoff = new Date();
             cutoff.setMonth(cutoff.getMonth() - 3);
-            const isLocked = monthDate < cutoff;
-            const clearBtn  = document.getElementById('clear-month-btn');
-            const lockTip   = document.getElementById('lock-tooltip');
-            if (clearBtn)  clearBtn.disabled = isLocked;
-            if (lockTip)   lockTip.style.display = isLocked ? '' : 'none';
+            const isLocked = new Date(y, m - 1, 1) < cutoff;
+
+            // Support both button IDs (clear-btn is the current HTML id)
+            const clearBtn = document.getElementById('clear-btn') || document.getElementById('clear-month-btn');
+            const lockTip  = document.getElementById('lock-tooltip');
+            if (clearBtn) {
+                clearBtn.disabled = isLocked;
+                clearBtn.title = isLocked ? 'ล็อคอยู่: เดือนที่ผ่านมาเกิน 3 เดือนไม่สามารถแก้ไขได้' : '';
+            }
+            if (lockTip) lockTip.style.display = isLocked ? '' : 'none';
+
+            // Lock all editable inputs in the records form
+            const editables = [
+                ...document.querySelectorAll('#fixed-list input, #dynamic-list input'),
+                document.getElementById('paydayDisplay'),
+                document.getElementById('paydayVal'),
+            ].filter(Boolean);
+            editables.forEach(el => {
+                el.disabled = isLocked;
+                el.style.opacity = isLocked ? '0.5' : '';
+                el.style.cursor  = isLocked ? 'not-allowed' : '';
+            });
+            // Lock Add buttons
+            document.querySelectorAll('[onclick*="addInput"], [onclick*="toggleCheckAll"]').forEach(btn => {
+                btn.disabled = isLocked;
+                btn.style.opacity = isLocked ? '0.4' : '';
+                btn.style.pointerEvents = isLocked ? 'none' : '';
+            });
+
+            return isLocked;
         }
 
         function loadMonth(m) {
@@ -3763,10 +3786,19 @@ Analysis guidelines:
         }
 
         // ── Clear/Reset month ─────────────────────────────────────────────────
-        function clearMonth() {
-            document.getElementById('modal-month-name').innerText = curMonth;
+        // ── requestClear / clearMonth / executeClear ──────────────────────────
+        function requestClear() {
+            // Re-verify lock before showing confirm modal
+            const [y, m] = curMonth.split('-').map(Number);
+            const cutoff = new Date();
+            cutoff.setMonth(cutoff.getMonth() - 3);
+            if (new Date(y, m - 1, 1) < cutoff) return;
+            const nameEl = document.getElementById('modal-month-name');
+            if (nameEl) nameEl.innerText = curMonth;
             document.getElementById('confirm-modal').classList.remove('hidden');
         }
+
+        function clearMonth() { requestClear(); }
 
         function closeModal() {
             document.getElementById('confirm-modal').classList.add('hidden');
