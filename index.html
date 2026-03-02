@@ -658,7 +658,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r58</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r59</div>
                 </div>
             </div>
             
@@ -1353,7 +1353,7 @@
             }
             if (t !== 'watchlist') disconnectFinnhubWs(); // save API quota when not viewing
             if (save) try { localStorage.setItem('ps_tab', t); } catch(e) {}
-            scheduleAutoSave(true); // flush any pending save immediately on tab switch
+            if (save) scheduleAutoSave(true); // flush pending save on tab switch (not on initial load)
         }
 
         function stepMonth(delta) {
@@ -3610,6 +3610,7 @@ Analysis guidelines:
             const token = getGistToken();
             if (!token) { document.getElementById('gist-modal').classList.remove('hidden'); return; }
             showGistStatus('SYNCING...', 'text-blue-500');
+            _isSyncing = true;
             try {
                 const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
                     headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
@@ -3705,10 +3706,16 @@ Analysis guidelines:
                 }
 
                 _lastManualSyncTime = Date.now();
+                // Update _lastSavedHash so _pushToGist won't immediately re-upload what we just synced
+                _lastSavedHash = _dataHash();
                 showGistStatus('SYNCED ✓', 'text-emerald-500');
             } catch(e) {
                 console.error('[Gist] syncFromGist error:', e);
                 showGistStatus('ERR: ' + (e.message || 'unknown').slice(0, 22), 'text-rose-500');
+            } finally {
+                _isSyncing = false;
+                // Flush any save that was queued while syncing
+                if (_pendingSave) { _pendingSave = false; /* let natural triggers handle it */ }
             }
         }
 
@@ -3945,13 +3952,15 @@ Analysis guidelines:
         // Tier 2: scheduleAutoSave(immediate=true)  — flush now    (called on blur/tab switch/checkbox)
         let autoSaveTimer   = null;
         let _isSaving       = false;   // prevent concurrent PATCH requests
+        let _isSyncing      = false;   // true while syncFromGist is running — blocks _pushToGist
         let _pendingSave    = false;   // flag: another save requested while one was in-flight
         let _lastSavedHash  = '';
         let _lastManualSyncTime = 0;
 
         async function _pushToGist(silent = false) {
             if (!getGistToken()) return;
-            if (_isSaving) { _pendingSave = true; return; } // queue it
+            if (_isSyncing) { _pendingSave = true; return; } // syncFromGist in progress — queue
+            if (_isSaving)  { _pendingSave = true; return; } // another PATCH in-flight — queue
             const hash = _dataHash();
             if (hash === _lastSavedHash) return; // nothing changed — skip
             _isSaving = true;
