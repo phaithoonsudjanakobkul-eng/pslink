@@ -644,7 +644,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r35</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.02-r36</div>
                 </div>
             </div>
             
@@ -922,6 +922,7 @@
                     <div class="flex flex-col justify-center px-2.5 py-1.5 rounded-xl border" style="background:var(--bg-card2);border-color:var(--border);height:36px;min-width:105px">
                         <div class="flex items-center gap-1">
                             <span class="text-[8px] font-semibold leading-none" style="color:var(--text-dim)">🇺🇸→🇹🇭 USD→THB</span>
+                            <span id="fx-src-badge" class="text-[7px] font-bold px-1 rounded" style="background:rgba(16,185,129,0.15);color:#10b981;display:none"></span>
                         </div>
                         <div class="flex items-baseline gap-1.5 mt-0.5">
                             <span id="fx-change" class="text-[9px] font-bold" style="color:#22c55e;font-family:var(--font-mono)">↑ 0.00%</span>
@@ -1291,6 +1292,10 @@
 
                 // Step 2: Reconnect WS immediately (so LIVE status shows fast)
                 if (isMarketOpen()) {
+                    // Force close stale WS (CLOSING=2, CLOSED=3) before reconnecting
+                    if (fhWs && fhWs.readyState >= 2) {
+                        fhWs = null;
+                    }
                     connectFinnhubWs();
                 }
                 updateMarketStatus();
@@ -3450,7 +3455,7 @@ Analysis guidelines:
         function connectFinnhubWs() {
             const key = getFinnhubKey();
             if (!key || watchlist.length === 0) return;
-            if (fhWs && fhWs.readyState <= 1) return;
+            if (fhWs && (fhWs.readyState === 0 || fhWs.readyState === 1)) return; // 0=CONNECTING, 1=OPEN only
 
             fhWs = new WebSocket(`wss://ws.finnhub.io?token=${key}`);
 
@@ -3643,7 +3648,14 @@ Analysis guidelines:
             }
 
             if (!usdThb) {
-                rateEl.textContent = '— THB'; rateInvEl.textContent = '— THB'; return;
+                const noKey = !ERAPI_KEY && !getFinnhubKey();
+                rateEl.textContent    = noKey ? 'ใส่ Key' : '— THB';
+                rateInvEl.textContent = noKey ? 'Settings' : '— THB';
+                rateEl.style.fontSize = noKey ? '9px' : '';
+                rateInvEl.style.fontSize = noKey ? '9px' : '';
+                const srcBadge = document.getElementById('fx-src-badge');
+                if (srcBadge) { srcBadge.textContent = 'no src'; srcBadge.style.display='inline'; srcBadge.style.background='rgba(244,63,94,0.15)'; srcBadge.style.color='#f43f5e'; }
+                return;
             }
 
             // ── Calculate both display rates ──────────────────────────────
@@ -3657,6 +3669,14 @@ Analysis guidelines:
             const ts = new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
             rateEl.title    = `ขาย 1 USD ได้ ${sellRate} THB · [${src}] อัปเดต ${ts}`;
             rateInvEl.title = `ซื้อ 1 USD ใช้ ${buyRate} THB · spread 0.4% · [${src}] อัปเดต ${ts}`;
+            // Show source badge
+            const srcBadge = document.getElementById('fx-src-badge');
+            if (srcBadge) {
+                srcBadge.textContent = src;
+                srcBadge.style.display = 'inline';
+                srcBadge.style.background = src === 'ExchangeRate-API' ? 'rgba(16,185,129,0.2)' : 'rgba(100,116,139,0.2)';
+                srcBadge.style.color = src === 'ExchangeRate-API' ? '#10b981' : '#94a3b8';
+            }
 
             // ── % Change vs yesterday ─────────────────────────────────────
             const baseSell = prevRate ?? fxPrevRate;
