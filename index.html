@@ -563,9 +563,29 @@
             background-color: rgba(15, 23, 42, 0.6);
             backdrop-filter: blur(4px);
         }
-    </style>
+    
+        /* ── Disable autofill highlight & suggestions ─────────────────────────── */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0 1000px white inset !important;
+            box-shadow: 0 0 0 1000px white inset !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+        html.dark input:-webkit-autofill,
+        html.dark input:-webkit-autofill:hover,
+        html.dark input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0 1000px #1e293b inset !important;
+            box-shadow: 0 0 0 1000px #1e293b inset !important;
+            -webkit-text-fill-color: #e2e8f0 !important;
+        }
+        </style>
 </head>
-<body class="min-h-screen pb-20">
+
+    <!-- Dummy hidden fields to prevent Chrome autofill on real inputs -->
+    <input type="text" style="display:none" aria-hidden="true">
+    <input type="password" style="display:none" aria-hidden="true">
+    <body class="min-h-screen pb-20">
 <script>
 // Pre-load avatar before first paint to prevent blank flash
 (function(){
@@ -594,7 +614,7 @@
             <div class="space-y-3">
                 <div>
                     <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">GitHub Token</label>
-                    <input type="password" id="gist-token-input" placeholder="ghp_xxxxxxxxxxxx" class="w-full mt-1 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-blue-400 transition-all">
+                    <input type="password" autocomplete="off" id="gist-token-input" placeholder="ghp_xxxxxxxxxxxx" class="w-full mt-1 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-blue-400 transition-all">
                 </div>
             </div>
             <div class="flex flex-col gap-2 mt-6">
@@ -638,7 +658,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r55</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r56</div>
                 </div>
             </div>
             
@@ -810,7 +830,7 @@
                         <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Monthly Income (รายรับ)</p>
                         <div class="flex items-center gap-2">
                             <span class="text-xl font-black text-blue-600">฿</span>
-                            <input type="text" id="paydayDisplay" oninput="handleCurrencyInput(this, 'paydayVal')" onpaste="handlePaste(event, this, 'paydayVal')" onblur="handleBlur(this, 'paydayVal')" class="w-full text-2xl font-black text-blue-600 outline-none bg-transparent" placeholder="0.00">
+                            <input type="text" autocomplete="off" id="paydayDisplay" oninput="handleCurrencyInput(this, 'paydayVal')" onpaste="handlePaste(event, this, 'paydayVal')" onblur="handleBlur(this, 'paydayVal')" class="w-full text-2xl font-black text-blue-600 outline-none bg-transparent" placeholder="0.00">
                             <input type="hidden" id="paydayVal">
                         </div>
                     </div>
@@ -889,10 +909,10 @@
                     </div>
                     <h3 class="text-xl font-black text-gray-900 text-center mb-1">เชื่อมต่อ Finnhub</h3>
                     <p class="text-gray-400 text-center text-xs mb-6 leading-relaxed">ใส่ Finnhub API Key เพื่อดูราคาหุ้นสหรัฐ<br>Key จะเก็บใน browser ของคุณเท่านั้น</p>
-                    <input type="password" id="finnhub-key-input" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-teal-400 transition-all mb-3">
+                    <input type="password" autocomplete="off" id="finnhub-key-input" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-teal-400 transition-all mb-3">
                     <div class="border-t border-gray-100 pt-3 mb-3">
                         <p class="text-gray-400 text-center text-xs mb-2 leading-relaxed">ExchangeRate-API Key <span class="text-gray-300">(สำหรับ FX Rate แม่นยำ)</span></p>
-                        <input type="password" id="erapi-key-input" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-blue-400 transition-all">
+                        <input type="password" autocomplete="off" id="erapi-key-input" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-blue-400 transition-all">
                     </div>
                     <div class="flex flex-col gap-2">
                         <button onclick="saveFinnhubKey()" class="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-bold transition-all active:scale-95 uppercase text-xs tracking-widest">บันทึกและเชื่อมต่อ</button>
@@ -946,7 +966,7 @@
 
                     <!-- ExchangeRate-API key prompt (hidden when key set) -->
                     <div id="erapi-prompt" class="flex items-center gap-1.5 flex-shrink-0" style="display:none!important">
-                        <input id="erapi-inline-input" type="text" placeholder="ExchangeRate-API key..."
+                        <input id="erapi-inline-input" type="text" autocomplete="off" placeholder="ExchangeRate-API key..."
                             class="text-[10px] px-2.5 py-1.5 rounded-lg outline-none"
                             style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-primary);width:160px;font-family:var(--font-mono)"
                             onkeydown="if(event.key==='Enter')saveErapiKey()">
@@ -988,7 +1008,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/>
                             </svg>
                         </div>
-                        <input id="ai-input" type="text"
+                        <input id="ai-input" type="text" autocomplete="off"
                             placeholder="ถาม AI นักวิเคราะห์... เช่น แนวรับ NVDA, outlook TSLA สัปดาห์นี้"
                             class="flex-1 min-w-0 text-xs outline-none bg-transparent"
                             style="color:var(--text-primary);font-family:var(--font-main)"
@@ -1154,7 +1174,7 @@
                 <!-- API Key panel -->
                 <div id="ai-key-panel" class="hidden px-5 py-3 border-b" style="border-color:var(--border);background:var(--bg-card)">
                     <div class="flex items-center gap-2">
-                        <input id="ai-key-input" type="password" placeholder="sk-or-v1-..."
+                        <input id="ai-key-input" type="password" autocomplete="off" placeholder="sk-or-v1-..."
                             class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
                             style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
                             onkeydown="if(event.key==='Enter') saveAiKey()">
@@ -1359,10 +1379,10 @@
                 <div id="${id}" class="flex gap-2 items-center group p-1 rounded-xl transition-colors ${isPaid ? 'row-paid' : ''}">
                     <input type="checkbox" onchange="togglePaidStatus('${id}', this.checked)" ${isPaid ? 'checked' : ''}
                         class="w-5 h-5 rounded-md border-gray-200 text-blue-600 focus:ring-blue-500 cursor-pointer">
-                    <input type="text" value="${name}" oninput="saveAndCalc()" onblur="scheduleAutoSave(true)" placeholder="รายการ..."
+                    <input type="text" autocomplete="off" value="${name}" oninput="saveAndCalc()" onblur="scheduleAutoSave(true)" placeholder="รายการ..."
                         class="flex-grow bg-white border border-gray-100 rounded-xl px-4 py-2 text-sm font-medium outline-none shadow-sm focus:border-blue-300 transition-all">
                     <div class="relative w-40 flex-shrink-0">
-                        <input type="text" value="${displayVal}" oninput="handleCurrencyInput(this, '${hiddenId}')" onblur="scheduleAutoSave(true)"
+                        <input type="text" autocomplete="off" value="${displayVal}" oninput="handleCurrencyInput(this, '${hiddenId}')" onblur="scheduleAutoSave(true)" autocomplete="off"
                             placeholder="0.00" class="w-full bg-white border border-gray-100 rounded-xl px-4 py-2 text-right text-sm font-semibold outline-none shadow-sm focus:border-blue-300 transition-all">
                         <input type="hidden" id="${hiddenId}" value="${val}">
                     </div>
@@ -4061,7 +4081,7 @@ Analysis guidelines:
 
             <!-- Input -->
             <div class="flex items-center gap-2 px-3 py-2.5 flex-shrink-0 border-t" style="border-color:var(--border);background:var(--bg-card2)">
-                <input id="ai-popup-input" type="text" placeholder="ถามต่อได้เลย..."
+                <input id="ai-popup-input" type="text" autocomplete="off" placeholder="ถามต่อได้เลย..."
                     class="flex-1 text-xs px-3 py-2 rounded-xl outline-none"
                     style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-primary)"
                     onkeydown="if(event.key==='Enter')sendAiMessage()">
@@ -4129,7 +4149,7 @@ Analysis guidelines:
                         <span id="s-finnhub-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
                     </div>
                     <div class="flex gap-2">
-                        <input id="s-finnhub-input" type="password" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx"
+                        <input id="s-finnhub-input" type="password" autocomplete="off" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx"
                             class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
                             style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
                             onkeydown="if(event.key==='Enter')saveAllSettings()">
@@ -4157,7 +4177,7 @@ Analysis guidelines:
                         <span id="s-erapi-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
                     </div>
                     <div class="flex gap-2">
-                        <input id="s-erapi-input" type="password" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx"
+                        <input id="s-erapi-input" type="password" autocomplete="off" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx"
                             class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
                             style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
                             onkeydown="if(event.key==='Enter')saveAllSettings()">
@@ -4185,7 +4205,7 @@ Analysis guidelines:
                         <span id="s-openrouter-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
                     </div>
                     <div class="flex gap-2">
-                        <input id="s-openrouter-input" type="password" placeholder="sk-or-v1-..."
+                        <input id="s-openrouter-input" type="password" autocomplete="off" placeholder="sk-or-v1-..."
                             class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
                             style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
                             onkeydown="if(event.key==='Enter')saveAllSettings()">
@@ -4213,7 +4233,7 @@ Analysis guidelines:
                         <span id="s-gist-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
                     </div>
                     <div class="flex gap-2">
-                        <input id="s-gist-input" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                        <input id="s-gist-input" type="password" autocomplete="off" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                             class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
                             style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
                             onkeydown="if(event.key==='Enter')saveAllSettings()">
