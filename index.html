@@ -239,8 +239,8 @@
 
         /* ── Chart open state ── */
         #wl-split-wrap.chart-open #wl-table-panel {
-            flex: 0 0 340px;
-            max-width: 340px;
+            flex: 0 0 310px;
+            max-width: 310px;
             display: flex;
             flex-direction: column;
         }
@@ -336,13 +336,14 @@
             display: none !important;
         }
         /* Compact column widths that fit in 340px */
-        #wl-split-wrap.chart-open col:nth-child(1)  { width: 24px  !important; }
-        #wl-split-wrap.chart-open col:nth-child(2)  { width: 62px  !important; }
+        /* Compact col widths: 22+58+0+76+0+74+56+24 = 310px */
+        #wl-split-wrap.chart-open col:nth-child(1)  { width: 22px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(2)  { width: 58px  !important; }
         #wl-split-wrap.chart-open col:nth-child(3)  { width: 0     !important; }
-        #wl-split-wrap.chart-open col:nth-child(4)  { width: 88px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(4)  { width: 76px  !important; }
         #wl-split-wrap.chart-open col:nth-child(5)  { width: 0     !important; }
-        #wl-split-wrap.chart-open col:nth-child(6)  { width: 86px  !important; }
-        #wl-split-wrap.chart-open col:nth-child(7)  { width: 80px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(6)  { width: 74px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(7)  { width: 56px  !important; }
         #wl-split-wrap.chart-open td:nth-child(2),
         #wl-split-wrap.chart-open th:nth-child(2) {
             max-width: 62px;
@@ -1000,7 +1001,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r82</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r83</div>
                 </div>
             </div>
             
@@ -2428,47 +2429,150 @@
             return { ok: false, json: async () => ({}) };
         }
 
-        // ── Fetch pre-market / after-hours from Yahoo Finance ──────────────────
-        // Returns { preMarketPrice, preMarketChangePct, afterHoursPrice, afterHoursChangePct }
-        async function fetchExtendedHours(symbol, regClose) {
+        // ── fetchExtendedHours: returns from cache only (batch fetch handles actual API call) ──
+        // Called per-symbol inside refreshWatchlist — reads from wlDataCache populated by batch
+        function fetchExtendedHours(symbol, regClose) {
+            // Return cached extended hours data immediately (non-async, no API call)
+            const cached = wlDataCache[symbol] || {};
+            return Promise.resolve({
+                preMarketPrice:    cached.preMarketPrice    ?? null,
+                preMarketChangePct: cached.preMarketChangePct ?? null,
+                afterHoursPrice:   cached.afterHoursPrice   ?? null,
+                afterHoursChangePct: cached.afterHoursChangePct ?? null,
+            });
+        }
+
+        // ── ONE batch call for all symbols pre-market/after-hours ──────────────
+        // Called by startExtHoursPolling every 15s. Uses a single Yahoo request
+        // for all symbols to avoid 429 rate limiting.
+        let _extLastBatchTs = 0;
+        async function fetchYahooExtendedBatch() {
+            if (watchlist.length === 0) return;
+            if (document.hidden) return;
+
+            // Debounce: never fire more than once per 12s
+            const now = Date.now();
+            if (now - _extLastBatchTs < 12000) return;
+            _extLastBatchTs = now;
+
+            const mktOpen   = isMarketOpen();
+            const preMarket = isExtendedHours() && !mktOpen;
+            const symbols   = watchlist.join(',');
+
+            const fields = [
+                'preMarketPrice','preMarketChange','preMarketChangePercent',
+                'postMarketPrice','postMarketChange','postMarketChangePercent',
+                'regularMarketPreviousClose','regularMarketPrice','marketState','symbol'
+            ].join(',');
+
+            // Use Yahoo v8 — most reliable for batch extended hours data
+            // query2 tends to be less rate-limited than query1
             const endpoints = [
-                `https://query1.finance.yahoo.com/v6/finance/quote?symbols=${symbol}&fields=preMarketPrice,preMarketChange,preMarketChangePercent,postMarketPrice,postMarketChange,postMarketChangePercent,marketState,regularMarketPrice`,
-                `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}&fields=regularMarketPrice,preMarketPrice,preMarketChange,preMarketChangePercent,postMarketPrice,postMarketChange,postMarketChangePercent,marketState`,
+                `https://query2.finance.yahoo.com/v8/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=${fields}&crumb=`,
+                `https://query1.finance.yahoo.com/v8/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=${fields}&crumb=`,
+                `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=${fields}`,
+                `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=${fields}`,
             ];
+
+            // Working CORS proxies as of 2025 — tested for Yahoo Finance access
             const proxies = [
-                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+                u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+                u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+                u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+                u => `https://cors-anywhere.herokuapp.com/${u}`,
             ];
-            for (const ep of endpoints) {
+
+            let results = null;
+
+            outer: for (const ep of endpoints) {
                 for (const px of proxies) {
                     try {
-                        const r = await fetch(px(ep), { signal: AbortSignal.timeout(5000) });
-                        if (!r.ok) continue;
-                        const j = await r.json();
-                        const q = j?.quoteResponse?.result?.[0];
-                        if (!q) continue;
-                        const base = q.regularMarketPrice ?? regClose;
-                        let preMarketPrice = null, preMarketChangePct = null;
-                        let afterHoursPrice = null, afterHoursChangePct = null;
-                        if (q.preMarketPrice && q.preMarketPrice > 0) {
-                            preMarketPrice = q.preMarketPrice;
-                            preMarketChangePct = q.preMarketChangePercent != null
-                                ? q.preMarketChangePercent
-                                : (q.preMarketChange != null && base ? (q.preMarketChange / base) * 100
-                                    : base ? ((preMarketPrice - base) / base) * 100 : null);
+                        const ctrl = new AbortController();
+                        const tid  = setTimeout(() => ctrl.abort(), 8000);
+                        const res  = await fetch(px(ep), {
+                            signal: ctrl.signal,
+                            cache: 'no-store',
+                        });
+                        clearTimeout(tid);
+
+                        const text = await res.text().catch(() => '');
+                        if (!text || text.length < 10) continue;
+
+                        let parsed;
+                        try { parsed = JSON.parse(text); } catch(e) {
+                            // Some proxies wrap in { contents: '...' }
+                            const m = text.match(/"contents"\s*:\s*"([\s\S]+?)"\s*[,}]/);
+                            if (!m) continue;
+                            try { parsed = JSON.parse(m[1].replace(/\"/g,'"').replace(/\n/g,'')); } catch(e2) { continue; }
                         }
-                        if (q.postMarketPrice && q.postMarketPrice > 0) {
-                            afterHoursPrice = q.postMarketPrice;
-                            afterHoursChangePct = q.postMarketChangePercent != null
-                                ? q.postMarketChangePercent
-                                : (q.postMarketChange != null && base ? (q.postMarketChange / base) * 100
-                                    : base ? ((afterHoursPrice - base) / base) * 100 : null);
+                        // Unwrap proxy wrapper if needed
+                        if (parsed?.contents && typeof parsed.contents === 'string') {
+                            try { parsed = JSON.parse(parsed.contents); } catch(e) {}
                         }
-                        return { preMarketPrice, preMarketChangePct, afterHoursPrice, afterHoursChangePct };
-                    } catch(e) { continue; }
+
+                        const r = parsed?.quoteResponse?.result;
+                        if (r && r.length > 0) {
+                            results = r;
+                            console.log('[ExtHours] success:', px(ep).slice(0,50));
+                            break outer;
+                        }
+                    } catch(e) { /* try next */ }
                 }
             }
-            return { preMarketPrice: null, preMarketChangePct: null, afterHoursPrice: null, afterHoursChangePct: null };
+
+            if (!results) {
+                console.warn('[ExtHours] all proxies+endpoints failed — will retry in 15s');
+                return;
+            }
+
+            let updated = 0;
+            results.forEach(function(q) {
+                const sym = q.symbol;
+                if (!sym || !watchlist.includes(sym)) return;
+
+                const preP    = (q.preMarketPrice  > 0) ? q.preMarketPrice  : null;
+                const prePct  = q.preMarketChangePercent  ?? null;
+                const postP   = (q.postMarketPrice > 0) ? q.postMarketPrice : null;
+                const postPct = q.postMarketChangePercent ?? null;
+                const pc      = q.regularMarketPreviousClose ?? wlDataCache[sym]?.pc ?? null;
+                const state   = q.marketState ?? '';
+
+                let extPrice = null, extPct = null, isAH = false;
+
+                // Prefer pre-market during PRE session, post-market during POST session
+                if (preP && (preMarket || state === 'PRE')) {
+                    extPrice = preP;
+                    extPct   = prePct ?? (pc ? (preP - pc) / pc * 100 : null);
+                } else if (postP && (!mktOpen || state === 'POST' || state === 'POSTPOST')) {
+                    extPrice = postP;
+                    extPct   = postPct ?? (pc ? (postP - pc) / pc * 100 : null);
+                    isAH = true;
+                } else if (preP) {
+                    extPrice = preP;
+                    extPct   = prePct ?? (pc ? (preP - pc) / pc * 100 : null);
+                } else if (postP) {
+                    extPrice = postP;
+                    extPct   = postPct ?? (pc ? (postP - pc) / pc * 100 : null);
+                    isAH = true;
+                }
+
+                if (extPrice === null || extPct === null) return;
+                if (pc && Math.abs(extPrice - pc) / pc > 0.30) return; // sanity ±30%
+
+                const existing = wlDataCache[sym] || {};
+                if (!isAH) {
+                    wlDataCache[sym] = Object.assign({}, existing,
+                        { preMarketPrice: extPrice, preMarketChangePct: extPct });
+                } else {
+                    wlDataCache[sym] = Object.assign({}, existing,
+                        { afterHoursPrice: extPrice, afterHoursChangePct: extPct });
+                }
+                updatePreMktCell(sym, extPrice, extPct, isAH);
+                updated++;
+            });
+
+            if (updated > 0) console.log('[ExtHours] updated', updated, '/', watchlist.length, 'symbols');
+            else console.warn('[ExtHours] no pre/post market data in response — market may be open');
         }
 
         async function fetchQuote(symbol) {
@@ -3288,7 +3392,7 @@
         // Keep Alpaca wrappers as no-ops so Settings/startup code doesn't break
         function startAlpacaPolling() { startExtHoursPolling(); }
         function stopAlpacaPolling()  { stopExtHoursPolling();  }
-        async function fetchAlpacaExtendedBatch() { await fetchYahooExtendedBatch(); }
+        async function fetchAlpacaExtendedBatch() { await fetchYahooExtendedBatch(); } // compat alias
 
         function startExtHoursPolling() {
             stopExtHoursPolling();
@@ -3314,365 +3418,7 @@
             }
         });
 
-        async function fetchYahooExtendedBatch() {
-            if (watchlist.length === 0) return;
-            if (document.hidden) return;
 
-            const mktOpen   = isMarketOpen();
-            const preMarket = isExtendedHours() && !mktOpen;
-            const symbols   = watchlist.join(',');
-
-            // Yahoo Finance v7/v8 quote endpoints — both return preMarketPrice fields
-            const fields = 'preMarketPrice,preMarketChange,preMarketChangePercent,'
-                + 'postMarketPrice,postMarketChange,postMarketChangePercent,'
-                + 'regularMarketPreviousClose,regularMarketPrice,marketState,symbol';
-
-            const endpoints = [
-                'https://query1.finance.yahoo.com/v8/finance/quote?symbols='
-                    + encodeURIComponent(symbols) + '&fields=' + fields,
-                'https://query2.finance.yahoo.com/v8/finance/quote?symbols='
-                    + encodeURIComponent(symbols) + '&fields=' + fields,
-                'https://query1.finance.yahoo.com/v7/finance/quote?symbols='
-                    + encodeURIComponent(symbols) + '&fields=' + fields,
-            ];
-
-            // CORS proxies — allorigins is most permissive (returns 200 always)
-            const proxies = [
-                u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-                u => 'https://corsproxy.io/?' + encodeURIComponent(u),
-                u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
-            ];
-
-            // Try every endpoint × proxy combination until we get valid data
-            async function tryFetch(targetUrl) {
-                for (const proxy of proxies) {
-                    try {
-                        const ctrl = new AbortController();
-                        const tid  = setTimeout(() => ctrl.abort(), 8000);
-                        const res  = await fetch(proxy(targetUrl), {
-                            signal: ctrl.signal,
-                            cache: 'no-store',
-                        });
-                        clearTimeout(tid);
-                        // allorigins always returns 200; other proxies may 4xx
-                        const text = await res.text();
-                        let parsed;
-                        try { parsed = JSON.parse(text); } catch(e) { continue; }
-                        // Unwrap { contents: '...' } wrapper some proxies add
-                        if (parsed && typeof parsed.contents === 'string') {
-                            try { parsed = JSON.parse(parsed.contents); } catch(e) { continue; }
-                        }
-                        const results = parsed?.quoteResponse?.result;
-                        if (results && results.length > 0) {
-                            console.log('[Yahoo ExtHours] success via', proxy(targetUrl).slice(0,40));
-                            return results;
-                        }
-                    } catch(e) { /* next */ }
-                }
-                return null;
-            }
-
-            let results = null;
-            for (const ep of endpoints) {
-                results = await tryFetch(ep);
-                if (results) break;
-            }
-
-            if (!results) {
-                console.warn('[Yahoo ExtHours] all endpoints+proxies failed');
-                return;
-            }
-
-            let updated = 0;
-            results.forEach(function(q) {
-                const sym = q.symbol;
-                if (!sym || !watchlist.includes(sym)) return;
-
-                const preP    = (q.preMarketPrice && q.preMarketPrice > 0) ? q.preMarketPrice : null;
-                const prePct  = q.preMarketChangePercent  ?? null;
-                const postP   = (q.postMarketPrice && q.postMarketPrice > 0) ? q.postMarketPrice : null;
-                const postPct = q.postMarketChangePercent ?? null;
-                const pc      = q.regularMarketPreviousClose ?? wlDataCache[sym]?.pc ?? null;
-                const state   = q.marketState ?? '';
-
-                let extPrice = null, extPct = null, isAH = false;
-
-                if (preP && (preMarket || state === 'PRE')) {
-                    extPrice = preP;
-                    extPct   = prePct ?? (pc ? (preP - pc) / pc * 100 : null);
-                } else if (postP && (!mktOpen || state === 'POST' || state === 'POSTPOST')) {
-                    extPrice = postP;
-                    extPct   = postPct ?? (pc ? (postP - pc) / pc * 100 : null);
-                    isAH = true;
-                } else if (preP) {
-                    extPrice = preP;
-                    extPct   = prePct ?? (pc ? (preP - pc) / pc * 100 : null);
-                }
-
-                if (extPrice === null || extPct === null) return;
-
-                // Sanity gate ±30%
-                if (pc && Math.abs(extPrice - pc) / pc > 0.30) return;
-
-                const existing = wlDataCache[sym] || {};
-                if (!isAH) {
-                    wlDataCache[sym] = Object.assign({}, existing,
-                        { preMarketPrice: extPrice, preMarketChangePct: extPct });
-                } else {
-                    wlDataCache[sym] = Object.assign({}, existing,
-                        { afterHoursPrice: extPrice, afterHoursChangePct: extPct });
-                }
-
-                updatePreMktCell(sym, extPrice, extPct, isAH);
-                updated++;
-            });
-
-            if (updated > 0) console.log('[Yahoo ExtHours] updated', updated, '/', watchlist.length, 'symbols');
-            else console.warn('[Yahoo ExtHours] 0 symbols updated — no pre/post market data available');
-        }
-
-        function updatePreMktCell(sym, extPrice, extPct, isAH) {
-            const row = document.getElementById('wl-row-' + sym);
-            if (!row) return;
-            const cells = row.querySelectorAll('td');
-            if (!cells[6]) return;
-            const isUp   = extPct >= 0;
-            const color  = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
-            const label  = isAH ? 'AH' : '';
-            const prevHTML = cells[6].innerHTML;
-            const newHTML =
-                '<span style="display:block;text-align:right;font-size:10px;font-weight:700;color:' + color + ';font-variant-numeric:tabular-nums;letter-spacing:-0.01em;line-height:1.35">'
-                + (isUp ? '+' : '') + extPct.toFixed(2) + '%'
-                + (label ? '<span style="font-size:7px;opacity:0.7;margin-left:2px">' + label + '</span>' : '')
-                + '</span>'
-                + '<span style="display:block;text-align:right;font-size:9px;color:var(--text-dim);font-variant-numeric:tabular-nums;line-height:1.35">'
-                + '$' + extPrice.toFixed(2) + '</span>';
-
-            cells[6].innerHTML = newHTML;
-
-            // Flash effect on price change (skip first paint)
-            if (prevHTML && prevHTML !== newHTML && !prevHTML.includes('—')) {
-                cells[6].style.transition = 'none';
-                cells[6].style.background = isUp
-                    ? 'rgba(8,153,129,0.22)'
-                    : 'rgba(242,54,69,0.18)';
-                requestAnimationFrame(() => {
-                    cells[6].style.transition = 'background 0.8s ease-out';
-                    cells[6].style.background = 'transparent';
-                });
-            }
-        }
-
-        // ── Watchlist Sort ────────────────────────────────────────────────────
-        let wlSortKey = null;
-        let wlSortDir = 'desc'; // 'asc' | 'desc'
-
-        function sortWatchlist(key) {
-            if (wlSortKey === key) {
-                wlSortDir = wlSortDir === 'asc' ? 'desc' : 'asc';
-            } else {
-                wlSortKey = key;
-                wlSortDir = 'desc';
-            }
-            // Update sort button icons
-            document.querySelectorAll('.wl-sort-btn').forEach(btn => {
-                btn.classList.remove('sort-asc', 'sort-desc');
-            });
-            const activeBtn = document.getElementById('wl-sort-' + key);
-            if (activeBtn) activeBtn.classList.add(wlSortDir === 'asc' ? 'sort-asc' : 'sort-desc');
-
-            const getValue = (sym) => {
-                const d = wlDataCache[sym];
-                if (!d) return null;
-                switch(key) {
-                    case 'symbol':    return sym;
-                    case 'price':     return d.c     ?? null;
-                    case 'change':    return d.d     ?? null;
-                    case 'changePct': return d.dp    ?? null;
-                    case 'mktcap':    return d.marketCap ?? null;
-                    case 'pe':        return d.pe    ?? null;
-                    default: return null;
-                }
-            };
-
-            const sorted = [...watchlist].sort((a, b) => {
-                const va = getValue(a), vb = getValue(b);
-                if (va === null && vb === null) return 0;
-                if (va === null) return 1;
-                if (vb === null) return -1;
-                const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
-                return wlSortDir === 'asc' ? cmp : -cmp;
-            });
-
-            // Reorder DOM rows to match sorted order
-            const tbody = document.getElementById('watchlist-rows');
-            sorted.forEach((sym, i) => {
-                const row = document.getElementById('wl-row-' + sym);
-                if (row) {
-                    tbody.appendChild(row);
-                    const numEl = row.querySelector('.wl-idx');
-                    if (numEl) numEl.innerText = i + 1;
-                }
-            });
-        }
-
-        // ── AI Stock Analyst (Gemini) ──────────────────────────────────────────
-        let aiChatHistory = [];
-
-        function getAiKey() { return localStorage.getItem('ps_openrouter_key') || ''; }
-
-        function saveAiKey() {
-            const k = document.getElementById('ai-key-input').value.trim();
-            if (!k) return;
-            localStorage.setItem('ps_openrouter_key', k);
-            document.getElementById('ai-key-panel').classList.add('hidden');
-            updateAiStatus();
-        }
-
-        function clearAiKey() {
-            localStorage.removeItem('ps_openrouter_key');
-            document.getElementById('ai-key-input').value = '';
-            updateAiStatus();
-        }
-
-        function toggleAiKeyPanel() {
-            const panel = document.getElementById('ai-key-panel');
-            panel.classList.toggle('hidden');
-            if (!panel.classList.contains('hidden')) {
-                const k = getAiKey();
-                document.getElementById('ai-key-input').value = k ? '••••••••' + k.slice(-4) : '';
-                setTimeout(() => document.getElementById('ai-key-input').focus(), 50);
-            }
-        }
-
-        function updateAiStatus() {
-            const dot  = document.getElementById('ai-status-dot');
-            const text = document.getElementById('ai-status-text');
-            if (getAiKey()) {
-                dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
-                text.textContent = 'พร้อมใช้งาน';
-            } else {
-                dot.className = 'w-1.5 h-1.5 rounded-full bg-gray-400';
-                text.textContent = 'ยังไม่มี API Key';
-            }
-        }
-
-        function escHtml(s) {
-            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        }
-
-        // ── Chat Popup ──────────────────────────────────────────────────────────
-        function openAiPopup() {
-            document.getElementById('ai-popup').classList.remove('hidden');
-            document.getElementById('ai-fab').classList.add('hidden');
-            document.getElementById('ai-popup-input').focus();
-            initAiDrag();
-        }
-
-        function minimizeAiPopup() {
-            document.getElementById('ai-popup').classList.add('hidden');
-            document.getElementById('ai-fab').classList.remove('hidden');
-        }
-
-        function restoreAiPopup() {
-            document.getElementById('ai-fab').classList.add('hidden');
-            document.getElementById('ai-popup').classList.remove('hidden');
-            document.getElementById('ai-popup-input').focus();
-        }
-
-        function closeAiPopup() { minimizeAiPopup(); }
-
-        function initAiDrag() {
-            const popup  = document.getElementById('ai-popup');
-            const header = document.getElementById('ai-popup-header');
-            if (popup._dragInited) return;
-            popup._dragInited = true;
-
-            let startX, startY, startRight, startBottom, dragging = false;
-
-            header.addEventListener('mousedown', e => {
-                if (e.button !== 0) return;
-                dragging = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                const rect = popup.getBoundingClientRect();
-                startRight  = window.innerWidth  - rect.right;
-                startBottom = window.innerHeight - rect.bottom;
-                header.style.cursor = 'grabbing';
-                e.preventDefault();
-            });
-
-            document.addEventListener('mousemove', e => {
-                if (!dragging) return;
-                const dx = e.clientX - startX;
-                const dy = e.clientY - startY;
-                const newRight  = Math.max(8, Math.min(window.innerWidth  - 100, startRight  - dx));
-                const newBottom = Math.max(8, Math.min(window.innerHeight - 60,  startBottom - dy));
-                popup.style.right  = newRight  + 'px';
-                popup.style.bottom = newBottom + 'px';
-            });
-
-            document.addEventListener('mouseup', () => {
-                dragging = false;
-                header.style.cursor = 'grab';
-            });
-
-            // Wheel block
-            const panel = document.getElementById('ai-popup-panel');
-            if (!panel._wheelBlocked) {
-                panel.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
-                panel._wheelBlocked = true;
-            }
-        }
-
-        function clearAiChat() {
-            aiChatHistory = [];
-            document.getElementById('ai-popup-messages').innerHTML = `
-                <div class="flex items-start gap-3">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#1a73e8,#34a853)">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
-                    </div>
-                    <div class="flex-1">
-                        <div class="text-[10px] font-bold mb-1.5" style="color:#4285f4">AI ANALYST</div>
-                        <div class="text-sm leading-relaxed" style="color:var(--text-secondary)">สวัสดีครับ ถามได้เลยเรื่องแนวรับ/แนวต้าน, ข่าวล่าสุด หรือ outlook ของหุ้นใดก็ได้ครับ</div>
-                    </div>
-                </div>`;
-        }
-
-        function appendPopupMessage(role, text, isLoading = false) {
-            const container = document.getElementById('ai-popup-messages');
-            const id = 'pmsg-' + Date.now();
-            const isUser = role === 'user';
-            const ts = new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
-            const html = isUser
-                ? `<div id="${id}" class="flex flex-col items-end gap-0.5">
-                    <div class="max-w-[80%] px-4 py-2.5 rounded-lg rounded-tr-sm text-sm leading-relaxed" style="background:#1a73e8;color:white">${escHtml(text)}</div>
-                    <span class="text-[9px]" style="color:var(--text-dim)">${ts}</span>
-                   </div>`
-                : `<div id="${id}" class="flex items-start gap-3">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style="background:linear-gradient(135deg,#1a73e8,#34a853)">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1.5">
-                            <span class="text-[10px] font-bold" style="color:#4285f4">AI ANALYST</span>
-                            <span class="text-[9px]" style="color:var(--text-dim)">${ts}</span>
-                        </div>
-                        <div class="ai-msg-body text-sm leading-relaxed" style="color:var(--text-secondary);white-space:pre-wrap">${isLoading ? '<span class="ai-typing">กำลังวิเคราะห์<span class="dots">...</span></span>' : escHtml(text)}</div>
-                    </div>
-                   </div>`;
-            container.insertAdjacentHTML('beforeend', html);
-            container.scrollTop = container.scrollHeight;
-            return id;
-        }
-
-        function aiQuickAsk(btn) {
-            const text = btn.textContent.replace(/^[\S]+\s/, '').trim();
-            document.getElementById('ai-input').value = text;
-            sendAiMessage();
-        }
-
-        // ── Technical Analysis: fetch candles → compute SMA, Fibonacci, key levels ──
         async function fetchTechnicals(symbol, finnhubKey) {
             try {
                 const to   = Math.floor(Date.now() / 1000);
