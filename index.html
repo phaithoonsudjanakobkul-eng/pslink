@@ -1006,7 +1006,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r93</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r97</div>
                 </div>
             </div>
             
@@ -4440,9 +4440,29 @@ Analysis guidelines:
 
         // ── Import / Export JSON ──────────────────────────────────────────────
         function exportJSON() {
+            // Collect all localStorage keys that belong to this app
+            const lsKeys = [
+                'ps_finnhub_key', 'ps_fmp_key', 'ps_erapi_key',
+                'ps_alpaca_key', 'ps_alpaca_secret',
+                'ps_openrouter_key', 'ps_gist_token',
+                'ps_dbname', 'ps_dark', 'ps_month'
+            ];
+            const settings = {};
+            lsKeys.forEach(k => {
+                const v = localStorage.getItem(k);
+                if (v) settings[k] = v;
+            });
+
             const exportData = {
-                meta: { avatar: db.avatar, dark: document.documentElement.classList.contains('dark') },
-                records, watchlist
+                version: 2,
+                exportedAt: new Date().toISOString(),
+                meta: {
+                    avatar: db.avatar,
+                    dark: document.documentElement.classList.contains('dark')
+                },
+                settings,   // ← API keys + all settings
+                records,
+                watchlist
             };
             const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
             const url  = URL.createObjectURL(blob);
@@ -4456,23 +4476,68 @@ Analysis guidelines:
         function importJSON(e) {
             const file = e.target.files[0];
             if (!file) return;
+            const fileName = file.name.replace(/\.json$/i, '');
             const reader = new FileReader();
             reader.onload = (ev) => {
                 try {
                     const data = JSON.parse(ev.target.result);
+
+                    // Support old format (array) and new format (object)
                     if (Array.isArray(data)) {
                         records = data;
-                    } else if (data.records) {
-                        records = data.records;
+                    } else if (data.records || data.watchlist) {
+                        if (data.records)  records   = data.records;
                         if (data.watchlist) watchlist = data.watchlist;
-                        if (data.meta?.avatar) { db.avatar = data.meta.avatar; setAvatarImage(db.avatar); }
+
+                        // Restore avatar
+                        if (data.meta?.avatar) {
+                            db.avatar = data.meta.avatar;
+                            setAvatarImage(db.avatar);
+                        }
+                        // Restore dark mode
+                        if (data.meta?.dark !== undefined) {
+                            if (data.meta.dark) document.documentElement.classList.add('dark');
+                            else document.documentElement.classList.remove('dark');
+                        }
+
+                        // Restore ALL API keys and settings (version 2 format)
+                        if (data.settings && typeof data.settings === 'object') {
+                            Object.entries(data.settings).forEach(([k, v]) => {
+                                if (k.startsWith('ps_') && v) {
+                                    try { localStorage.setItem(k, v); } catch(e) {}
+                                }
+                            });
+                            updateSettingsBadges();
+                        }
                     } else {
                         alert('ไฟล์ไม่ถูกต้อง'); return;
                     }
-                    try { localStorage.setItem('ps_records', JSON.stringify(records)); } catch(e) {}
+
+                    // Save records and watchlist
+                    try { localStorage.setItem('ps_records',   JSON.stringify(records));   } catch(e) {}
                     try { localStorage.setItem('ps_watchlist', JSON.stringify(watchlist)); } catch(e) {}
+
+                    // Reload records tab
                     loadMonth(curMonth);
+
+                    // Re-render watchlist DOM (same as syncFromGist manual path)
+                    const tbody = document.getElementById('watchlist-rows');
+                    if (tbody) tbody.innerHTML = '';
+                    watchlist.forEach(function(sym) {
+                        try { renderWatchlistRow(sym, wlDataCache[sym] || null); } catch(e2) {}
+                    });
                     checkWlEmpty();
+
+                    // Fetch live prices if Finnhub key available
+                    if (watchlist.length > 0 && getFinnhubKey()) {
+                        setTimeout(function() { refreshWatchlist(); }, 300);
+                        fetchFxRate();
+                    }
+
+                    // Show imported filename in status area (local mode)
+                    const nameEl2 = document.getElementById('db-name-display');
+                    if (nameEl2) { nameEl2.innerText = fileName; nameEl2.style.color = ''; }
+                    try { localStorage.setItem('ps_dbname', fileName); } catch(e) {}
                     showGistStatus('IMPORTED ✓', 'text-emerald-500');
                 } catch(err) { alert('อ่านไฟล์ไม่ได้: ' + err.message); }
             };
@@ -4610,6 +4675,17 @@ Analysis guidelines:
             showTab(savedTab, false, true);
             loadMonth(curMonth); // sets isLoading=true then false — must complete before WL render
 
+            // Show local-mode status if no Gist token
+            if (!getGistToken()) {
+                const hasLocal = records.length > 0 || watchlist.length > 0;
+                const localName = localStorage.getItem('ps_dbname');
+                if (localName) {
+                    const nameEl = document.getElementById('db-name-display');
+                    if (nameEl) nameEl.innerText = localName;
+                }
+                showGistStatus(hasLocal ? 'LOCAL DATA ✓' : 'LOCAL MODE', hasLocal ? 'text-blue-400' : 'text-gray-400');
+            }
+
             if (getGistToken()) {
                 // Step 1: Render from localStorage cache AFTER loadMonth (isLoading=false now)
                 // This prevents skeleton class being applied to cached rows
@@ -4624,13 +4700,17 @@ Analysis guidelines:
                 // Step 2: Sync from Gist in background — updates data, then refreshWatchlist once
                 syncFromGist(true); // isInitialLoad=true → skips re-render, just refreshes prices
             } else {
-                if (savedTab === 'watchlist' && watchlist.length > 0) {
+                // No Gist token — render from localStorage (local-file mode)
+                if (watchlist.length > 0) {
                     watchlist.forEach(s => {
                         if (!document.getElementById('wl-row-' + s))
                             renderWatchlistRow(s, wlDataCache[s] || null);
                     });
-                    fetchFxRate();
-                    refreshWatchlist();
+                    checkWlEmpty();
+                    if (getFinnhubKey()) {
+                        fetchFxRate();
+                        refreshWatchlist();
+                    }
                 }
             }
 
