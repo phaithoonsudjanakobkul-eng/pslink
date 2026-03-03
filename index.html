@@ -892,7 +892,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r71</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r73</div>
                 </div>
             </div>
             
@@ -1305,9 +1305,9 @@
                             <th id="wl-th-price" class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary)">Price</th>
                             <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">Change</th>
                             <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary)">% Change</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest wl-col-hide" style="color:#f59e0b">Pre-Mkt</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">Open</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">Prev Close</th>
+                            <th id="wl-th-premkt" class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest wl-col-hide" style="color:#f59e0b">Pre-Mkt</th>
+                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest wl-col-hide" style="color:var(--text-secondary)">Open</th>
+                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest wl-col-hide" style="color:var(--text-secondary)">Prev Close</th>
                             <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">High</th>
                             <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">Low</th>
                             <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">52W High</th>
@@ -2153,14 +2153,20 @@
             // Skeleton shimmer for loading state
             const sk = (w) => d ? null : `<span class="is-skeleton inline-block rounded" style="width:${w}px;height:12px;background:var(--bg-card2)"></span>`;
 
-            // Pre-market data
+            // Pre-market / After-hours data
             const prePrice   = d?.preMarketPrice     ?? null;
             const prePct     = d?.preMarketChangePct ?? null;
-            const preIsUp    = prePct !== null ? prePct >= 0 : true;
-            const preMktHtml = prePrice !== null
+            const ahPrice    = d?.afterHoursPrice    ?? null;
+            const ahPct      = d?.afterHoursChangePct ?? null;
+            // Show pre-market if available, else after-hours
+            const extPrice   = prePrice ?? ahPrice ?? null;
+            const extPct     = prePct   ?? ahPct   ?? null;
+            const extIsAH    = prePrice === null && ahPrice !== null;
+            const extIsUp    = extPct !== null ? extPct >= 0 : true;
+            const preMktHtml = extPrice !== null
                 ? `<div class="flex flex-col items-end gap-0.5">
-                     <span class="text-[10px] num-cell ${preIsUp ? 'wl-up' : 'wl-dn'}">${preIsUp ? '+' : ''}${prePct?.toFixed(2) ?? '—'}%</span>
-                     <span class="text-[9px]" style="color:var(--text-dim)">$${fmt(prePrice)}</span>
+                     <span class="text-[10px] num-cell font-medium ${extIsUp ? 'wl-up' : 'wl-dn'}" style="font-variant-numeric:tabular-nums">${extIsUp ? '+' : ''}${extPct?.toFixed(2) ?? '—'}%</span>
+                     <span class="text-[9px]" style="color:var(--text-dim);font-variant-numeric:tabular-nums">$${fmt(extPrice)}${extIsAH ? '<span style="color:var(--text-dim);font-size:7px;margin-left:2px">AH</span>' : ''}</span>
                    </div>`
                 : (d ? '<span style="color:var(--text-dim)" class="text-xs">—</span>' : (sk(56) ?? ''));
 
@@ -2296,6 +2302,49 @@
             return { ok: false, json: async () => ({}) };
         }
 
+        // ── Fetch pre-market / after-hours from Yahoo Finance ──────────────────
+        // Returns { preMarketPrice, preMarketChangePct, afterHoursPrice, afterHoursChangePct }
+        async function fetchExtendedHours(symbol, regClose) {
+            const endpoints = [
+                `https://query1.finance.yahoo.com/v6/finance/quote?symbols=${symbol}&fields=preMarketPrice,preMarketChange,preMarketChangePercent,postMarketPrice,postMarketChange,postMarketChangePercent,marketState,regularMarketPrice`,
+                `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}&fields=regularMarketPrice,preMarketPrice,preMarketChange,preMarketChangePercent,postMarketPrice,postMarketChange,postMarketChangePercent,marketState`,
+            ];
+            const proxies = [
+                (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+            ];
+            for (const ep of endpoints) {
+                for (const px of proxies) {
+                    try {
+                        const r = await fetch(px(ep), { signal: AbortSignal.timeout(5000) });
+                        if (!r.ok) continue;
+                        const j = await r.json();
+                        const q = j?.quoteResponse?.result?.[0];
+                        if (!q) continue;
+                        const base = q.regularMarketPrice ?? regClose;
+                        let preMarketPrice = null, preMarketChangePct = null;
+                        let afterHoursPrice = null, afterHoursChangePct = null;
+                        if (q.preMarketPrice && q.preMarketPrice > 0) {
+                            preMarketPrice = q.preMarketPrice;
+                            preMarketChangePct = q.preMarketChangePercent != null
+                                ? q.preMarketChangePercent
+                                : (q.preMarketChange != null && base ? (q.preMarketChange / base) * 100
+                                    : base ? ((preMarketPrice - base) / base) * 100 : null);
+                        }
+                        if (q.postMarketPrice && q.postMarketPrice > 0) {
+                            afterHoursPrice = q.postMarketPrice;
+                            afterHoursChangePct = q.postMarketChangePercent != null
+                                ? q.postMarketChangePercent
+                                : (q.postMarketChange != null && base ? (q.postMarketChange / base) * 100
+                                    : base ? ((afterHoursPrice - base) / base) * 100 : null);
+                        }
+                        return { preMarketPrice, preMarketChangePct, afterHoursPrice, afterHoursChangePct };
+                    } catch(e) { continue; }
+                }
+            }
+            return { preMarketPrice: null, preMarketChangePct: null, afterHoursPrice: null, afterHoursChangePct: null };
+        }
+
         async function fetchQuote(symbol) {
             const key = getFinnhubKey();
             const now = Date.now();
@@ -2329,7 +2378,15 @@
                     divYield:   m['dividendYieldIndicatedAnnual'] ?? null,
                 };
             }
-            return { ...quote, ...profileCache[symbol] };
+
+            // ── Pre/After-hours data from Yahoo Finance ──
+            const extData = await fetchExtendedHours(symbol, quote.c ?? null);
+
+            return {
+                ...quote,
+                ...profileCache[symbol],
+                ...extData,
+            };
         }
 
         // ── Throttled concurrent fetch ──────────────────────────────────────────
@@ -2446,7 +2503,9 @@
                         if (!r.ok) return;
                         const q = await r.json();
                         quoteTsCache[symbol] = Date.now();
-                        const merged = { ...profileCache[symbol], ...wlDataCache[symbol], ...q };
+                        // Also refresh pre/after-hours data from Yahoo
+                        const preData = await fetchExtendedHours(symbol, q.c);
+                        const merged = { ...profileCache[symbol], ...wlDataCache[symbol], ...q, ...preData };
                         wlDataCache[symbol] = merged;
                         updateWatchlistPriceCells(symbol, merged);
                     } catch(e) {}
@@ -2488,8 +2547,14 @@
             const prevClose = data?.pc  ?? null;
             const high      = data?.h   ?? null;
             const low       = data?.l   ?? null;
-            const preMkt    = data?.t   ?? null;
-            const preMktChg = (preMkt && prevClose) ? ((preMkt - prevClose) / prevClose * 100) : null;
+            // Pre-market / after-hours from Yahoo Finance fields
+            const prePrice   = data?.preMarketPrice     ?? null;
+            const prePct     = data?.preMarketChangePct ?? null;
+            const ahPrice    = data?.afterHoursPrice    ?? null;
+            const ahPct      = data?.afterHoursChangePct ?? null;
+            // Use after-hours if pre-market not available
+            const extPrice   = prePrice ?? ahPrice ?? null;
+            const extPct     = prePct   ?? ahPct   ?? null;
             const week52H   = data?.week52High ?? null;
             const week52L   = data?.week52Low  ?? null;
             const marketCap = data?.marketCap  ?? null;
@@ -2499,12 +2564,12 @@
             const divYield  = data?.divYield   ?? null;
 
             const isUp = changePct >= 0;
+            const extIsUp    = extPct !== null ? extPct >= 0 : true;
             const priceColor  = price === null ? 'wl-neutral' : isUp ? 'wl-up' : 'wl-dn';
             const changeColor = change === null ? 'wl-neutral' : isUp ? 'wl-up' : 'wl-dn';
             const openColor   = (open  && prevClose) ? (open  >= prevClose ? 'wl-up' : 'wl-dn') : '';
             const highColor   = (high  && prevClose) ? (high  >= prevClose ? 'wl-up' : 'wl-dn') : '';
             const lowColor    = (low   && prevClose) ? (low   >= prevClose ? 'wl-up' : 'wl-dn') : '';
-            const preMktColor = (preMktChg !== null)  ? (preMktChg >= 0 ? 'wl-up' : 'wl-dn') : '';
             const arrow = isUp ? '▲' : '▼';
             // Helper: only write className when it actually changes (avoids forced reflow per WS tick)
             const setClass = (el, cls) => { if (el.className !== cls) el.className = cls; };
@@ -2528,6 +2593,18 @@
                 }
             }
             setText(cells[3], newPriceText);
+
+            // Update pre-market cell (col index 6)
+            if (cells[6]) {
+                if (extPrice !== null && extPct !== null) {
+                    cells[6].innerHTML = `<div class="flex flex-col items-end gap-0.5">
+                        <span class="text-[10px] num-cell font-medium ${extIsUp ? 'wl-up' : 'wl-dn'}" style="font-variant-numeric:tabular-nums">${extIsUp ? '+' : ''}${extPct.toFixed(2)}%</span>
+                        <span class="text-[9px]" style="color:var(--text-dim);font-variant-numeric:tabular-nums">$${extPrice.toFixed(2)}</span>
+                    </div>`;
+                } else if (data) {
+                    cells[6].innerHTML = '<span style="color:var(--text-dim)" class="text-xs">—</span>';
+                }
+            }
         }
 
         // --- Quick Chart ---
@@ -3785,6 +3862,27 @@ Analysis guidelines:
                 el.textContent = '● CLOSED';
                 el.style.background = 'rgba(100,116,139,0.15)';
                 el.style.color = '#64748b';
+            }
+            // Update Pre-Mkt / After-Hrs label
+            const thPre = document.getElementById('wl-th-premkt');
+            if (thPre) {
+                const now = new Date();
+                const utcMins = now.getUTCHours()*60 + now.getUTCMinutes();
+                const dst = isUSDST(now);
+                const mktOpen  = dst ? 13*60+30 : 14*60+30;
+                const mktClose = dst ? 20*60    : 21*60;
+                const day = now.getUTCDay();
+                const isWeekday = day > 0 && day < 6;
+                if (isWeekday && utcMins < mktOpen) {
+                    thPre.textContent = 'Pre-Mkt';
+                    thPre.style.color = '#f59e0b';
+                } else if (isWeekday && utcMins >= mktClose) {
+                    thPre.textContent = 'After-Hrs';
+                    thPre.style.color = '#a78bfa';
+                } else {
+                    thPre.textContent = 'Pre-Mkt';
+                    thPre.style.color = '#f59e0b';
+                }
             }
         }
 
