@@ -1001,7 +1001,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r83</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r84</div>
                 </div>
             </div>
             
@@ -2442,137 +2442,83 @@
             });
         }
 
-        // ── ONE batch call for all symbols pre-market/after-hours ──────────────
-        // Called by startExtHoursPolling every 15s. Uses a single Yahoo request
-        // for all symbols to avoid 429 rate limiting.
+        // ── Extended Hours: FMP (Financial Modeling Prep) — free, no CORS ──────
         let _extLastBatchTs = 0;
+        function getFmpKey() { return localStorage.getItem('ps_fmp_key') || ''; }
+
         async function fetchYahooExtendedBatch() {
             if (watchlist.length === 0) return;
             if (document.hidden) return;
-
-            // Debounce: never fire more than once per 12s
             const now = Date.now();
             if (now - _extLastBatchTs < 12000) return;
             _extLastBatchTs = now;
 
-            const mktOpen   = isMarketOpen();
-            const preMarket = isExtendedHours() && !mktOpen;
-            const symbols   = watchlist.join(',');
-
-            const fields = [
-                'preMarketPrice','preMarketChange','preMarketChangePercent',
-                'postMarketPrice','postMarketChange','postMarketChangePercent',
-                'regularMarketPreviousClose','regularMarketPrice','marketState','symbol'
-            ].join(',');
-
-            // Use Yahoo v8 — most reliable for batch extended hours data
-            // query2 tends to be less rate-limited than query1
-            const endpoints = [
-                `https://query2.finance.yahoo.com/v8/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=${fields}&crumb=`,
-                `https://query1.finance.yahoo.com/v8/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=${fields}&crumb=`,
-                `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=${fields}`,
-                `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=${fields}`,
-            ];
-
-            // Working CORS proxies as of 2025 — tested for Yahoo Finance access
-            const proxies = [
-                u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-                u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-                u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                u => `https://cors-anywhere.herokuapp.com/${u}`,
-            ];
-
-            let results = null;
-
-            outer: for (const ep of endpoints) {
-                for (const px of proxies) {
-                    try {
-                        const ctrl = new AbortController();
-                        const tid  = setTimeout(() => ctrl.abort(), 8000);
-                        const res  = await fetch(px(ep), {
-                            signal: ctrl.signal,
-                            cache: 'no-store',
-                        });
-                        clearTimeout(tid);
-
-                        const text = await res.text().catch(() => '');
-                        if (!text || text.length < 10) continue;
-
-                        let parsed;
-                        try { parsed = JSON.parse(text); } catch(e) {
-                            // Some proxies wrap in { contents: '...' }
-                            const m = text.match(/"contents"\s*:\s*"([\s\S]+?)"\s*[,}]/);
-                            if (!m) continue;
-                            try { parsed = JSON.parse(m[1].replace(/\"/g,'"').replace(/\n/g,'')); } catch(e2) { continue; }
-                        }
-                        // Unwrap proxy wrapper if needed
-                        if (parsed?.contents && typeof parsed.contents === 'string') {
-                            try { parsed = JSON.parse(parsed.contents); } catch(e) {}
-                        }
-
-                        const r = parsed?.quoteResponse?.result;
-                        if (r && r.length > 0) {
-                            results = r;
-                            console.log('[ExtHours] success:', px(ep).slice(0,50));
-                            break outer;
-                        }
-                    } catch(e) { /* try next */ }
-                }
-            }
-
-            if (!results) {
-                console.warn('[ExtHours] all proxies+endpoints failed — will retry in 15s');
+            const fmpKey = getFmpKey();
+            if (!fmpKey) {
+                console.info('[ExtHours] No FMP key — add in Settings to enable pre-market data');
                 return;
             }
 
+            const mktOpen   = isMarketOpen();
+            const preMarket = isExtendedHours() && !mktOpen;
             let updated = 0;
-            results.forEach(function(q) {
-                const sym = q.symbol;
-                if (!sym || !watchlist.includes(sym)) return;
 
-                const preP    = (q.preMarketPrice  > 0) ? q.preMarketPrice  : null;
-                const prePct  = q.preMarketChangePercent  ?? null;
-                const postP   = (q.postMarketPrice > 0) ? q.postMarketPrice : null;
-                const postPct = q.postMarketChangePercent ?? null;
-                const pc      = q.regularMarketPreviousClose ?? wlDataCache[sym]?.pc ?? null;
-                const state   = q.marketState ?? '';
+            // Fetch in groups of 5 with 200ms gap between groups
+            const chunks = [];
+            for (let i = 0; i < watchlist.length; i += 5) chunks.push(watchlist.slice(i, i + 5));
 
-                let extPrice = null, extPct = null, isAH = false;
+            for (let ci = 0; ci < chunks.length; ci++) {
+                await Promise.all(chunks[ci].map(async (sym) => {
+                    try {
+                        const url = `https://financialmodelingprep.com/api/v3/pre-post-market-hours/${sym}?apikey=${fmpKey}`;
+                        const ctrl = new AbortController();
+                        const tid  = setTimeout(() => ctrl.abort(), 7000);
+                        const res  = await fetch(url, { signal: ctrl.signal });
+                        clearTimeout(tid);
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        const q    = Array.isArray(data) ? data[0] : data;
+                        if (!q) return;
 
-                // Prefer pre-market during PRE session, post-market during POST session
-                if (preP && (preMarket || state === 'PRE')) {
-                    extPrice = preP;
-                    extPct   = prePct ?? (pc ? (preP - pc) / pc * 100 : null);
-                } else if (postP && (!mktOpen || state === 'POST' || state === 'POSTPOST')) {
-                    extPrice = postP;
-                    extPct   = postPct ?? (pc ? (postP - pc) / pc * 100 : null);
-                    isAH = true;
-                } else if (preP) {
-                    extPrice = preP;
-                    extPct   = prePct ?? (pc ? (preP - pc) / pc * 100 : null);
-                } else if (postP) {
-                    extPrice = postP;
-                    extPct   = postPct ?? (pc ? (postP - pc) / pc * 100 : null);
-                    isAH = true;
-                }
+                        const pc  = wlDataCache[sym]?.pc ?? null;
+                        let extPrice = null, extPct = null, isAH = false;
 
-                if (extPrice === null || extPct === null) return;
-                if (pc && Math.abs(extPrice - pc) / pc > 0.30) return; // sanity ±30%
+                        // FMP field names: pre, post (primary) or preMarketPrice, postMarketPrice
+                        const preP  = q.pre  ?? q.preMarketPrice  ?? q.prePrice  ?? null;
+                        const postP = q.post ?? q.postMarketPrice ?? q.postPrice ?? null;
 
-                const existing = wlDataCache[sym] || {};
-                if (!isAH) {
-                    wlDataCache[sym] = Object.assign({}, existing,
-                        { preMarketPrice: extPrice, preMarketChangePct: extPct });
-                } else {
-                    wlDataCache[sym] = Object.assign({}, existing,
-                        { afterHoursPrice: extPrice, afterHoursChangePct: extPct });
-                }
-                updatePreMktCell(sym, extPrice, extPct, isAH);
-                updated++;
-            });
+                        if (preMarket && preP && preP > 0) {
+                            extPrice = preP;
+                            extPct   = pc ? (preP - pc) / pc * 100 : (q.preChangesPercentage ?? null);
+                        } else if (postP && postP > 0) {
+                            extPrice = postP;
+                            extPct   = pc ? (postP - pc) / pc * 100 : (q.postChangesPercentage ?? null);
+                            isAH     = true;
+                        } else if (preP && preP > 0) {
+                            extPrice = preP;
+                            extPct   = pc ? (preP - pc) / pc * 100 : null;
+                        }
 
-            if (updated > 0) console.log('[ExtHours] updated', updated, '/', watchlist.length, 'symbols');
-            else console.warn('[ExtHours] no pre/post market data in response — market may be open');
+                        if (extPrice === null || extPct === null) return;
+                        if (pc && Math.abs(extPrice - pc) / pc > 0.30) return;
+
+                        const existing = wlDataCache[sym] || {};
+                        if (!isAH) {
+                            wlDataCache[sym] = Object.assign({}, existing,
+                                { preMarketPrice: extPrice, preMarketChangePct: extPct });
+                        } else {
+                            wlDataCache[sym] = Object.assign({}, existing,
+                                { afterHoursPrice: extPrice, afterHoursChangePct: extPct });
+                        }
+                        updatePreMktCell(sym, extPrice, extPct, isAH);
+                        updated++;
+                    } catch(e) {}
+                }));
+                if (ci < chunks.length - 1) await new Promise(r => setTimeout(r, 200));
+            }
+
+            if (updated > 0) console.log('[ExtHours] FMP updated', updated, '/', watchlist.length);
+            else console.warn('[ExtHours] FMP: no pre/post data (market may be open or key invalid)');
         }
 
         async function fetchQuote(symbol) {
@@ -3367,9 +3313,8 @@
             }
         }
 
-        // ── Extended Hours — Yahoo Finance via CORS proxy (no API key needed) ──────
-        // Yahoo Finance v7 quote returns preMarketPrice, postMarketPrice freely.
-        // We rotate through 3 CORS proxies and 2 Yahoo hosts for maximum reliability.
+        // ── Extended Hours — FMP (Financial Modeling Prep) ──────────────────────────
+        // FMP free tier: 250 req/day, accurate pre/post-market prices, no CORS issues.
 
         let extHoursTimer  = null;
         let extHoursActive = false;
@@ -4498,6 +4443,7 @@ Analysis guidelines:
                 if (el) el.value = localStorage.getItem(key) || '';
             };
             fill('s-finnhub-input',    'ps_finnhub_key');
+            fill('s-fmp-key-input',    'ps_fmp_key');
             fill('s-erapi-input',      'ps_erapi_key');
             fill('s-alpaca-key-input',    'ps_alpaca_key');
             fill('s-alpaca-secret-input', 'ps_alpaca_secret');
@@ -4521,7 +4467,7 @@ Analysis guidelines:
             };
             badge('s-finnhub-badge',    'ps_finnhub_key');
             badge('s-erapi-badge',      'ps_erapi_key');
-            badge('s-alpaca-badge',      'ps_alpaca_key');
+            badge('s-alpaca-badge',      'ps_fmp_key');
             badge('s-openrouter-badge', 'ps_openrouter_key');
             badge('s-gist-badge',       'ps_gist_token');
         }
@@ -4536,6 +4482,7 @@ Analysis guidelines:
             };
             save('s-finnhub-input',    'ps_finnhub_key');
             save('s-erapi-input',      'ps_erapi_key');
+            save('s-fmp-key-input',       'ps_fmp_key');
             save('s-alpaca-key-input',    'ps_alpaca_key');
             save('s-alpaca-secret-input', 'ps_alpaca_secret');
             save('s-openrouter-input', 'ps_openrouter_key', v => v.startsWith('sk-or-'));
@@ -4549,7 +4496,7 @@ Analysis guidelines:
 
         function clearAllSettings() {
             if (!confirm('ล้าง API keys ทั้งหมดใช่ไหม?')) return;
-            ['ps_finnhub_key','ps_erapi_key','ps_alpaca_key','ps_alpaca_secret','ps_openrouter_key','ps_gist_token'].forEach(k => localStorage.removeItem(k));
+            ['ps_finnhub_key','ps_fmp_key','ps_erapi_key','ps_alpaca_key','ps_alpaca_secret','ps_openrouter_key','ps_gist_token'].forEach(k => localStorage.removeItem(k));
             ['s-finnhub-input','s-erapi-input','s-alpaca-key-input','s-alpaca-secret-input','s-openrouter-input','s-gist-input'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
@@ -4982,7 +4929,7 @@ Analysis guidelines:
                     </p>
                 </div>
 
-                <!-- Alpaca Markets — Pre/After-hours data (FREE) -->
+                <!-- FMP — Pre/After-hours data -->
                 <div class="rounded-md p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
@@ -4990,15 +4937,23 @@ Analysis guidelines:
                                 <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             </div>
                             <div>
-                                <p class="text-xs font-bold" style="color:var(--text-primary)">Pre-Market / After-Hours <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(16,185,129,0.15);color:#10b981">AUTO</span></p>
-                                <p class="text-[10px]" style="color:var(--text-dim)">Yahoo Finance · ไม่ต้องใช้ API Key · ทำงานอัตโนมัติ</p>
+                                <p class="text-xs font-bold" style="color:var(--text-primary)">Pre-Market / After-Hours <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(99,102,241,0.15);color:#818cf8">FMP</span></p>
+                                <p class="text-[10px]" style="color:var(--text-dim)">Financial Modeling Prep · ฟรี 250 req/วัน</p>
                             </div>
                         </div>
-                        <span id="s-alpaca-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full" style="background:rgba(16,185,129,0.15);color:#10b981">✓ พร้อมใช้งาน</span>
+                        <span id="s-alpaca-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
                     </div>
-                    <p class="text-[9px]" style="color:var(--text-dim);line-height:1.6">
-                        ราคา Pre-market และ After-hours ดึงจาก <strong style="color:var(--text-secondary)">Yahoo Finance</strong> ผ่าน CORS proxy อัตโนมัติ<br>
-                        อัพเดตทุก 15 วินาที · หยุดเมื่อซ่อน tab · ไม่ต้อง login หรือ API key ใดๆ
+                    <div class="flex gap-2 mb-2">
+                        <input id="s-fmp-key-input" type="password" autocomplete="off" placeholder="FMP API Key (พิมพ์ demo เพื่อทดสอบ)"
+                            class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
+                            onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-fmp-key-input')" class="px-2.5 rounded-lg text-[10px]"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    </div>
+                    <p class="text-[9px] mt-1" style="color:var(--text-dim);line-height:1.6">
+                        สมัครฟรีที่ <a href="https://financialmodelingprep.com" target="_blank" class="underline" style="color:#818cf8">financialmodelingprep.com</a>
+                        → Register → Get Free API Key · อัพเดต pre-market ทุก 15 วินาที
                     </p>
                 </div>
 
