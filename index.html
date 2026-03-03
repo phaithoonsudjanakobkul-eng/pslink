@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PS Smart Finance - Secured</title>
+    <title>PS Smart Finance v1.1 - FMP Endpoint Fallback</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -327,24 +327,29 @@
         #wl-split-wrap.chart-open #watchlist-table {
             min-width: unset !important;
             table-layout: fixed;
-            width: 100% !important;
         }
-        /* Hide ALL td/th in compact, then show only what we need via JS class */
-        #wl-split-wrap.chart-open #watchlist-table td,
-        #wl-split-wrap.chart-open #watchlist-table th {
+        /* When chart open: hide NAME col (col 3), CHG col (col 5) */
+        #wl-split-wrap.chart-open td:nth-child(3),
+        #wl-split-wrap.chart-open th:nth-child(3),
+        #wl-split-wrap.chart-open td:nth-child(5),
+        #wl-split-wrap.chart-open th:nth-child(5) {
             display: none !important;
         }
-        /* Show: col1(#) col2(symbol+logo) col4(price) col6(chg%) col19(delete) */
-        #wl-split-wrap.chart-open #watchlist-table .wl-compact-show {
-            display: table-cell !important;
+        /* Compact column widths that fit in 340px */
+        /* Compact col widths: 22+58+0+76+0+74+56+24 = 310px */
+        #wl-split-wrap.chart-open col:nth-child(1)  { width: 22px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(2)  { width: 58px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(3)  { width: 0     !important; }
+        #wl-split-wrap.chart-open col:nth-child(4)  { width: 76px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(5)  { width: 0     !important; }
+        #wl-split-wrap.chart-open col:nth-child(6)  { width: 74px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(7)  { width: 56px  !important; }
+        #wl-split-wrap.chart-open td:nth-child(2),
+        #wl-split-wrap.chart-open th:nth-child(2) {
+            max-width: 62px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-        }
-        /* Tight padding in compact mode */
-        #wl-split-wrap.chart-open #watchlist-table td.wl-compact-show,
-        #wl-split-wrap.chart-open #watchlist-table th.wl-compact-show {
-            padding: 0 4px !important;
         }
 
         /* Stats grid — 2 columns with border dividers */
@@ -996,7 +1001,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r85</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r84</div>
                 </div>
             </div>
             
@@ -2344,7 +2349,7 @@
                     // Full re-render only for skeleton/initial load
                     existing.outerHTML = html;
                 } else {
-                    // Surgical update — preserve col[6] (EXT) which FMP owns
+                    // Surgical update — preserve col[6] (PRE-MKT) which Alpaca owns
                     const tmp = document.createElement('tbody');
                     tmp.innerHTML = html;
                     const newRow = tmp.querySelector('tr');
@@ -2352,7 +2357,7 @@
                         const oldCells = existing.querySelectorAll('td');
                         const newCells = newRow.querySelectorAll('td');
                         newCells.forEach(function(nc, i) {
-                            if (i === 6) return; // EXT cell owned by FMP — never overwrite
+                            if (i === 6) return; // PRE-MKT cell owned by Alpaca — never overwrite
                             if (oldCells[i]) oldCells[i].outerHTML = nc.outerHTML;
                         });
                     }
@@ -2362,11 +2367,6 @@
                 const rowsEl  = document.getElementById('watchlist-rows');
                 if (emptyEl) emptyEl.classList.add('hidden');
                 if (rowsEl)  rowsEl.insertAdjacentHTML('beforeend', html);
-            }
-            // Re-apply compact classes if chart is currently open
-            const wrap = document.getElementById('wl-split-wrap');
-            if (wrap && wrap.classList.contains('chart-open')) {
-                setCompactHeaders(true);
             }
         }
         let dragSrc = null;
@@ -2444,7 +2444,54 @@
 
         // ── Extended Hours: FMP (Financial Modeling Prep) — free, no CORS ──────
         let _extLastBatchTs = 0;
+        let _fmpEndpointIdx = 0; // track which endpoint works
         function getFmpKey() { return localStorage.getItem('ps_fmp_key') || ''; }
+
+        // FMP endpoint fallback chain (free-tier compatible)
+        // /pre-post-market-hours/ = primary (v3, free tier)
+        // /pre-post-market/       = alternate name same data
+        // /quote/                 = fallback (may need paid plan, but has preMarketPrice field)
+        const FMP_ENDPOINTS = [
+            (sym, key) => `https://financialmodelingprep.com/api/v3/pre-post-market-hours/${sym}?apikey=${key}`,
+            (sym, key) => `https://financialmodelingprep.com/api/v3/pre-post-market/${sym}?apikey=${key}`,
+            (sym, key) => `https://financialmodelingprep.com/api/v3/quote/${sym}?apikey=${key}`,
+        ];
+
+        async function fmpFetchSym(sym, fmpKey) {
+            // Try from last known working endpoint first, then cycle through all
+            const order = [_fmpEndpointIdx, ...[0,1,2].filter(i => i !== _fmpEndpointIdx)];
+            for (const idx of order) {
+                try {
+                    const url  = FMP_ENDPOINTS[idx](sym, fmpKey);
+                    const ctrl = new AbortController();
+                    const tid  = setTimeout(() => ctrl.abort(), 7000);
+                    const res  = await fetch(url, { signal: ctrl.signal });
+                    clearTimeout(tid);
+                    if (res.status === 403) {
+                        console.warn(`[ExtHours] FMP endpoint[${idx}] 403 Forbidden for ${sym} — trying next`);
+                        continue;
+                    }
+                    if (!res.ok) {
+                        console.warn(`[ExtHours] FMP endpoint[${idx}] HTTP ${res.status} for ${sym}`);
+                        continue;
+                    }
+                    const data = await res.json();
+                    const q    = Array.isArray(data) ? data[0] : data;
+                    if (!q || (typeof q === 'object' && q['Error Message'])) {
+                        console.warn(`[ExtHours] FMP endpoint[${idx}] empty/error response for ${sym}`, q);
+                        continue;
+                    }
+                    if (idx !== _fmpEndpointIdx) {
+                        _fmpEndpointIdx = idx;
+                        console.info(`[ExtHours] FMP switched to endpoint[${idx}]:`, FMP_ENDPOINTS[idx]('X','..').replace('X','SYM').replace(/apikey=.+/,'apikey=***'));
+                    }
+                    return q;
+                } catch(e) {
+                    if (e.name !== 'AbortError') console.warn(`[ExtHours] FMP endpoint[${idx}] error for ${sym}:`, e.message);
+                }
+            }
+            return null;
+        }
 
         async function fetchYahooExtendedBatch() {
             if (watchlist.length === 0) return;
@@ -2463,72 +2510,41 @@
             const preMarket = isExtendedHours() && !mktOpen;
             let updated = 0;
 
-            // FMP free plan endpoints that return extended hours data:
-            // 1. /api/v3/quote/{symbol} — returns preMarketChangePercent, afterHoursPrice
-            // 2. /api/v3/pre-post-market/{symbol} — newer endpoint (v3 free)
-            // We try both and use whichever has the data
-
+            // Fetch in groups of 5 with 200ms gap between groups
             const chunks = [];
             for (let i = 0; i < watchlist.length; i += 5) chunks.push(watchlist.slice(i, i + 5));
 
             for (let ci = 0; ci < chunks.length; ci++) {
                 await Promise.all(chunks[ci].map(async (sym) => {
                     try {
-                        // Primary: /api/v3/quote — free, reliable, has pre/postMarket fields
-                        const url = `https://financialmodelingprep.com/api/v3/quote/${sym}?apikey=${fmpKey}`;
-                        const ctrl = new AbortController();
-                        const tid  = setTimeout(() => ctrl.abort(), 7000);
-                        const res  = await fetch(url, { signal: ctrl.signal });
-                        clearTimeout(tid);
+                        const q = await fmpFetchSym(sym, fmpKey);
+                        if (!q) return;
 
-                        if (!res.ok) {
-                            console.warn(`[ExtHours] FMP ${sym} HTTP ${res.status}`);
-                            return;
-                        }
-                        const data = await res.json();
-
-                        // FMP /quote returns array
-                        const q = Array.isArray(data) ? data[0] : data;
-                        if (!q || q.symbol !== sym) {
-                            console.warn(`[ExtHours] FMP ${sym}: no data`, JSON.stringify(data).slice(0,100));
-                            return;
-                        }
-
-                        console.log(`[ExtHours] FMP ${sym} raw:`, {
-                            preP: q.priceAvg50,
-                            pre: q['50DayAverage'], // debug all fields
-                            keys: Object.keys(q).filter(k => k.toLowerCase().includes('pre') || k.toLowerCase().includes('after') || k.toLowerCase().includes('post')).join(',')
-                        });
-
-                        const pc = q.previousClose ?? wlDataCache[sym]?.pc ?? null;
-
-                        // FMP /quote field names for extended hours
-                        // preMarketPrice, afterHoursPrice (when available)
-                        const preP  = q.preMarketPrice  ?? null;
-                        const postP = q.afterHoursPrice ?? null;
-
+                        const pc  = wlDataCache[sym]?.pc ?? null;
                         let extPrice = null, extPct = null, isAH = false;
+
+                        // FMP field names vary by endpoint:
+                        // pre-post-market-hours: { pre, post, preChangesPercentage, postChangesPercentage }
+                        // quote: { preMarketPrice, afterHoursPrice, preMarketChangesPercentage, afterHoursChangesPercentage }
+                        const preP  = q.pre  ?? q.preMarketPrice  ?? q.prePrice  ?? null;
+                        const postP = q.post ?? q.afterHoursPrice ?? q.postMarketPrice ?? q.postPrice ?? null;
+                        const prePct  = q.preChangesPercentage  ?? q.preMarketChangesPercentage  ?? null;
+                        const postPct = q.postChangesPercentage ?? q.afterHoursChangesPercentage ?? null;
 
                         if (preMarket && preP && preP > 0) {
                             extPrice = preP;
-                            extPct   = pc ? (preP - pc) / pc * 100 : null;
+                            extPct   = pc ? (preP - pc) / pc * 100 : prePct;
                         } else if (postP && postP > 0) {
                             extPrice = postP;
-                            extPct   = pc ? (postP - pc) / pc * 100 : null;
+                            extPct   = pc ? (postP - pc) / pc * 100 : postPct;
                             isAH     = true;
                         } else if (preP && preP > 0) {
                             extPrice = preP;
-                            extPct   = pc ? (preP - pc) / pc * 100 : null;
+                            extPct   = pc ? (preP - pc) / pc * 100 : prePct;
                         }
 
-                        if (extPrice === null || extPct === null) {
-                            console.info(`[ExtHours] ${sym}: preMarketPrice=${preP} afterHoursPrice=${postP} — no ext data right now`);
-                            return;
-                        }
-                        if (pc && Math.abs(extPrice - pc) / pc > 0.30) {
-                            console.warn(`[ExtHours] ${sym}: sanity fail ext=${extPrice} pc=${pc}`);
-                            return;
-                        }
+                        if (extPrice === null || extPct === null) return;
+                        if (pc && Math.abs(extPrice - pc) / pc > 0.30) return;
 
                         const existing = wlDataCache[sym] || {};
                         if (!isAH) {
@@ -2540,15 +2556,13 @@
                         }
                         updatePreMktCell(sym, extPrice, extPct, isAH);
                         updated++;
-                    } catch(e) {
-                        console.error(`[ExtHours] ${sym} error:`, e.message);
-                    }
+                    } catch(e) {}
                 }));
-                if (ci < chunks.length - 1) await new Promise(r => setTimeout(r, 300));
+                if (ci < chunks.length - 1) await new Promise(r => setTimeout(r, 200));
             }
 
             if (updated > 0) console.log('[ExtHours] FMP updated', updated, '/', watchlist.length);
-            else console.warn('[ExtHours] FMP: 0 symbols updated — market may be open (no ext hours) or check API key');
+            else console.warn('[ExtHours] FMP: no pre/post data returned — check key, plan tier, or market hours');
         }
 
         async function fetchQuote(symbol) {
@@ -2825,35 +2839,15 @@
         let qcCurrentRange = 'D';
 
         function setCompactHeaders(compact) {
-            const tbl = document.getElementById('watchlist-table');
-            if (!tbl) return;
-
+            const thName  = document.getElementById('wl-th-name');
+            const thPrice = document.getElementById('wl-th-price');
+            if (!thName || !thPrice) return;
             if (compact) {
-                // Add wl-compact-show to ONLY the columns we want visible
-                // th/td indices (1-based): 1=#, 2=symbol, 4=price, 6=chg%, 19=delete
-                const SHOW_COLS = new Set([1, 2, 4, 6, 19]);
-                tbl.querySelectorAll('tr').forEach(row => {
-                    Array.from(row.children).forEach((cell, i) => {
-                        if (SHOW_COLS.has(i + 1)) {
-                            cell.classList.add('wl-compact-show');
-                        } else {
-                            cell.classList.remove('wl-compact-show');
-                        }
-                    });
-                });
-                // Fix col widths via colgroup: #(24) sym(80) price(90) chg%(80) skip(0) del(28)
-                const cols = tbl.querySelectorAll('col');
-                const cw = {1:24, 2:80, 4:90, 6:80, 19:28};
-                cols.forEach((col, i) => {
-                    col.style.width = cw[i+1] ? cw[i+1]+'px' : '0';
-                });
+                thName.textContent  = 'Price';
+                thPrice.textContent = '% Chg';
             } else {
-                // Remove compact classes, restore original col widths
-                tbl.querySelectorAll('.wl-compact-show').forEach(el => el.classList.remove('wl-compact-show'));
-                const origW = [30,72,130,84,72,84,88,78,78,75,75,72,72,72,68,46,52,52,30];
-                tbl.querySelectorAll('col').forEach((col, i) => {
-                    col.style.width = (origW[i] ?? 60) + 'px';
-                });
+                thName.textContent  = 'Name';
+                thPrice.textContent = 'Price';
             }
         }
 
