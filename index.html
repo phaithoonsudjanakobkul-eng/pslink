@@ -21,104 +21,121 @@
 
         :root {
             --font-main: 'Inter', 'IBM Plex Sans Thai', system-ui, sans-serif;
-            --font-mono: 'Roboto Mono', 'Roboto Mono', 'Consolas', monospace;
+            --font-mono: 'Roboto Mono', 'Consolas', monospace;
             --bg-dark: #f0f4f8;
             --bg-card: #ffffff;
             --bg-card2: #e8eef5;
             --border: #d0dce8;
-            --accent: #0d9488;
+            --accent: #089981;
             --accent2: #0f766e;
-            --danger: #e11d48;
+            --danger: #f23645;
             --warning: #d97706;
             --text-primary: #0f2030;
             --text-secondary: #64748b;
             --text-dim: #94a3b8;
-            --qc-up: #22c55e;
-            --qc-dn: #f43f5e;
+            --qc-up: #089981;
+            --qc-dn: #f23645;
         }
 
         html.dark {
-            --bg-dark: #0a0f1a;
-            --bg-card: #111827;
-            --bg-card2: #0f1623;
-            --border: #1e2d40;
-            --accent: #00e676;
-            --accent2: #00c853;
-            --danger: #ff1744;
-            --warning: #ffab00;
-            --text-primary: #f0f6ff;
-            --text-secondary: #94a3b8;
-            --text-dim: #475569;
-            --qc-up: #22c55e;
-            --qc-dn: #f43f5e;
-            --chart-up: #22c55e;
-            --chart-dn: #f43f5e;
+            --bg-dark: #0b0e11;
+            --bg-card: #161a1e;
+            --bg-card2: #1c2127;
+            --border: rgba(255,255,255,0.08);
+            --accent: #089981;
+            --accent2: #0cbbaa;
+            --danger: #f23645;
+            --warning: #f0a500;
+            --text-primary: #d1d4dc;
+            --text-secondary: #787b86;
+            --text-dim: #4c525e;
+            --qc-up: #089981;
+            --qc-dn: #f23645;
+            --chart-up: #089981;
+            --chart-dn: #f23645;
+        }
+
+        /* Price flash animation */
+        @keyframes flashUp {
+            0%   { background-color: rgba(8, 153, 129, 0.25); }
+            100% { background-color: transparent; }
+        }
+        @keyframes flashDown {
+            0%   { background-color: rgba(242, 54, 69, 0.25); }
+            100% { background-color: transparent; }
+        }
+        .flash-up   { animation: flashUp   0.35s ease-out; }
+        .flash-down { animation: flashDown 0.35s ease-out; }
+
+        /* Tabular numbers global utility */
+        .price-mono {
+            font-family: var(--font-main);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
         }
 
         html.dark body {
-            background-color: #0b1120;
-            color: #e2e8f0;
+            background-color: #0b0e11;
+            color: #d1d4dc;
         }
 
         /* NAV */
         html.dark nav {
-            background: rgba(15,23,42,0.95) !important;
-            border-color: #1e293b !important;
+            background: rgba(22,26,30,0.97) !important;
+            border-color: rgba(255,255,255,0.07) !important;
         }
-        html.dark nav .bg-white\/90 { background: rgba(15,23,42,0.95) !important; }
+        html.dark nav .bg-white\/90 { background: rgba(22,26,30,0.97) !important; }
 
         /* GLASS CARDS */
         html.dark .glass-card {
-            background: #1e293b !important;
-            border-color: #334155 !important;
+            background: #161a1e !important;
+            border-color: rgba(255,255,255,0.07) !important;
         }
 
         /* TAB BUTTONS */
-        html.dark .bg-gray-100 { background-color: #1e293b !important; }
+        html.dark .bg-gray-100 { background-color: #1c2127 !important; }
         html.dark .tab-active {
-            background: #0f172a !important;
-            color: #38bdf8 !important;
+            background: #131722 !important;
+            color: #089981 !important;
         }
 
-        /* DASHBOARD */
         html.dark #tab-dashboard {
-            background: #111827 !important;
-            border-color: #1e293b !important;
+            background: #0b0e11 !important;
+            border-color: rgba(255,255,255,0.07) !important;
         }
         html.dark .dash-card {
-            background: #1e293b !important;
-            border-color: #334155 !important;
+            background: #161a1e !important;
+            border-color: rgba(255,255,255,0.07) !important;
         }
         html.dark .dash-chart-card {
-            background: #1e293b !important;
-            border-color: #334155 !important;
+            background: #161a1e !important;
+            border-color: rgba(255,255,255,0.07) !important;
         }
         html.dark .dash-select {
-            background: #0f172a !important;
-            border-color: #334155 !important;
-            color: #14b8a6 !important;
+            background: #0b0e11 !important;
+            border-color: rgba(255,255,255,0.08) !important;
+            color: #089981 !important;
         }
         html.dark .dash-label { color: var(--text-secondary) !important; }
-        /* Only override dash-value that doesn't carry a color class */
         html.dark .dash-value:not(.dash-green):not(.dash-red):not(.dash-yellow) { color: var(--text-primary) !important; }
         html.dark .dash-section-title { color: var(--text-secondary) !important; }
-        html.dark .dash-divider { border-color: #334155 !important; }
+        html.dark .dash-divider { border-color: rgba(255,255,255,0.07) !important; }
 
         /* RECORDS */
         html.dark .bg-white {
-            background-color: #1e293b !important;
+            background-color: #161a1e !important;
         }
         html.dark .bg-gray-50 {
-            background-color: #162032 !important;
+            background-color: #131618 !important;
         }
-        html.dark .border-gray-100 { border-color: #334155 !important; }
-        html.dark .border-gray-200 { border-color: #334155 !important; }
-        html.dark .text-gray-900 { color: #f1f5f9 !important; }
-        html.dark .text-gray-700 { color: #cbd5e1 !important; }
-        html.dark .text-gray-600 { color: #94a3b8 !important; }
-        html.dark .text-gray-500 { color: #64748b !important; }
-        html.dark .text-gray-400 { color: #475569 !important; }
-        html.dark .text-gray-300 { color: #334155 !important; }
+        html.dark .border-gray-100 { border-color: rgba(255,255,255,0.07) !important; }
+        html.dark .border-gray-200 { border-color: rgba(255,255,255,0.07) !important; }
+        html.dark .text-gray-900 { color: #d1d4dc !important; }
+        html.dark .text-gray-700 { color: #9598a1 !important; }
+        html.dark .text-gray-600 { color: #787b86 !important; }
+        html.dark .text-gray-500 { color: #4c525e !important; }
+        html.dark .text-gray-400 { color: #3c4148 !important; }
+        html.dark .text-gray-300 { color: #2d3139 !important; }
 
         /* INPUTS */
         html.dark input[type="text"],
@@ -126,20 +143,20 @@
         html.dark input[type="month"],
         html.dark input[type="password"],
         html.dark select {
-            background-color: #0f172a !important;
-            border-color: #334155 !important;
-            color: #f1f5f9 !important;
+            background-color: #0b0e11 !important;
+            border-color: rgba(255,255,255,0.1) !important;
+            color: #d1d4dc !important;
         }
-        html.dark input::placeholder { color: #475569 !important; }
+        html.dark input::placeholder { color: #4c525e !important; }
 
         /* WATCHLIST TABLE */
         html.dark table thead tr {
-            background-color: #162032 !important;
+            background-color: #131618 !important;
         }
         html.dark .hover\:bg-gray-50:hover {
-            background-color: #1e293b !important;
+            background-color: rgba(255,255,255,0.03) !important;
         }
-        html.dark .border-gray-50 { border-color: #1e293b !important; }
+        html.dark .border-gray-50 { border-color: rgba(255,255,255,0.05) !important; }
 
         /* QUICK CHART */
         /* Fix input backgrounds in dark mode */
@@ -149,35 +166,35 @@
         }
         html.dark #paydayDisplay {
             background-color: transparent !important;
-            color: #60a5fa !important;
+            color: #089981 !important;
         }
         html.dark #month-picker-wrap {
-            background-color: #0f172a !important;
+            background-color: #0b0e11 !important;
         }
         html.dark #records-toolbar {
-            background-color: #1e293b !important;
-            border-color: #334155 !important;
+            background-color: #161a1e !important;
+            border-color: rgba(255,255,255,0.07) !important;
         }
-        html.dark #financial-bar .divide-gray-100 { border-color: #334155 !important; }
-        html.dark #financial-bar > div { border-color: #334155 !important; }
-        html.dark .md\:divide-x > * { border-color: #334155 !important; }
+        html.dark #financial-bar .divide-gray-100 { border-color: rgba(255,255,255,0.07) !important; }
+        html.dark #financial-bar > div { border-color: rgba(255,255,255,0.07) !important; }
+        html.dark .md\:divide-x > * { border-color: rgba(255,255,255,0.07) !important; }
         html.dark .bg-gray-100.p-0\.5 {
-            background-color: #0f172a !important;
+            background-color: #0b0e11 !important;
         }
 
         /* MODALS */
         html.dark .bg-white.rounded-\[2rem\] {
-            background-color: #1e293b !important;
+            background-color: #161a1e !important;
         }
 
         /* BADGES */
-        html.dark .bg-blue-50 { background-color: rgba(59,130,246,0.15) !important; }
-        html.dark .bg-rose-50 { background-color: rgba(244,63,94,0.15) !important; }
-        html.dark .bg-emerald-50 { background-color: rgba(16,185,129,0.12) !important; }
-        html.dark .bg-purple-50 { background-color: rgba(168,85,247,0.15) !important; }
-        html.dark .bg-teal-50 { background-color: rgba(20,184,166,0.12) !important; }
-        html.dark .bg-gray-900 { background-color: #0f172a !important; }
-        html.dark .row-paid { background-color: rgba(16,185,129,0.08) !important; }
+        html.dark .bg-blue-50 { background-color: rgba(59,130,246,0.12) !important; }
+        html.dark .bg-rose-50 { background-color: rgba(242,54,69,0.12) !important; }
+        html.dark .bg-emerald-50 { background-color: rgba(8,153,129,0.1) !important; }
+        html.dark .bg-purple-50 { background-color: rgba(168,85,247,0.12) !important; }
+        html.dark .bg-teal-50 { background-color: rgba(8,153,129,0.1) !important; }
+        html.dark .bg-gray-900 { background-color: #0b0e11 !important; }
+        html.dark .row-paid { background-color: rgba(8,153,129,0.07) !important; }
 
         /* Watchlist tab full-width breakout */
         #tab-watchlist {
@@ -335,7 +352,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
         html.dark .dark-toggle {
-            background: #0d9488;
+            background: #089981;
         }
         html.dark .dark-toggle::after {
             transform: translateX(18px);
@@ -346,45 +363,46 @@
             background-color: #f8fafc; 
             color: #1e293b;
             overflow-y: auto;
+            letter-spacing: -0.01em;
         }
 
-        /* ── Watchlist table font — uniform Inter weight 500 ── */
+        /* ── Watchlist table font — uniform Inter weight ── */
         #watchlist-table th {
             font-family: var(--font-main);
             font-weight: 600;
             font-size: 10px;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--text-secondary);
         }
         #watchlist-table td {
             font-family: var(--font-main);
             font-weight: 400;
-            font-size: 13px;
+            font-size: 12.5px;
             color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
         }
-        /* .wl-up/.wl-dn/.wl-neutral handle all watchlist data colors — see below */
-        /* Symbol — bold + slightly larger, immediate scan */
+        /* Symbol — semibold, immediate scan */
         #watchlist-table .sym-cell {
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 0.03em;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
             color: var(--text-primary);
         }
-        /* Price — large, heavy mono for that trading-terminal feel */
+        /* Price — medium weight, tabular nums */
         #watchlist-table .price-cell {
-            font-family: var(--font-mono);
+            font-family: var(--font-main);
             font-size: 13px;
-            font-weight: 900;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: 0.03em;
-        }
-        /* Other numbers — mono, medium weight */
-        #watchlist-table .num-cell {
-            font-family: var(--font-mono);
             font-weight: 500;
             font-variant-numeric: tabular-nums;
-            letter-spacing: 0.02em;
+            letter-spacing: -0.02em;
+        }
+        /* Other numbers — medium weight, tabular nums */
+        #watchlist-table .num-cell {
+            font-family: var(--font-main);
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.01em;
         }
         #watchlist-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         /* Fixed widths per column index */
@@ -409,7 +427,7 @@
 
         #tab-dashboard {
             background: #f0f4f8;
-            border-radius: 1.5rem;
+            border-radius: 6px;
             padding: 1.25rem 1rem 1rem 1rem;
             border: 1px solid #d0dce8;
             margin-top: 12px;
@@ -417,11 +435,11 @@
 
         .dash-card {
             background: #ffffff;
-            border: 1px solid #d0dce8;
-            border-radius: 0.75rem;
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 6px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 1px 4px rgba(13,148,136,0.06);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
 
         .dash-card::before {
@@ -429,29 +447,30 @@
             position: absolute;
             top: 0; left: 0; right: 0;
             height: 2px;
-            background: linear-gradient(90deg, #0d9488, #14b8a6, #0d9488);
-            opacity: 0.5;
+            background: linear-gradient(90deg, #089981, #0cbbaa, #089981);
+            opacity: 0.4;
         }
 
         .dash-label {
             font-family: var(--font-mono);
             font-size: 11px;
             font-weight: 600;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.1em;
             color: var(--text-secondary);
             text-transform: uppercase;
         }
 
         .dash-value {
             font-family: var(--font-mono);
-            font-weight: 700;
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
             color: var(--text-primary);
             line-height: 1;
         }
 
-        .dash-accent { color: #0d9488; }
-        .dash-green { color: #0d9488; }
-        .dash-red { color: #e11d48; }
+        .dash-accent { color: #089981; }
+        .dash-green { color: #089981; }
+        .dash-red { color: #f23645; }
         .dash-yellow { color: #d97706; }
 
         .dash-divider {
@@ -460,15 +479,15 @@
 
         .dash-chart-card {
             background: #ffffff;
-            border: 1px solid #d0dce8;
-            border-radius: 0.75rem;
-            box-shadow: 0 1px 4px rgba(13,148,136,0.06);
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
 
         .dash-select {
             background: #f0f4f8;
             border: 1px solid #d0dce8;
-            color: #0d9488;
+            color: #089981;
             font-family: var(--font-mono);
             font-size: 10px;
             font-weight: 600;
@@ -483,37 +502,36 @@
             font-family: var(--font-mono);
             font-size: 11px;
             font-weight: 600;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.1em;
             color: var(--text-secondary);
             text-transform: uppercase;
         }
 
         .ticker-line {
-            height: 2px;
-            background: linear-gradient(90deg, #0d9488 0%, #14b8a6 50%, transparent 100%);
-            opacity: 0.4;
+            height: 1px;
+            background: linear-gradient(90deg, #089981 0%, #0cbbaa 50%, transparent 100%);
+            opacity: 0.3;
             margin-bottom: 1.5rem;
-            border-radius: 2px;
         }
 
         .glass-card { 
             background: white; 
-            border-radius: 1.5rem; 
-            border: 1px solid #f1f5f9; 
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); 
+            border-radius: 6px; 
+            border: 1px solid rgba(0,0,0,0.08); 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
         }
         
         .tab-active { 
             background: white; 
-            color: #2563eb; 
-            box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.1); 
+            color: #089981; 
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08); 
         }
 
         .thai-label {
             font-size: 0.85rem;
-            font-weight: 800;
+            font-weight: 600;
             color: #64748b;
-            letter-spacing: 0.025em;
+            letter-spacing: 0.015em;
             line-height: 1;
         }
 
@@ -541,9 +559,10 @@
             white-space: nowrap;
             text-align: right;
             padding: 0.375rem 0.75rem;
-            border-radius: 0.5rem;
-            font-weight: 900;
+            border-radius: 4px;
+            font-weight: 600;
             font-size: 0.875rem;
+            font-variant-numeric: tabular-nums;
             transition: all 0.2s ease;
         }
 
@@ -585,53 +604,53 @@
         html.dark input:-webkit-autofill,
         html.dark input:-webkit-autofill:hover,
         html.dark input:-webkit-autofill:focus {
-            -webkit-box-shadow: 0 0 0 1000px #1e293b inset !important;
-            box-shadow: 0 0 0 1000px #1e293b inset !important;
-            -webkit-text-fill-color: #e2e8f0 !important;
+            -webkit-box-shadow: 0 0 0 1000px #161a1e inset !important;
+            box-shadow: 0 0 0 1000px #161a1e inset !important;
+            -webkit-text-fill-color: #d1d4dc !important;
         }
         
         /* ── Watchlist badge & row ───────────────────────────────── */
         .wl-badge-up {
-            color: #22c55e;
-            background: rgba(34, 197, 94, 0.12);
+            color: #089981;
+            background: rgba(8, 153, 129, 0.12);
         }
         .wl-badge-dn {
-            color: #f43f5e;
-            background: rgba(244, 63, 94, 0.12);
+            color: #f23645;
+            background: rgba(242, 54, 69, 0.12);
         }
         html.dark .wl-badge-up {
-            color: #22c55e;
-            background: rgba(34, 197, 94, 0.15);
+            color: #089981;
+            background: rgba(8, 153, 129, 0.15);
         }
         html.dark .wl-badge-dn {
-            color: #f43f5e;
-            background: rgba(244, 63, 94, 0.15);
+            color: #f23645;
+            background: rgba(242, 54, 69, 0.15);
         }
         html.dark .wl-row:hover {
-            background: rgba(255,255,255,0.04) !important;
+            background: rgba(255,255,255,0.03) !important;
         }
-        /* Header row slightly taller too */
+        /* Header row compact */
         #watchlist-table thead th {
-            padding-top: 10px;
-            padding-bottom: 10px;
+            padding-top: 8px;
+            padding-bottom: 8px;
         }
         
         
-        /* ── Watchlist data color classes — light + dark aware ───── */
+        /* ── Watchlist data color classes — TradingView palette ───── */
         #watchlist-table td.wl-up,
         #watchlist-table td.wl-up span,
-        #watchlist-table span.wl-up      { color: #22c55e; }
+        #watchlist-table span.wl-up      { color: #089981; }
         #watchlist-table td.wl-dn,
         #watchlist-table td.wl-dn span,
-        #watchlist-table span.wl-dn      { color: #f43f5e; }
+        #watchlist-table span.wl-dn      { color: #f23645; }
         #watchlist-table td.wl-neutral,
         #watchlist-table span.wl-neutral { color: var(--text-dim); }
         html.dark #watchlist-table td.wl-up,
         html.dark #watchlist-table td.wl-up span,
-        html.dark #watchlist-table span.wl-up      { color: #22c55e; }
+        html.dark #watchlist-table span.wl-up      { color: #089981; }
         html.dark #watchlist-table td.wl-dn,
         html.dark #watchlist-table td.wl-dn span,
-        html.dark #watchlist-table span.wl-dn      { color: #f43f5e; }
+        html.dark #watchlist-table span.wl-dn      { color: #f23645; }
         html.dark #watchlist-table td.wl-neutral,
         html.dark #watchlist-table span.wl-neutral { color: var(--text-dim); }
         </style>
@@ -660,7 +679,7 @@
     <!-- Gist Token Modal -->
     <div id="gist-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
         <div style="background-color:rgba(15,23,42,0.6);backdrop-filter:blur(4px)" class="fixed inset-0"></div>
-        <div class="bg-white rounded-[2rem] max-w-sm w-full p-8 shadow-2xl animate-in relative z-10">
+        <div class="bg-white rounded-lg max-w-sm w-full p-8 shadow-2xl animate-in relative z-10">
             <div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
             </div>
@@ -673,22 +692,22 @@
                 </div>
             </div>
             <div class="flex flex-col gap-2 mt-6">
-                <button onclick="saveGistToken()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold transition-all active:scale-95 uppercase text-xs tracking-widest">บันทึกและเชื่อมต่อ</button>
-                <button onclick="document.getElementById('gist-modal').classList.add('hidden')" class="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-2xl font-bold transition-all uppercase text-xs tracking-widest">ยกเลิก</button>
+                <button onclick="saveGistToken()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-semibold transition-all active:scale-95 uppercase text-xs tracking-widest">บันทึกและเชื่อมต่อ</button>
+                <button onclick="document.getElementById('gist-modal').classList.add('hidden')" class="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-md font-semibold transition-all uppercase text-xs tracking-widest">ยกเลิก</button>
             </div>
         </div>
     </div>
 
     <div id="confirm-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-[2rem] max-w-sm w-full p-8 shadow-2xl animate-in">
+        <div class="bg-white rounded-lg max-w-sm w-full p-8 shadow-2xl animate-in">
             <div class="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             </div>
             <h3 class="text-xl font-black text-gray-900 text-center mb-2">ยืนยันการล้างข้อมูล?</h3>
             <p class="text-gray-500 text-center text-sm mb-8 leading-relaxed">การกระทำนี้จะลบรายการรับ-จ่ายทั้งหมดของเดือน <span id="modal-month-name" class="font-bold text-gray-900 underline"></span> และไม่สามารถย้อนคืนได้</p>
             <div class="flex flex-col gap-2">
-                <button onclick="executeClear()" class="w-full py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold transition-all active:scale-95 shadow-lg shadow-rose-100 uppercase text-xs tracking-widest">ล้างข้อมูลทันที</button>
-                <button onclick="closeModal()" class="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-2xl font-bold transition-all uppercase text-xs tracking-widest">ยกเลิก</button>
+                <button onclick="executeClear()" class="w-full py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-md font-semibold transition-all active:scale-95 uppercase text-xs tracking-widest">ล้างข้อมูลทันที</button>
+                <button onclick="closeModal()" class="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-md font-semibold transition-all uppercase text-xs tracking-widest">ยกเลิก</button>
             </div>
         </div>
     </div>
@@ -713,14 +732,14 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r68</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r69</div>
                 </div>
             </div>
             
             <!-- Right: Tabs + controls -->
             <div class="flex items-center gap-1.5 flex-shrink-0">
                 <!-- Tabs -->
-                <div class="flex gap-0.5 p-1 rounded-xl" style="background:var(--bg-card2)">
+                <div class="flex gap-0.5 p-1 rounded-md" style="background:var(--bg-card2)">
                     <button onclick="showTab('dashboard')" id="btn-dash" class="px-4 py-1.5 rounded-lg text-[11px] font-bold tab-active transition-all uppercase tracking-wide" style="font-family:var(--font-main)">Dashboard</button>
                     <button onclick="showTab('edit')" id="btn-edit" class="px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all uppercase tracking-wide" style="color:var(--text-dim);font-family:var(--font-main)">Records</button>
                     <button onclick="showTab('watchlist')" id="btn-watchlist" class="px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all uppercase tracking-wide flex items-center gap-1" style="color:var(--text-dim);font-family:var(--font-main)">
@@ -731,7 +750,7 @@
                 <!-- Divider -->
                 <div class="w-px h-5" style="background:var(--border)"></div>
                 <!-- Import/Export -->
-                <div class="flex gap-0.5 p-1 rounded-xl" style="background:var(--bg-card2)">
+                <div class="flex gap-0.5 p-1 rounded-md" style="background:var(--bg-card2)">
                     <button onclick="document.getElementById('fileInput').click()" title="Import JSON" class="px-2.5 py-1.5 rounded-lg transition-all flex items-center" style="color:var(--text-dim)">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                     </button>
@@ -742,7 +761,7 @@
                 <!-- Divider -->
                 <div class="w-px h-5" style="background:var(--border)"></div>
                 <!-- Sync / Upload -->
-                <div class="flex gap-0.5 p-1 rounded-xl" style="background:var(--bg-card2)">
+                <div class="flex gap-0.5 p-1 rounded-md" style="background:var(--bg-card2)">
                     <button onclick="syncFromGist()" class="px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all uppercase tracking-wider flex items-center gap-1" style="color:var(--text-dim);font-family:var(--font-main)">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                         Sync
@@ -844,7 +863,7 @@
                 <h3 style="color:var(--text-primary);font-family:var(--font-mono);" class="font-bold text-lg mb-2">เริ่มวางแผนการเงินของคุณ</h3>
                 <p style="color:var(--text-secondary);" class="text-sm mb-6">ยังไม่มีข้อมูลในระบบ คุณสามารถเริ่มกรอกที่เมนู RECORDS หรือ Import ไฟล์สำรองข้อมูลที่มีอยู่</p>
                 <div class="flex flex-col sm:flex-row gap-2 justify-center">
-                    <button onclick="showTab('edit')" style="background:#0d9488;color:#fff;font-family:var(--font-mono);font-weight:700;" class="px-8 py-3 rounded-xl text-xs uppercase tracking-widest transition-all active:scale-95">ไปหน้าบันทึก</button>
+                    <button onclick="showTab('edit')" style="background:#089981;color:#fff;font-family:var(--font-mono);font-weight:700;" class="px-8 py-3 rounded-xl text-xs uppercase tracking-widest transition-all active:scale-95">ไปหน้าบันทึก</button>
                     <button onclick="document.getElementById('fileInput').click()" style="background:var(--bg-card2);color:var(--text-secondary);border:1px solid var(--border);font-family:var(--font-mono);" class="px-8 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all active:scale-95">Import Data</button>
                 </div>
             </div>
@@ -958,7 +977,7 @@
             <!-- Finnhub Token Modal -->
             <div id="finnhub-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
                 <div style="background-color:rgba(15,23,42,0.6);backdrop-filter:blur(4px)" class="fixed inset-0"></div>
-                <div class="bg-white rounded-[2rem] max-w-sm w-full p-8 shadow-2xl animate-in relative z-10">
+                <div class="bg-white rounded-lg max-w-sm w-full p-8 shadow-2xl animate-in relative z-10">
                     <div class="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-6">
                         <svg class="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
                     </div>
@@ -970,8 +989,8 @@
                         <input type="password" autocomplete="off" id="erapi-key-input" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-blue-400 transition-all">
                     </div>
                     <div class="flex flex-col gap-2">
-                        <button onclick="saveFinnhubKey()" class="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-bold transition-all active:scale-95 uppercase text-xs tracking-widest">บันทึกและเชื่อมต่อ</button>
-                        <button onclick="document.getElementById('finnhub-modal').classList.add('hidden')" class="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-2xl font-bold transition-all uppercase text-xs tracking-widest">ยกเลิก</button>
+                        <button onclick="saveFinnhubKey()" class="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-md font-semibold transition-all active:scale-95 uppercase text-xs tracking-widest">บันทึกและเชื่อมต่อ</button>
+                        <button onclick="document.getElementById('finnhub-modal').classList.add('hidden')" class="w-full py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-md font-semibold transition-all uppercase text-xs tracking-widest">ยกเลิก</button>
                     </div>
                 </div>
             </div>
@@ -1070,7 +1089,7 @@
                             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAiMessage()}">
                         <button onclick="sendAiMessage()" id="ai-send-btn"
                             class="flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider flex-shrink-0 transition-all"
-                            style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white">
+                            style="background:#6366f1;color:white">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                             </svg>
@@ -1378,9 +1397,9 @@
             document.getElementById('tab-dashboard').classList.toggle('hidden', t !== 'dashboard');
             document.getElementById('tab-edit').classList.toggle('hidden', t !== 'edit');
             document.getElementById('tab-watchlist').classList.toggle('hidden', t !== 'watchlist');
-            document.getElementById('btn-dash').className = t === 'dashboard' ? 'px-5 py-2 rounded-xl text-xs font-bold tab-active transition-all uppercase' : 'px-5 py-2 rounded-xl text-xs font-bold text-gray-400 transition-all uppercase';
-            document.getElementById('btn-edit').className = t === 'edit' ? 'px-5 py-2 rounded-xl text-xs font-bold tab-active transition-all uppercase' : 'px-5 py-2 rounded-xl text-xs font-bold text-gray-400 transition-all uppercase';
-            document.getElementById('btn-watchlist').className = t === 'watchlist' ? 'px-5 py-2 rounded-xl text-xs font-bold tab-active transition-all uppercase flex items-center gap-1.5' : 'px-5 py-2 rounded-xl text-xs font-bold text-gray-400 transition-all uppercase flex items-center gap-1.5';
+            document.getElementById('btn-dash').className = t === 'dashboard' ? 'px-4 py-1.5 rounded-md text-xs font-bold tab-active transition-all uppercase' : 'px-4 py-1.5 rounded-md text-xs font-bold text-gray-400 transition-all uppercase';
+            document.getElementById('btn-edit').className = t === 'edit' ? 'px-4 py-1.5 rounded-md text-xs font-bold tab-active transition-all uppercase' : 'px-4 py-1.5 rounded-md text-xs font-bold text-gray-400 transition-all uppercase';
+            document.getElementById('btn-watchlist').className = t === 'watchlist' ? 'px-4 py-1.5 rounded-md text-xs font-bold tab-active transition-all uppercase flex items-center gap-1.5' : 'px-4 py-1.5 rounded-md text-xs font-bold text-gray-400 transition-all uppercase flex items-center gap-1.5';
             if (t === 'dashboard') updateDashboard();
             if (t === 'watchlist' && !skipWlRefresh) {
                 // Step 1: Render from cache INSTANTLY — no waiting
@@ -1940,7 +1959,7 @@
                     <td class="px-3 py-2 text-right text-xs num-cell ${changeColor} wl-col-hide">${sk(40) ?? (change !== null ? (isUp ? '+' : '') + fmt(change) : '—')}</td>
                     <td class="px-3 py-2 text-right">${sk(56) ??
                         (changePct !== null
-                            ? `<span class="inline-block px-2 py-0.5 rounded text-xs num-cell whitespace-nowrap font-bold ${isUp ? 'wl-badge-up' : 'wl-badge-dn'}">${arrow} ${Math.abs(changePct).toFixed(2)}%</span>`
+                            ? `<span class="inline-block px-2 py-0.5 rounded text-xs num-cell whitespace-nowrap font-medium ${isUp ? 'wl-badge-up' : 'wl-badge-dn'}">${arrow} ${Math.abs(changePct).toFixed(2)}%</span>`
                             : '<span style="color:var(--text-dim)" class="text-xs">—</span>')
                     }</td>
                     <td class="px-3 py-2 text-right text-xs num-cell wl-col-hide">
@@ -2257,7 +2276,18 @@
             // 6=preMkt, 7=open, 8=prev, 9=high, 10=low
             // 11=52wH, 12=52wL, 13=mktcap, 14=vol, 15=beta, 16=pe, 17=div, 18=delete
             setClass(cells[3], `px-3 py-2 text-right price-cell text-sm ${priceColor}`);
-            setText(cells[3], price !== null ? '$' + fmt(price) : '—');
+            const prevPriceText = cells[3].innerText;
+            const newPriceText = price !== null ? '$' + fmt(price) : '—';
+            if (prevPriceText !== newPriceText && prevPriceText !== '') {
+                const row = cells[3].closest('tr');
+                if (row) {
+                    row.classList.remove('flash-up', 'flash-down');
+                    void row.offsetWidth; // force reflow
+                    row.classList.add(isUp ? 'flash-up' : 'flash-down');
+                    setTimeout(() => row.classList.remove('flash-up', 'flash-down'), 400);
+                }
+            }
+            setText(cells[3], newPriceText);
         }
 
         // --- Quick Chart ---
@@ -2785,7 +2815,7 @@ priceEl.style.color = price === null ? '' : isUp ? 'var(--qc-up)' : 'var(--qc-dn
             const ts = new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
             const html = isUser
                 ? `<div id="${id}" class="flex flex-col items-end gap-0.5">
-                    <div class="max-w-[80%] px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm leading-relaxed" style="background:linear-gradient(135deg,#1a73e8,#0d47a1);color:white">${escHtml(text)}</div>
+                    <div class="max-w-[80%] px-4 py-2.5 rounded-lg rounded-tr-sm text-sm leading-relaxed" style="background:#1a73e8;color:white">${escHtml(text)}</div>
                     <span class="text-[9px]" style="color:var(--text-dim)">${ts}</span>
                    </div>`
                 : `<div id="${id}" class="flex items-start gap-3">
@@ -4138,7 +4168,7 @@ Analysis guidelines:
     <div id="ai-fab" class="hidden fixed z-[201] cursor-pointer select-none"
          style="bottom:24px;right:24px"
          onclick="restoreAiPopup()">
-        <div class="flex items-center gap-2 px-4 py-3 rounded-2xl shadow-2xl"
+        <div class="flex items-center gap-2 px-4 py-3 rounded-md shadow-2xl"
              style="background:linear-gradient(135deg,#1a73e8,#34a853);color:white;min-width:120px">
             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
             <span class="text-[11px] font-black uppercase tracking-widest">AI Analyst</span>
@@ -4150,7 +4180,7 @@ Analysis guidelines:
     <div id="ai-popup" class="hidden fixed z-[200] select-none"
          style="bottom:24px;right:24px;width:520px;max-width:calc(100vw - 32px)">
         <div id="ai-popup-panel"
-             class="flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+             class="flex flex-col rounded-md shadow-2xl overflow-hidden"
              style="height:420px;background:var(--bg-card);border:1px solid var(--border);overscroll-behavior:contain"
              onwheel="event.stopPropagation()">
 
@@ -4218,7 +4248,7 @@ Analysis guidelines:
     <div id="settings-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4">
         <div class="fixed inset-0" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)"
             onclick="closeSettingsModal()"></div>
-        <div class="relative z-10 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
+        <div class="relative z-10 w-full max-w-lg rounded-md shadow-2xl overflow-hidden"
             style="background:var(--bg-main);border:1px solid var(--border)">
 
             <!-- Header -->
@@ -4247,7 +4277,7 @@ Analysis guidelines:
             <div class="px-6 py-5 space-y-5 overflow-y-auto" style="max-height:70vh">
 
                 <!-- Finnhub -->
-                <div class="rounded-xl p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
+                <div class="rounded-md p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
                             <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#0f9d58">
@@ -4275,7 +4305,7 @@ Analysis guidelines:
                 </div>
 
                 <!-- ExchangeRate-API -->
-                <div class="rounded-xl p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
+                <div class="rounded-md p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
                             <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#1a73e8">
@@ -4303,7 +4333,7 @@ Analysis guidelines:
                 </div>
 
                 <!-- OpenRouter AI -->
-                <div class="rounded-xl p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
+                <div class="rounded-md p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
                             <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
@@ -4331,7 +4361,7 @@ Analysis guidelines:
                 </div>
 
                 <!-- GitHub Gist Sync -->
-                <div class="rounded-xl p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
+                <div class="rounded-md p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
                             <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#24292e">
@@ -4369,8 +4399,8 @@ Analysis guidelines:
                 <div class="flex gap-2">
                     <button onclick="closeSettingsModal()" class="text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider"
                         style="color:var(--text-dim);background:var(--bg-card2);border:1px solid var(--border)">ยกเลิก</button>
-                    <button onclick="saveAllSettings()" class="text-[10px] font-bold px-5 py-2 rounded-lg uppercase tracking-wider text-white transition-all active:scale-95"
-                        style="background:linear-gradient(135deg,#0d9488,#0891b2)">
+                    <button onclick="saveAllSettings()" class="text-[10px] font-semibold px-5 py-2 rounded-md uppercase tracking-wider text-white transition-all active:scale-95"
+                        style="background:#089981">
                         บันทึกทั้งหมด
                     </button>
                 </div>
