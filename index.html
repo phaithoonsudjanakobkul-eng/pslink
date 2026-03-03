@@ -947,7 +947,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r73</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r74</div>
                 </div>
             </div>
             
@@ -3220,61 +3220,47 @@
         async function fetchPolygonExtendedBatch() {
             const key = getPolygonKey();
             if (!key || watchlist.length === 0) return;
-            if (document.hidden) return; // Active tab monitoring — skip if tab hidden
+            if (document.hidden) return;
 
-            const tickers = watchlist.join(',');
-            try {
-                const url = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickers}&apiKey=${key}`;
-                const res = await fetch(url);
-                if (!res.ok) return;
-                const json = await res.json();
-                const results = json?.tickers ?? [];
+            const mktOpen   = isMarketOpen();
+            const preMarket = isExtendedHours() && !mktOpen;
 
-                results.forEach(item => {
-                    const sym = item.ticker;
-                    if (!sym || !watchlist.includes(sym)) return;
-                    const day   = item.day   ?? {};
-                    const prevDay = item.prevDay ?? {};
-                    const pc    = prevDay.c ?? wlDataCache[sym]?.pc ?? null;
-                    // extended hours price
-                    const extHrs = item.lastQuote ?? item.lastTrade ?? null;
-                    let extPrice = null, extPct = null;
+            // Polygon Free plan: /v2/snapshot is 403 — use /v2/last/trade/{ticker} instead
+            const processSymbol = async (sym) => {
+                try {
+                    const res = await fetch(`https://api.polygon.io/v2/last/trade/${sym}?apiKey=${key}`);
+                    if (!res.ok) return;
+                    const json = await res.json();
+                    // Free tier response: { results: { p: price, ... } }
+                    const extPrice = json?.results?.p ?? json?.last?.price ?? null;
+                    if (extPrice === null) return;
 
-                    // Check todaysChangePerc and todaysChange for regular session
-                    // For pre/after-hours use the last trade price if outside market hours
-                    const lastPrice = item.lastTrade?.p ?? null;
-                    const regularClose = day.c || wlDataCache[sym]?.c || null;
+                    const prevClose = wlDataCache[sym]?.pc ?? null;
+                    if (!prevClose) return;
 
-                    if (lastPrice && pc && !isMarketOpen()) {
-                        extPrice = lastPrice;
-                        extPct = ((lastPrice - pc) / pc) * 100;
+                    const extPct = ((extPrice - prevClose) / prevClose) * 100;
+
+                    const existing = wlDataCache[sym] ?? {};
+                    if (preMarket) {
+                        wlDataCache[sym] = { ...existing, preMarketPrice: extPrice, preMarketChangePct: extPct };
+                    } else {
+                        wlDataCache[sym] = { ...existing, afterHoursPrice: extPrice, afterHoursChangePct: extPct };
                     }
 
-                    if (extPrice !== null) {
-                        const existing = wlDataCache[sym] ?? {};
-                        const isPreMkt = isExtendedHours() && !isMarketOpen();
-                        wlDataCache[sym] = {
-                            ...existing,
-                            preMarketPrice:      isPreMkt ? extPrice : existing.preMarketPrice,
-                            preMarketChangePct:  isPreMkt ? extPct   : existing.preMarketChangePct,
-                            afterHoursPrice:     !isPreMkt ? extPrice : existing.afterHoursPrice,
-                            afterHoursChangePct: !isPreMkt ? extPct   : existing.afterHoursChangePct,
-                        };
-                        // Live-update pre-market cell in row
-                        const row = document.getElementById('wl-row-' + sym);
-                        if (row) {
-                            const cells = row.querySelectorAll('td');
-                            if (cells[6]) {
-                                const isUp = extPct >= 0;
-                                cells[6].innerHTML = `<div class="flex flex-col items-end gap-0.5">
-                                    <span class="text-[10px] num-cell font-medium ${isUp ? 'wl-up' : 'wl-dn'}" style="font-variant-numeric:tabular-nums">${isUp ? '+' : ''}${extPct.toFixed(2)}%</span>
-                                    <span class="text-[9px]" style="color:var(--text-dim);font-variant-numeric:tabular-nums">$${extPrice.toFixed(2)}</span>
-                                </div>`;
-                            }
-                        }
-                    }
-                });
-            } catch(e) { /* Polygon fetch best-effort */ }
+                    const row = document.getElementById('wl-row-' + sym);
+                    if (!row) return;
+                    const cells = row.querySelectorAll('td');
+                    if (!cells[6]) return;
+                    const isUp = extPct >= 0;
+                    cells[6].innerHTML = `<div class="flex flex-col items-end gap-0.5">
+                        <span class="text-[10px] font-medium ${isUp ? 'wl-up' : 'wl-dn'}" style="font-variant-numeric:tabular-nums;letter-spacing:-0.01em">${isUp ? '+' : ''}${extPct.toFixed(2)}%</span>
+                        <span class="text-[9px]" style="color:var(--text-dim);font-variant-numeric:tabular-nums">$${extPrice.toFixed(2)}</span>
+                    </div>`;
+                } catch(e) {}
+            };
+
+            // Throttle: max 5 concurrent requests
+            await throttledAll(watchlist, 5, processSymbol);
         }
 
         function startPolygonPreMarket() {
