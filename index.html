@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PS Smart Finance v2026.03.03-r87</title>
+    <title>PS Smart Finance v2026.03.03-r88</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -1001,7 +1001,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r87</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r88</div>
                 </div>
             </div>
             
@@ -2472,11 +2472,12 @@
 
         // ── TV Scanner batch fetch (primary — no API key needed) ─────────────────
         async function fetchTVScannerBatch(symbols) {
-            // TV format: NASDAQ:NVDA or NYSE:KO — need to resolve exchange
-            // We send just tickers and filter by "name" field (TV uses ticker without exchange for filter)
+            // TV Scanner API — correct payload format
+            // "ticker" field with "in_range" matches NASDAQ:NVDA, NYSE:AAPL etc.
+            // We also try "name" field (pure ticker) as fallback mapping
             const payload = {
                 columns: [
-                    'name',
+                    'name',             // pure ticker e.g. "NVDA"
                     'close',
                     'premarket_price',
                     'premarket_change',
@@ -2485,50 +2486,89 @@
                     'postmarket_change',
                     'postmarket_change_abs'
                 ],
+                // No filter = get broad universe, then we pick our symbols
+                // With filter: TV uses "ticker" (NASDAQ:NVDA) not bare "name"
+                // Safest: send no filter, get top results, match by name
                 filter: [{
-                    left: 'name',
+                    left: 'type',
                     operation: 'in_range',
-                    right: symbols
+                    right: ['stock', 'dr', 'fund']
                 }],
                 markets: ['america'],
-                sort: { sortBy: 'name', sortOrder: 'asc' },
-                range: [0, symbols.length + 5]
+                sort: { sortBy: 'market_cap_basic', sortOrder: 'desc' },
+                range: [0, 250]   // top 250 by mktcap covers most watchlists
             };
 
             const ctrl = new AbortController();
             const tid  = setTimeout(function(){ ctrl.abort(); }, 9000);
             const res  = await fetch('https://scanner.tradingview.com/america/scan', {
                 method:  'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Origin':  'https://www.tradingview.com',
-                    'Referer': 'https://www.tradingview.com/'
-                },
-                body:   JSON.stringify(payload),
-                signal: ctrl.signal
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(payload),
+                signal:  ctrl.signal
             });
             clearTimeout(tid);
             if (!res.ok) throw new Error('TV Scanner HTTP ' + res.status);
             const json = await res.json();
-            // Build result map: { NVDA: { premarket_price, premarket_change, ... } }
+            if (!json || !json.data) return {};
+
+            // Build lookup by pure ticker name
             const result = {};
-            if (!json || !json.data) return result;
+            const symSet = new Set(symbols);
             json.data.forEach(function(row) {
-                const d = row.d || [];
-                // d[0]=name(ticker), d[1]=close, d[2]=pre_price, d[3]=pre_chg, d[4]=pre_chg_abs
-                //                                d[5]=post_price, d[6]=post_chg, d[7]=post_chg_abs
-                const sym = d[0];
-                if (!sym) return;
+                const d   = row.d || [];
+                const sym = d[0];  // "NVDA", "AAPL", etc.
+                if (!sym || !symSet.has(sym)) return;
                 result[sym] = {
-                    close:             d[1]  ?? null,
-                    premarket_price:   d[2]  ?? null,
-                    premarket_change:  d[3]  ?? null,   // % already
+                    close:                d[1] ?? null,
+                    premarket_price:      d[2] ?? null,
+                    premarket_change:     d[3] ?? null,
                     premarket_change_abs: d[4] ?? null,
-                    postmarket_price:  d[5]  ?? null,
-                    postmarket_change: d[6]  ?? null,   // % already
-                    postmarket_change_abs: d[7] ?? null
+                    postmarket_price:     d[5] ?? null,
+                    postmarket_change:    d[6] ?? null,
+                    postmarket_change_abs:d[7] ?? null
                 };
             });
+
+            const found = Object.keys(result).length;
+            const missing = symbols.filter(function(s){ return !result[s]; });
+            console.log('[PRE-MKT] TV Scanner: found=' + found + '/' + symbols.length
+                + (missing.length ? ' | missing: ' + missing.join(',') : ''));
+
+            // If many symbols missing from top-250 (e.g. small caps), fetch them separately
+            if (missing.length > 0 && missing.length <= 30) {
+                try {
+                    const payload2 = {
+                        columns: ['name','close','premarket_price','premarket_change',
+                                  'premarket_change_abs','postmarket_price','postmarket_change',
+                                  'postmarket_change_abs'],
+                        filter: [{ left: 'name', operation: 'in_range', right: missing }],
+                        markets: ['america'],
+                        sort: { sortBy: 'name', sortOrder: 'asc' },
+                        range: [0, missing.length + 5]
+                    };
+                    const res2 = await fetch('https://scanner.tradingview.com/america/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload2)
+                    });
+                    if (res2.ok) {
+                        const json2 = await res2.json();
+                        (json2.data || []).forEach(function(row) {
+                            const d = row.d || [];
+                            const sym = d[0];
+                            if (!sym) return;
+                            result[sym] = {
+                                close: d[1]??null, premarket_price: d[2]??null,
+                                premarket_change: d[3]??null, premarket_change_abs: d[4]??null,
+                                postmarket_price: d[5]??null, postmarket_change: d[6]??null,
+                                postmarket_change_abs: d[7]??null
+                            };
+                        });
+                        console.log('[PRE-MKT] TV Scanner pass-2 filled ' + Object.keys(result).length + ' total');
+                    }
+                } catch(e2) { /* ignore pass-2 errors */ }
+            }
             return result;
         }
 
@@ -2671,6 +2711,44 @@
             if (updated > 0) console.log('[PRE-MKT] FMP fallback updated ' + updated + '/' + watchlist.length);
             else console.warn('[PRE-MKT] No extended-hours data from TV Scanner or FMP');
         }
+
+
+        // ── PRE-MKT Debug Helper (call from browser console) ─────────────────────
+        // Usage: debugPreMkt()           — run TV Scanner now and show results
+        // Usage: debugPreMkt(['NVDA'])   — test specific symbols
+        window.debugPreMkt = async function(syms) {
+            const list = syms || watchlist;
+            console.group('[PRE-MKT Debug]');
+            console.log('Symbols:', list);
+            console.log('isMarketOpen:', isMarketOpen(), '| isExtendedHours:', isExtendedHours());
+            try {
+                console.log('▶ Fetching TV Scanner...');
+                const tv = await fetchTVScannerBatch(list);
+                console.log('TV Scanner result:', tv);
+                const tvHasData = Object.values(tv).some(function(v){
+                    return v.premarket_price || v.postmarket_price;
+                });
+                console.log('TV Scanner has pre/post data:', tvHasData);
+                if (!tvHasData) {
+                    console.warn('TV Scanner returned no extended-hours prices. This means:');
+                    console.warn(' 1. Market is currently OPEN (pre/post data clears during regular hours)');
+                    console.warn(' 2. OR scanner returned null for pre/post fields — normal during market hours');
+                    console.warn('Raw first entry:', Object.values(tv)[0]);
+                }
+            } catch(e) {
+                console.error('TV Scanner error:', e.message);
+                console.warn('Possible CORS block — check Network tab for scanner.tradingview.com request');
+            }
+            const fmpKey = getFmpKey();
+            if (fmpKey) {
+                console.log('▶ FMP key present, testing first symbol...');
+                const q = await fmpFetchSym(list[0], fmpKey);
+                console.log('FMP result for ' + list[0] + ':', q);
+            } else {
+                console.log('No FMP key set (optional fallback)');
+            }
+            console.groupEnd();
+        };
 
         async function fetchQuote(symbol) {
             const key = getFinnhubKey();
