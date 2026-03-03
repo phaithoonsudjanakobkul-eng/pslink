@@ -969,7 +969,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r79</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r80</div>
                 </div>
             </div>
             
@@ -3232,10 +3232,13 @@
             }
         }
 
-        // ── Alpaca Markets — Extended Hours (Pre-market & After-hours) ──────────
-        let alpacaTimer = null;
-        let alpacaActive = false;
-        const ALPACA_INTERVAL = 15000; // 15s polling interval
+        // ── Extended Hours — Yahoo Finance via CORS proxy (no API key needed) ──────
+        // Yahoo Finance v7 quote returns preMarketPrice, postMarketPrice freely.
+        // We rotate through 3 CORS proxies and 2 Yahoo hosts for maximum reliability.
+
+        let extHoursTimer  = null;
+        let extHoursActive = false;
+        const EXT_INTERVAL = 15000; // 15s
 
         function isExtendedHours() {
             const now = new Date();
@@ -3243,119 +3246,138 @@
             if (day === 0 || day === 6) return false;
             const dst = isUSDST(now);
             const utcMins = now.getUTCHours() * 60 + now.getUTCMinutes();
-            const preOpen  = dst ? 9*60  : 10*60;    // 4:00 AM ET
-            const mktOpen  = dst ? 13*60+30 : 14*60+30;
-            const mktClose = dst ? 20*60 : 21*60;
-            const postClose = dst ? 24*60 : 25*60;   // 8:00 PM ET
+            const preOpen   = dst ? 9*60    : 10*60;   // 4:00 AM ET
+            const mktOpen   = dst ? 13*60+30: 14*60+30;
+            const mktClose  = dst ? 20*60   : 21*60;
+            const postClose = dst ? 24*60   : 25*60;   // 8:00 PM ET
             return (utcMins >= preOpen && utcMins < mktOpen) ||
                    (utcMins >= mktClose && utcMins < postClose);
         }
 
-        async function fetchAlpacaExtendedBatch() {
-            const alpacaKey    = getAlpacaKey();
-            const alpacaSecret = getAlpacaSecret();
-            if (!alpacaKey || !alpacaSecret || watchlist.length === 0) return;
+        // Keep Alpaca wrappers as no-ops so Settings/startup code doesn't break
+        function startAlpacaPolling() { startExtHoursPolling(); }
+        function stopAlpacaPolling()  { stopExtHoursPolling();  }
+        async function fetchAlpacaExtendedBatch() { await fetchYahooExtendedBatch(); }
+
+        function startExtHoursPolling() {
+            stopExtHoursPolling();
+            extHoursActive = true;
+            fetchYahooExtendedBatch();
+            extHoursTimer = setInterval(() => {
+                if (!extHoursActive) return;
+                fetchYahooExtendedBatch();
+            }, EXT_INTERVAL);
+        }
+
+        function stopExtHoursPolling() {
+            extHoursActive = false;
+            if (extHoursTimer) { clearInterval(extHoursTimer); extHoursTimer = null; }
+        }
+
+        // Active Tab Monitoring
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopExtHoursPolling();
+            } else {
+                startExtHoursPolling();
+            }
+        });
+
+        async function fetchYahooExtendedBatch() {
+            if (watchlist.length === 0) return;
             if (document.hidden) return;
 
             const mktOpen   = isMarketOpen();
             const preMarket = isExtendedHours() && !mktOpen;
-            const MAX_DEVIATION = 0.20; // 20% sanity gate (pre-market can move significantly)
 
-            const headers = {
-                'APCA-API-KEY-ID':     alpacaKey,
-                'APCA-API-SECRET-KEY': alpacaSecret,
-            };
+            // Yahoo Finance v7 quote — returns preMarketPrice/postMarketPrice fields
+            // Symbols batched in a single request (comma-separated)
+            const symbols = watchlist.join(',');
+            const yahooUrl = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols='
+                + encodeURIComponent(symbols)
+                + '&fields=preMarketPrice,preMarketChangePercent,postMarketPrice,postMarketChangePercent,regularMarketPreviousClose';
 
-            try {
-                const symbols = watchlist.join(',');
+            // Try 3 CORS proxies in sequence
+            const proxies = [
+                u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+                u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+                u => 'https://proxy.cors.sh/' + u,
+            ];
 
-                // /v2/stocks/bars/latest — free tier, returns the most recent 1-min bar per symbol
-                // Includes pre-market and after-hours bars when feed=sip
-                // This is the correct endpoint for extended-hours pricing
-                const url = 'https://data.alpaca.markets/v2/stocks/bars/latest?symbols='
-                    + encodeURIComponent(symbols) + '&feed=sip&timeframe=1Min';
-
-                const res = await fetch(url, { headers });
-                if (!res.ok) {
-                    const txt = await res.text().catch(() => '');
-                    console.warn('[Alpaca] bars/latest HTTP', res.status, txt.slice(0, 200));
-                    // Fallback: try snapshot endpoint
-                    await fetchAlpacaSnapshot(symbols, headers, preMarket, MAX_DEVIATION);
-                    return;
-                }
-                const json = await res.json();
-                // Response: { bars: { AAPL: { o,h,l,c,v,t,... }, ... } }
-                const bars = json?.bars ?? {};
-
-                let hitCount = 0;
-                watchlist.forEach(function(sym) {
-                    const bar = bars[sym];
-                    if (!bar) return;
-
-                    const extPrice = bar.c ?? bar.o ?? null; // close of latest 1-min bar
-                    if (!extPrice || extPrice <= 0) return;
-
-                    const prevClose = wlDataCache[sym]?.pc ?? null;
-                    if (!prevClose) return;
-
-                    const deviation = Math.abs(extPrice - prevClose) / prevClose;
-                    if (deviation > MAX_DEVIATION) {
-                        console.warn('[Alpaca]', sym, 'rejected $' + extPrice.toFixed(2),
-                            'vs prevClose $' + prevClose.toFixed(2),
-                            '(' + (deviation*100).toFixed(1) + '%)');
-                        return;
+            let json = null;
+            for (const proxy of proxies) {
+                try {
+                    const controller = new AbortController();
+                    const tid = setTimeout(() => controller.abort(), 6000);
+                    const res = await fetch(proxy(yahooUrl), { signal: controller.signal });
+                    clearTimeout(tid);
+                    if (!res.ok) continue;
+                    const raw = await res.json();
+                    // corsproxy.io wraps in { contents: "..." } sometimes — handle both
+                    if (raw?.quoteResponse?.result) {
+                        json = raw;
+                    } else if (typeof raw === 'string') {
+                        try { json = JSON.parse(raw); } catch(e) { continue; }
+                    } else if (raw?.contents) {
+                        try { json = JSON.parse(raw.contents); } catch(e) { continue; }
                     }
-
-                    const extPct   = ((extPrice - prevClose) / prevClose) * 100;
-                    const existing = wlDataCache[sym] || {};
-                    if (preMarket) {
-                        wlDataCache[sym] = Object.assign({}, existing,
-                            { preMarketPrice: extPrice, preMarketChangePct: extPct });
-                    } else {
-                        wlDataCache[sym] = Object.assign({}, existing,
-                            { afterHoursPrice: extPrice, afterHoursChangePct: extPct });
-                    }
-                    updatePreMktCell(sym, extPrice, extPct);
-                    hitCount++;
-                });
-                console.log('[Alpaca] bars/latest updated', hitCount, 'symbols');
-            } catch(e) {
-                console.error('[Alpaca] error:', e);
+                    if (json?.quoteResponse?.result) break;
+                    json = null;
+                } catch(e) { continue; }
             }
-        }
 
-        // Fallback: snapshot endpoint (also free tier)
-        async function fetchAlpacaSnapshot(symbols, headers, preMarket, MAX_DEVIATION) {
-            try {
-                const url = 'https://data.alpaca.markets/v2/stocks/snapshots?symbols='
-                    + encodeURIComponent(symbols) + '&feed=iex';
-                const res = await fetch(url, { headers });
-                if (!res.ok) {
-                    console.warn('[Alpaca] snapshot HTTP', res.status);
-                    return;
+            if (!json?.quoteResponse?.result) {
+                console.warn('[Yahoo ExtHours] all proxies failed');
+                return;
+            }
+
+            const results = json.quoteResponse.result;
+            let updated = 0;
+
+            results.forEach(function(q) {
+                const sym = q.symbol;
+                if (!sym || !watchlist.includes(sym)) return;
+
+                // Pick the right fields based on market session
+                const preP   = q.preMarketPrice        ?? null;
+                const prePct = q.preMarketChangePercent ?? null;
+                const postP  = q.postMarketPrice        ?? null;
+                const postPct= q.postMarketChangePercent?? null;
+                const pc     = q.regularMarketPreviousClose ?? wlDataCache[sym]?.pc ?? null;
+
+                let extPrice = null, extPct = null;
+
+                if (preMarket && preP && preP > 0) {
+                    extPrice = preP;
+                    extPct   = prePct ?? (pc ? ((preP - pc) / pc * 100) : null);
+                } else if (!mktOpen && postP && postP > 0) {
+                    extPrice = postP;
+                    extPct   = postPct ?? (pc ? ((postP - pc) / pc * 100) : null);
+                } else if (preP && preP > 0) {
+                    // Show whatever is available even during market hours
+                    extPrice = preP;
+                    extPct   = prePct ?? (pc ? ((preP - pc) / pc * 100) : null);
                 }
-                const json = await res.json();
-                watchlist.forEach(function(sym) {
-                    const snap = json[sym];
-                    if (!snap) return;
-                    const extPrice = snap.latestTrade?.p ?? snap.dailyBar?.c ?? null;
-                    if (!extPrice || extPrice <= 0) return;
-                    const prevClose = snap.prevDailyBar?.c ?? wlDataCache[sym]?.pc ?? null;
-                    if (!prevClose) return;
-                    const deviation = Math.abs(extPrice - prevClose) / prevClose;
-                    if (deviation > MAX_DEVIATION) return;
-                    const extPct   = ((extPrice - prevClose) / prevClose) * 100;
-                    const existing = wlDataCache[sym] || {};
-                    if (preMarket) {
-                        wlDataCache[sym] = Object.assign({}, existing,
-                            { preMarketPrice: extPrice, preMarketChangePct: extPct });
-                    } else {
-                        wlDataCache[sym] = Object.assign({}, existing,
-                            { afterHoursPrice: extPrice, afterHoursChangePct: extPct });
-                    }
-                    updatePreMktCell(sym, extPrice, extPct);
-                });
-            } catch(e) {}
+
+                if (!extPrice || extPct === null) return;
+
+                // Sanity gate: ±25% max (Yahoo pre-market is reliable, allow more room)
+                if (pc && Math.abs(extPrice - pc) / pc > 0.25) return;
+
+                const existing = wlDataCache[sym] || {};
+                if (preMarket) {
+                    wlDataCache[sym] = Object.assign({}, existing,
+                        { preMarketPrice: extPrice, preMarketChangePct: extPct });
+                } else {
+                    wlDataCache[sym] = Object.assign({}, existing,
+                        { afterHoursPrice: extPrice, afterHoursChangePct: extPct });
+                }
+
+                updatePreMktCell(sym, extPrice, extPct);
+                updated++;
+            });
+
+            if (updated > 0) console.log('[Yahoo ExtHours] updated', updated, 'symbols');
         }
 
         function updatePreMktCell(sym, extPrice, extPct) {
@@ -3364,39 +3386,13 @@
             const cells = row.querySelectorAll('td');
             if (!cells[6]) return;
             const isUp  = extPct >= 0;
-            const sign  = isUp ? '+' : '';
             const color = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
-            // Single-line: %chg · price — fits in fixed 88px column without pushing row height
             cells[6].innerHTML =
-                '<span style="display:block;text-align:right;font-size:10px;font-weight:600;color:' + color + ';font-variant-numeric:tabular-nums;letter-spacing:-0.01em;line-height:1.2">'
-                + sign + extPct.toFixed(2) + '%</span>'
-                + '<span style="display:block;text-align:right;font-size:9px;color:var(--text-dim);font-variant-numeric:tabular-nums;line-height:1.2">'
+                '<span style="display:block;text-align:right;font-size:10px;font-weight:600;color:' + color + ';font-variant-numeric:tabular-nums;letter-spacing:-0.01em;line-height:1.3">'
+                + (isUp ? '+' : '') + extPct.toFixed(2) + '%</span>'
+                + '<span style="display:block;text-align:right;font-size:9px;color:var(--text-dim);font-variant-numeric:tabular-nums;line-height:1.3">'
                 + '$' + extPrice.toFixed(2) + '</span>';
         }
-        function startAlpacaPolling() {
-            stopAlpacaPolling();
-            if (!getAlpacaKey() || !getAlpacaSecret()) return;
-            alpacaActive = true;
-            fetchAlpacaExtendedBatch();
-            alpacaTimer = setInterval(() => {
-                if (!alpacaActive) return;
-                fetchAlpacaExtendedBatch();
-            }, ALPACA_INTERVAL);
-        }
-
-        function stopAlpacaPolling() {
-            alpacaActive = false;
-            if (alpacaTimer) { clearInterval(alpacaTimer); alpacaTimer = null; }
-        }
-
-        // Active Tab Monitoring — pause Alpaca fetch when tab hidden
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                stopAlpacaPolling();
-            } else {
-                if (getAlpacaKey() && getAlpacaSecret()) startAlpacaPolling();
-            }
-        });
 
         // ── Watchlist Sort ────────────────────────────────────────────────────
         let wlSortKey = null;
@@ -4732,7 +4728,7 @@ Analysis guidelines:
             closeSettingsModal();
             // Trigger refresh with new keys
             if (getFinnhubKey()) { refreshWatchlist(); updateAiStatus(); }
-            if (getAlpacaKey() && getAlpacaSecret()) startAlpacaPolling();
+            startExtHoursPolling(); // Yahoo Finance pre-market — no API key needed
             fetchFxRate();
         }
 
@@ -5175,35 +5171,19 @@ Analysis guidelines:
                 <div class="rounded-md p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#f59e0b">
+                            <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#6366f1">
                                 <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             </div>
                             <div>
-                                <p class="text-xs font-bold" style="color:var(--text-primary)">Alpaca Markets <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(16,185,129,0.15);color:#10b981">FREE</span></p>
-                                <p class="text-[10px]" style="color:var(--text-dim)">Pre-market &amp; After-hours real-time · alpaca.markets</p>
+                                <p class="text-xs font-bold" style="color:var(--text-primary)">Pre-Market / After-Hours <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(16,185,129,0.15);color:#10b981">AUTO</span></p>
+                                <p class="text-[10px]" style="color:var(--text-dim)">Yahoo Finance · ไม่ต้องใช้ API Key · ทำงานอัตโนมัติ</p>
                             </div>
                         </div>
-                        <span id="s-alpaca-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                        <span id="s-alpaca-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full" style="background:rgba(16,185,129,0.15);color:#10b981">✓ พร้อมใช้งาน</span>
                     </div>
-                    <div class="flex gap-2 mb-2">
-                        <input id="s-alpaca-key-input" type="password" autocomplete="off" placeholder="API Key ID (PKXXXXXXXXXXXXXXXX)"
-                            class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
-                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
-                            onkeydown="if(event.key==='Enter')saveAllSettings()">
-                        <button onclick="toggleVisibility('s-alpaca-key-input')" class="px-2.5 rounded-lg text-[10px]"
-                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
-                    </div>
-                    <div class="flex gap-2">
-                        <input id="s-alpaca-secret-input" type="password" autocomplete="off" placeholder="Secret Key (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)"
-                            class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
-                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
-                            onkeydown="if(event.key==='Enter')saveAllSettings()">
-                        <button onclick="toggleVisibility('s-alpaca-secret-input')" class="px-2.5 rounded-lg text-[10px]"
-                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
-                    </div>
-                    <p class="text-[9px] mt-2" style="color:var(--text-dim)">
-                        สมัครฟรีที่ <a href="https://alpaca.markets" target="_blank" class="underline" style="color:#f59e0b">alpaca.markets</a>
-                        → Paper Trading → API Keys → Generate · ใช้ <strong>Paper</strong> หรือ <strong>Live</strong> key ก็ได้ · ข้อมูล extended hours ฟรี 100%
+                    <p class="text-[9px]" style="color:var(--text-dim);line-height:1.6">
+                        ราคา Pre-market และ After-hours ดึงจาก <strong style="color:var(--text-secondary)">Yahoo Finance</strong> ผ่าน CORS proxy อัตโนมัติ<br>
+                        อัพเดตทุก 15 วินาที · หยุดเมื่อซ่อน tab · ไม่ต้อง login หรือ API key ใดๆ
                     </p>
                 </div>
 
