@@ -322,12 +322,30 @@
             }
         }
 
-        /* Hide extra columns when compact */
+        /* ── Compact mode when chart is open ── */
         #wl-split-wrap.chart-open .wl-col-hide { display: none !important; }
-        #wl-split-wrap.chart-open #watchlist-table { min-width: unset !important; }
+        #wl-split-wrap.chart-open #watchlist-table {
+            min-width: unset !important;
+            table-layout: fixed;
+        }
+        /* When chart open: hide NAME col (col 3), CHG col (col 5) */
         #wl-split-wrap.chart-open td:nth-child(3),
-        #wl-split-wrap.chart-open th:nth-child(3) {
-            max-width: 80px;
+        #wl-split-wrap.chart-open th:nth-child(3),
+        #wl-split-wrap.chart-open td:nth-child(5),
+        #wl-split-wrap.chart-open th:nth-child(5) {
+            display: none !important;
+        }
+        /* Compact column widths that fit in 340px */
+        #wl-split-wrap.chart-open col:nth-child(1)  { width: 24px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(2)  { width: 62px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(3)  { width: 0     !important; }
+        #wl-split-wrap.chart-open col:nth-child(4)  { width: 88px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(5)  { width: 0     !important; }
+        #wl-split-wrap.chart-open col:nth-child(6)  { width: 86px  !important; }
+        #wl-split-wrap.chart-open col:nth-child(7)  { width: 80px  !important; }
+        #wl-split-wrap.chart-open td:nth-child(2),
+        #wl-split-wrap.chart-open th:nth-child(2) {
+            max-width: 62px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -982,7 +1000,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r81</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r82</div>
                 </div>
             </div>
             
@@ -3304,57 +3322,64 @@
             const preMarket = isExtendedHours() && !mktOpen;
             const symbols   = watchlist.join(',');
 
-            // Yahoo Finance v8 — most reliable endpoint for extended hours
-            const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/spark?symbols='
-                + encodeURIComponent(symbols)
-                + '&range=1d&interval=1m&includePrePost=true&corsDomain=finance.yahoo.com';
+            // Yahoo Finance v7/v8 quote endpoints — both return preMarketPrice fields
+            const fields = 'preMarketPrice,preMarketChange,preMarketChangePercent,'
+                + 'postMarketPrice,postMarketChange,postMarketChangePercent,'
+                + 'regularMarketPreviousClose,regularMarketPrice,marketState,symbol';
 
-            // v7 fallback URL
-            const yahooUrlV7 = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols='
-                + encodeURIComponent(symbols)
-                + '&fields=preMarketPrice,preMarketChangePercent,postMarketPrice,'
-                + 'postMarketChangePercent,regularMarketPreviousClose,marketState';
+            const endpoints = [
+                'https://query1.finance.yahoo.com/v8/finance/quote?symbols='
+                    + encodeURIComponent(symbols) + '&fields=' + fields,
+                'https://query2.finance.yahoo.com/v8/finance/quote?symbols='
+                    + encodeURIComponent(symbols) + '&fields=' + fields,
+                'https://query1.finance.yahoo.com/v7/finance/quote?symbols='
+                    + encodeURIComponent(symbols) + '&fields=' + fields,
+            ];
 
-            // CORS proxies — ordered by reliability
+            // CORS proxies — allorigins is most permissive (returns 200 always)
             const proxies = [
                 u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
                 u => 'https://corsproxy.io/?' + encodeURIComponent(u),
                 u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
-                u => 'https://thingproxy.freeboard.io/fetch/' + u,
             ];
 
-            // Helper: try one URL across all proxies, return parsed JSON or null
-            async function tryUrl(targetUrl) {
+            // Try every endpoint × proxy combination until we get valid data
+            async function tryFetch(targetUrl) {
                 for (const proxy of proxies) {
                     try {
-                        const controller = new AbortController();
-                        const tid = setTimeout(() => controller.abort(), 7000);
-                        const res = await fetch(proxy(targetUrl), {
-                            signal: controller.signal,
-                            headers: { 'Accept': 'application/json' }
+                        const ctrl = new AbortController();
+                        const tid  = setTimeout(() => ctrl.abort(), 8000);
+                        const res  = await fetch(proxy(targetUrl), {
+                            signal: ctrl.signal,
+                            cache: 'no-store',
                         });
                         clearTimeout(tid);
-                        if (!res.ok) continue;
+                        // allorigins always returns 200; other proxies may 4xx
                         const text = await res.text();
                         let parsed;
                         try { parsed = JSON.parse(text); } catch(e) { continue; }
-                        // Unwrap allorigins/codetabs wrapping
-                        if (parsed?.contents) {
+                        // Unwrap { contents: '...' } wrapper some proxies add
+                        if (parsed && typeof parsed.contents === 'string') {
                             try { parsed = JSON.parse(parsed.contents); } catch(e) { continue; }
                         }
-                        return parsed;
-                    } catch(e) { /* try next proxy */ }
+                        const results = parsed?.quoteResponse?.result;
+                        if (results && results.length > 0) {
+                            console.log('[Yahoo ExtHours] success via', proxy(targetUrl).slice(0,40));
+                            return results;
+                        }
+                    } catch(e) { /* next */ }
                 }
                 return null;
             }
 
-            // Try v7 first (has clean preMarketPrice fields)
-            let json = await tryUrl(yahooUrlV7);
-            let results = json?.quoteResponse?.result ?? null;
+            let results = null;
+            for (const ep of endpoints) {
+                results = await tryFetch(ep);
+                if (results) break;
+            }
 
-            if (!results || results.length === 0) {
-                console.warn('[Yahoo ExtHours] v7 failed, trying v8...');
-                // v8 spark doesn't have pre-market fields directly — skip for now
+            if (!results) {
+                console.warn('[Yahoo ExtHours] all endpoints+proxies failed');
                 return;
             }
 
