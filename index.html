@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PS Smart Finance v2026.03.03-r88</title>
+    <title>PS Smart Finance v2026.03.03-r89</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -1001,7 +1001,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r88</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r89</div>
                 </div>
             </div>
             
@@ -2449,6 +2449,8 @@
         // Falls back to FMP (if key set) if TV Scanner returns no data.
         let _extLastBatchTs = 0;
         let _fmpEndpointIdx = 0;
+        let _fmpAllFailed  = false;  // true when key has no pre/post access (all 403)
+        let _fmp403Count   = 0;      // consecutive 403 counter
         function getFmpKey() { return localStorage.getItem('ps_fmp_key') || ''; }
 
         // ── updatePreMktCell: surgically update PRE-MKT cell (col[6]) ────────────
@@ -2587,7 +2589,14 @@
                     const tid  = setTimeout(function(){ ctrl.abort(); }, 7000);
                     const res  = await fetch(FMP_ENDPOINTS[idx](sym, fmpKey), { signal: ctrl.signal });
                     clearTimeout(tid);
-                    if (res.status === 403) { console.warn('[PRE-MKT] FMP[' + idx + '] 403 for ' + sym); continue; }
+                    if (res.status === 403) {
+                        _fmp403Count++;
+                        if (_fmp403Count >= 9) {
+                            _fmpAllFailed = true;
+                            console.warn('[PRE-MKT] FMP disabled — key has no pre/post-market access (403 all endpoints)');
+                        }
+                        continue;
+                    }
                     if (!res.ok) { console.warn('[PRE-MKT] FMP[' + idx + '] HTTP ' + res.status); continue; }
                     const data = await res.json();
                     const q    = Array.isArray(data) ? data[0] : data;
@@ -2607,73 +2616,74 @@
             if (now - _extLastBatchTs < 12000) return;
             _extLastBatchTs = now;
 
-            const mktOpen  = isMarketOpen();
-            const inPreMkt = isExtendedHours() && !mktOpen;
+            const mktOpen = isMarketOpen();
             let updated = 0;
 
-            // ── Step 1: Try TradingView Scanner (no key needed) ───────────────────
+            // ── TV Scanner (primary — no API key, no CORS issues) ─────────────────
             try {
                 const tvData = await fetchTVScannerBatch(watchlist);
                 const tvKeys = Object.keys(tvData);
-                if (tvKeys.length > 0) {
-                    tvKeys.forEach(function(sym) {
-                        if (watchlist.indexOf(sym) === -1) return; // skip non-watchlist
-                        const q   = tvData[sym];
-                        const pc  = wlDataCache[sym] && wlDataCache[sym].pc ? wlDataCache[sym].pc : (q.close || null);
-                        let extPrice = null, extPct = null, isAH = false;
+                console.log('[PRE-MKT] TV Scanner symbols=' + tvKeys.length + ' mktOpen=' + mktOpen);
 
-                        const preP  = q.premarket_price;
-                        const prePct = q.premarket_change;   // TV returns % directly
-                        const postP = q.postmarket_price;
-                        const postPct = q.postmarket_change;
+                tvKeys.forEach(function(sym) {
+                    if (watchlist.indexOf(sym) === -1) return;
+                    const q   = tvData[sym];
+                    const pc  = (wlDataCache[sym] && wlDataCache[sym].pc) ? wlDataCache[sym].pc : (q.close || null);
 
-                        if (inPreMkt && preP && preP > 0) {
-                            extPrice = preP;
-                            extPct   = prePct != null ? prePct : (pc && pc > 0 ? (preP - pc) / pc * 100 : null);
-                            isAH     = false;
-                        } else if (postP && postP > 0) {
-                            extPrice = postP;
-                            extPct   = postPct != null ? postPct : (pc && pc > 0 ? (postP - pc) / pc * 100 : null);
-                            isAH     = true;
-                        } else if (preP && preP > 0) {
-                            extPrice = preP;
-                            extPct   = prePct != null ? prePct : (pc && pc > 0 ? (preP - pc) / pc * 100 : null);
-                            isAH     = false;
-                        }
+                    const preP   = q.premarket_price  || null;
+                    const prePct = q.premarket_change != null ? q.premarket_change : null;
+                    const postP  = q.postmarket_price || null;
+                    const postPct= q.postmarket_change != null ? q.postmarket_change : null;
 
-                        if (!extPrice || extPrice <= 0 || extPct === null) return;
-                        if (pc && pc > 0 && Math.abs(extPrice - pc) / pc > 0.30) return;
+                    let extPrice = null, extPct = null, isAH = false;
 
-                        const existing = wlDataCache[sym] || {};
-                        if (!isAH) {
-                            wlDataCache[sym] = Object.assign({}, existing,
-                                { preMarketPrice: extPrice, preMarketChangePct: extPct,
-                                  afterHoursPrice: null, afterHoursChangePct: null });
-                        } else {
-                            wlDataCache[sym] = Object.assign({}, existing,
-                                { afterHoursPrice: extPrice, afterHoursChangePct: extPct,
-                                  preMarketPrice: null, preMarketChangePct: null });
-                        }
-                        updatePreMktCell(sym, extPrice, extPct, isAH);
-                        updated++;
-                    });
-                    if (updated > 0) {
-                        console.log('[PRE-MKT] TV Scanner updated ' + updated + '/' + watchlist.length);
-                        return; // TV Scanner worked — skip FMP
+                    // Show pre-market if available; otherwise show after-hours
+                    if (preP && preP > 0) {
+                        extPrice = preP;
+                        extPct   = prePct != null ? prePct : (pc && pc > 0 ? (preP - pc)/pc*100 : null);
+                        isAH     = false;
+                    } else if (postP && postP > 0) {
+                        extPrice = postP;
+                        extPct   = postPct != null ? postPct : (pc && pc > 0 ? (postP - pc)/pc*100 : null);
+                        isAH     = true;
                     }
+
+                    if (!extPrice || extPct === null) return;
+                    if (pc && pc > 0 && Math.abs(extPrice - pc)/pc > 0.30) return;
+
+                    const existing = wlDataCache[sym] || {};
+                    if (!isAH) {
+                        wlDataCache[sym] = Object.assign({}, existing,
+                            { preMarketPrice: extPrice, preMarketChangePct: extPct,
+                              afterHoursPrice: null, afterHoursChangePct: null });
+                    } else {
+                        wlDataCache[sym] = Object.assign({}, existing,
+                            { afterHoursPrice: extPrice, afterHoursChangePct: extPct,
+                              preMarketPrice: null, preMarketChangePct: null });
+                    }
+                    updatePreMktCell(sym, extPrice, extPct, isAH);
+                    updated++;
+                });
+
+                if (updated > 0) {
+                    console.log('[PRE-MKT] TV Scanner updated ' + updated + '/' + watchlist.length);
+                    return;
                 }
-                console.info('[PRE-MKT] TV Scanner returned no extended-hours data (market open or no pre/post session)');
+                if (mktOpen) {
+                    console.info('[PRE-MKT] Market OPEN — pre/post prices only available before 21:30 or after 04:00 Thai time');
+                } else {
+                    console.info('[PRE-MKT] TV Scanner: ' + tvKeys.length + ' symbols found, 0 have pre/post prices yet');
+                }
             } catch(e) {
-                console.warn('[PRE-MKT] TV Scanner failed:', e && e.message, '— trying FMP fallback');
+                console.warn('[PRE-MKT] TV Scanner error:', e && e.message);
             }
 
-            // ── Step 2: FMP fallback (requires API key) ────────────────────────────
+            // ── FMP fallback (skip if all endpoints 403'd) ────────────────────────
             const fmpKey = getFmpKey();
-            if (!fmpKey) {
-                console.info('[PRE-MKT] No FMP key set. TV Scanner also returned no data. Pre-market unavailable.');
+            if (!fmpKey || _fmpAllFailed) {
+                if (_fmpAllFailed) console.info('[PRE-MKT] FMP disabled — all endpoints returned 403 (key has no pre/post access)');
                 return;
             }
-
             const chunks = [];
             for (let i = 0; i < watchlist.length; i += 5) chunks.push(watchlist.slice(i, i + 5));
             for (let ci = 0; ci < chunks.length; ci++) {
@@ -2681,38 +2691,31 @@
                     try {
                         const q  = await fmpFetchSym(sym, fmpKey);
                         if (!q) return;
-                        const pc = wlDataCache[sym] && wlDataCache[sym].pc ? wlDataCache[sym].pc : null;
+                        const pc = (wlDataCache[sym] && wlDataCache[sym].pc) ? wlDataCache[sym].pc : null;
                         let extPrice = null, extPct = null, isAH = false;
-                        const preP  = q.pre != null ? q.pre : (q.preMarketPrice != null ? q.preMarketPrice : null);
-                        const postP = q.post != null ? q.post : (q.afterHoursPrice != null ? q.afterHoursPrice : (q.postMarketPrice != null ? q.postMarketPrice : null));
-                        const prePct  = q.preChangesPercentage != null ? q.preChangesPercentage : (q.preMarketChangesPercentage != null ? q.preMarketChangesPercentage : null);
-                        const postPct = q.postChangesPercentage != null ? q.postChangesPercentage : (q.afterHoursChangesPercentage != null ? q.afterHoursChangesPercentage : null);
-                        if (inPreMkt && preP && preP > 0) {
-                            extPrice = preP; extPct = pc && pc > 0 ? (preP - pc) / pc * 100 : prePct; isAH = false;
+                        const preP   = q.pre != null ? q.pre : (q.preMarketPrice != null ? q.preMarketPrice : null);
+                        const postP  = q.post != null ? q.post : (q.afterHoursPrice != null ? q.afterHoursPrice : (q.postMarketPrice || null));
+                        const prePct = q.preChangesPercentage != null ? q.preChangesPercentage : (q.preMarketChangesPercentage || null);
+                        const postPct= q.postChangesPercentage != null ? q.postChangesPercentage : (q.afterHoursChangesPercentage || null);
+                        if (preP && preP > 0) {
+                            extPrice = preP; extPct = prePct != null ? prePct : (pc && pc > 0 ? (preP-pc)/pc*100 : null); isAH = false;
                         } else if (postP && postP > 0) {
-                            extPrice = postP; extPct = pc && pc > 0 ? (postP - pc) / pc * 100 : postPct; isAH = true;
-                        } else if (preP && preP > 0) {
-                            extPrice = preP; extPct = pc && pc > 0 ? (preP - pc) / pc * 100 : prePct; isAH = false;
+                            extPrice = postP; extPct = postPct != null ? postPct : (pc && pc > 0 ? (postP-pc)/pc*100 : null); isAH = true;
                         }
                         if (!extPrice || extPct === null) return;
-                        if (pc && pc > 0 && Math.abs(extPrice - pc) / pc > 0.30) return;
+                        if (pc && pc > 0 && Math.abs(extPrice-pc)/pc > 0.30) return;
                         const existing = wlDataCache[sym] || {};
-                        if (!isAH) {
-                            wlDataCache[sym] = Object.assign({}, existing, { preMarketPrice: extPrice, preMarketChangePct: extPct, afterHoursPrice: null, afterHoursChangePct: null });
-                        } else {
-                            wlDataCache[sym] = Object.assign({}, existing, { afterHoursPrice: extPrice, afterHoursChangePct: extPct, preMarketPrice: null, preMarketChangePct: null });
-                        }
+                        wlDataCache[sym] = Object.assign({}, existing, isAH
+                            ? { afterHoursPrice: extPrice, afterHoursChangePct: extPct, preMarketPrice: null, preMarketChangePct: null }
+                            : { preMarketPrice: extPrice, preMarketChangePct: extPct, afterHoursPrice: null, afterHoursChangePct: null });
                         updatePreMktCell(sym, extPrice, extPct, isAH);
                         updated++;
                     } catch(e) {}
                 }));
                 if (ci < chunks.length - 1) await new Promise(function(r){ setTimeout(r, 200); });
             }
-            if (updated > 0) console.log('[PRE-MKT] FMP fallback updated ' + updated + '/' + watchlist.length);
-            else console.warn('[PRE-MKT] No extended-hours data from TV Scanner or FMP');
+            if (updated > 0) console.log('[PRE-MKT] FMP updated ' + updated + '/' + watchlist.length);
         }
-
-
         // ── PRE-MKT Debug Helper (call from browser console) ─────────────────────
         // Usage: debugPreMkt()           — run TV Scanner now and show results
         // Usage: debugPreMkt(['NVDA'])   — test specific symbols
