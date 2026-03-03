@@ -411,16 +411,71 @@
         .ai-typing .dots { animation: blink 1.2s infinite; }
         .ai-cursor { display:inline-block; animation: blink 0.7s infinite; color:#4285f4; font-weight:bold; margin-left:1px; }
 
-        /* Market news grid — must not overflow card width */
+        /* Market news grid — tile layout, no inner scroll */
         #market-news-grid {
             min-width: 0;
             width: 100%;
-            overflow: hidden;
         }
-        #market-news-grid > * {
-            min-width: 0;
-            overflow: hidden;
+        .news-tile {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+            text-align: left;
         }
+        .news-tile:hover {
+            background: var(--bg-card2);
+            border-color: rgba(8,153,129,0.3);
+        }
+        .news-tile-img {
+            width: 100%;
+            aspect-ratio: 16/9;
+            object-fit: cover;
+            border-radius: 4px;
+            display: block;
+        }
+        .news-tile-no-img {
+            width: 100%;
+            aspect-ratio: 16/9;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-card2);
+        }
+
+        /* Watchlist sticky header */
+        #watchlist-table thead tr {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Sort button in th */
+        .wl-sort-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            font: inherit;
+            color: inherit;
+            letter-spacing: inherit;
+            text-transform: inherit;
+            white-space: nowrap;
+        }
+        .wl-sort-btn:hover { color: var(--text-primary) !important; }
+        .wl-sort-icon { opacity: 0.35; font-size: 8px; line-height: 1; }
+        .wl-sort-btn.sort-asc  .wl-sort-icon::after { content: '▲'; opacity: 1; }
+        .wl-sort-btn.sort-desc .wl-sort-icon::after { content: '▼'; opacity: 1; }
+        .wl-sort-btn:not(.sort-asc):not(.sort-desc) .wl-sort-icon::after { content: '⇅'; }
 
         /* Watchlist table inner scroll — scrollbar stays inside card, doesn't affect outer width */
         #wl-table-panel .glass-card > div[style*="overflow-x"] {
@@ -1299,24 +1354,36 @@
                     </colgroup>
                     <thead>
                         <tr class="border-b" style="border-color:var(--border);background:var(--bg-card2)">
-                            <th class="px-3 py-2 text-left text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) w-8">#</th>
-                            <th class="px-3 py-2 text-left text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary)">Symbol</th>
-                            <th id="wl-th-name" class="px-3 py-2 text-left text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary)">Name</th>
-                            <th id="wl-th-price" class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary)">Price</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">Change</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary)">% Change</th>
-                            <th id="wl-th-premkt" class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest wl-col-hide" style="color:#f59e0b">Pre-Mkt</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest wl-col-hide" style="color:var(--text-secondary)">Open</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest wl-col-hide" style="color:var(--text-secondary)">Prev Close</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">High</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">Low</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">52W High</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">52W Low</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">Mkt Cap</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">Avg Vol 10D</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">Beta</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">P/E</th>
-                            <th class="px-3 py-2 text-right text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-secondary) wl-col-hide">Div Yield</th>
+                            <th class="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)">#</th>
+                            <th class="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)">
+                                <button class="wl-sort-btn" onclick="sortWatchlist('symbol')" id="wl-sort-symbol">SYMBOL<span class="wl-sort-icon"></span></button>
+                            </th>
+                            <th id="wl-th-name" class="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)">NAME</th>
+                            <th id="wl-th-price" class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)">
+                                <button class="wl-sort-btn" onclick="sortWatchlist('price')" id="wl-sort-price">LAST<span class="wl-sort-icon"></span></button>
+                            </th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">
+                                <button class="wl-sort-btn" onclick="sortWatchlist('change')" id="wl-sort-change">CHG<span class="wl-sort-icon"></span></button>
+                            </th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)">
+                                <button class="wl-sort-btn" onclick="sortWatchlist('changePct')" id="wl-sort-changePct">CHG%<span class="wl-sort-icon"></span></button>
+                            </th>
+                            <th id="wl-th-premkt" class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:#f59e0b">PRE-MKT</th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">OPEN</th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">P.CLOSE</th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">HIGH</th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">LOW</th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">52W H</th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">52W L</th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">
+                                <button class="wl-sort-btn" onclick="sortWatchlist('mktcap')" id="wl-sort-mktcap">MCAP<span class="wl-sort-icon"></span></button>
+                            </th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">VOL 10D</th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">BETA</th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">
+                                <button class="wl-sort-btn" onclick="sortWatchlist('pe')" id="wl-sort-pe">P/E<span class="wl-sort-icon"></span></button>
+                            </th>
+                            <th class="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-widest wl-col-hide" style="color:var(--text-dim)">DIV%</th>
                             <th class="px-2 py-2 w-8"></th>
                         </tr>
                     </thead>
@@ -2772,25 +2839,20 @@
             const timeStr = diffM < 60 ? `${diffM}m ago` : diffM < 1440 ? `${Math.floor(diffM/60)}h ago` : date.toLocaleDateString('en-US', {month:'short', day:'numeric'});
             const source = (a.source || '').toUpperCase();
             const img = a.image || '';
-            const symbols = (a.related || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 4);
+            const symbols = (a.related || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 3);
             const badges = symbols.map(s =>
-                `<span class="text-[8px] font-black px-1.5 py-0.5 rounded" style="background:rgba(20,184,166,0.12);color:#14b8a6">${s}</span>`
+                `<span style="background:rgba(8,153,129,0.12);color:#089981;font-size:8px;font-weight:600;padding:1px 5px;border-radius:3px">${s}</span>`
             ).join('');
-            return `<button data-news-idx="${idx}" onclick="openNewsModal(${idx})"
-                class="w-full text-left flex items-start gap-3 px-4 py-2.5 transition-colors group/news"
-                style="border-bottom:1px solid var(--border);background:transparent"
-                onmouseover="this.style.background='var(--bg-card2)'" onmouseout="this.style.background='transparent'">
+            return `<button data-news-idx="${idx}" onclick="openNewsModal(${idx})" class="news-tile">
                 ${img
-                    ? `<img src="${img}" alt="" class="w-16 h-11 object-cover rounded-lg flex-shrink-0 mt-0.5" onerror="this.style.display='none'">`
-                    : `<div class="w-16 h-11 rounded-lg flex-shrink-0 flex items-center justify-center" style="background:var(--bg-card2)">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-dim)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
-                       </div>`}
-                <div class="flex-1 min-w-0">
-                    <p class="text-[11px] font-bold leading-snug group-hover/news:text-teal-400 transition-colors line-clamp-2" style="color:var(--text-primary)">${a.headline || ''}</p>
-                    <div class="flex items-center gap-1.5 mt-1 flex-wrap">
-                        <span class="text-[9px] font-black text-teal-500 uppercase tracking-wider">${source}</span>
+                    ? `<img src="${img}" alt="" class="news-tile-img" onerror="this.parentElement.querySelector('.news-tile-no-img')&&(this.style.display='none')">`
+                    : `<div class="news-tile-no-img"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-dim)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg></div>`}
+                <div class="flex-1 flex flex-col gap-1.5" style="min-width:0">
+                    <p style="font-size:12px;font-weight:600;line-height:1.35;color:var(--text-primary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${a.headline || ''}</p>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:auto">
+                        <span style="font-size:9px;font-weight:700;color:#089981;letter-spacing:0.04em">${source}</span>
                         <span style="color:var(--border)">·</span>
-                        <span class="text-[9px]" style="color:var(--text-dim)">${timeStr}</span>
+                        <span style="font-size:9px;color:var(--text-dim)">${timeStr}</span>
                         ${badges ? `<span style="color:var(--border)">·</span>${badges}` : ''}
                     </div>
                 </div>
@@ -2873,7 +2935,7 @@
                     grid.innerHTML = `<p class="text-xs text-center py-6" style="color:var(--text-dim)">ไม่มีข่าว</p>`;
                     return;
                 }
-                grid.className = 'grid grid-cols-2';
+                grid.className = 'grid grid-cols-2 lg:grid-cols-3 gap-3 p-3';
                 grid.innerHTML = items.map(a => renderNewsRow(a)).join('');
             } catch(e) {
                 grid.innerHTML = `<div class="flex flex-col items-center py-6 gap-2">
@@ -3134,6 +3196,165 @@
             } catch(e) {
                 if (loading) { loading.classList.remove('hidden'); if(loadingMsg) loadingMsg.innerText = 'Chart unavailable'; }
             }
+        }
+
+        // ── Polygon.io Pre-Market / After-Hours Batch Fetch ───────────────────
+        let polygonPreMarketTimer = null;
+        let polygonActive = false;
+        const POLYGON_INTERVAL = 15000; // 15s during extended hours
+
+        function isExtendedHours() {
+            const now = new Date();
+            const day = now.getUTCDay();
+            if (day === 0 || day === 6) return false;
+            const dst = isUSDST(now);
+            const utcMins = now.getUTCHours() * 60 + now.getUTCMinutes();
+            const preOpen  = dst ? 9*60  : 10*60;    // 4:00 AM ET
+            const mktOpen  = dst ? 13*60+30 : 14*60+30;
+            const mktClose = dst ? 20*60 : 21*60;
+            const postClose = dst ? 24*60 : 25*60;   // 8:00 PM ET
+            return (utcMins >= preOpen && utcMins < mktOpen) ||
+                   (utcMins >= mktClose && utcMins < postClose);
+        }
+
+        async function fetchPolygonExtendedBatch() {
+            const key = getPolygonKey();
+            if (!key || watchlist.length === 0) return;
+            if (document.hidden) return; // Active tab monitoring — skip if tab hidden
+
+            const tickers = watchlist.join(',');
+            try {
+                const url = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickers}&apiKey=${key}`;
+                const res = await fetch(url);
+                if (!res.ok) return;
+                const json = await res.json();
+                const results = json?.tickers ?? [];
+
+                results.forEach(item => {
+                    const sym = item.ticker;
+                    if (!sym || !watchlist.includes(sym)) return;
+                    const day   = item.day   ?? {};
+                    const prevDay = item.prevDay ?? {};
+                    const pc    = prevDay.c ?? wlDataCache[sym]?.pc ?? null;
+                    // extended hours price
+                    const extHrs = item.lastQuote ?? item.lastTrade ?? null;
+                    let extPrice = null, extPct = null;
+
+                    // Check todaysChangePerc and todaysChange for regular session
+                    // For pre/after-hours use the last trade price if outside market hours
+                    const lastPrice = item.lastTrade?.p ?? null;
+                    const regularClose = day.c || wlDataCache[sym]?.c || null;
+
+                    if (lastPrice && pc && !isMarketOpen()) {
+                        extPrice = lastPrice;
+                        extPct = ((lastPrice - pc) / pc) * 100;
+                    }
+
+                    if (extPrice !== null) {
+                        const existing = wlDataCache[sym] ?? {};
+                        const isPreMkt = isExtendedHours() && !isMarketOpen();
+                        wlDataCache[sym] = {
+                            ...existing,
+                            preMarketPrice:      isPreMkt ? extPrice : existing.preMarketPrice,
+                            preMarketChangePct:  isPreMkt ? extPct   : existing.preMarketChangePct,
+                            afterHoursPrice:     !isPreMkt ? extPrice : existing.afterHoursPrice,
+                            afterHoursChangePct: !isPreMkt ? extPct   : existing.afterHoursChangePct,
+                        };
+                        // Live-update pre-market cell in row
+                        const row = document.getElementById('wl-row-' + sym);
+                        if (row) {
+                            const cells = row.querySelectorAll('td');
+                            if (cells[6]) {
+                                const isUp = extPct >= 0;
+                                cells[6].innerHTML = `<div class="flex flex-col items-end gap-0.5">
+                                    <span class="text-[10px] num-cell font-medium ${isUp ? 'wl-up' : 'wl-dn'}" style="font-variant-numeric:tabular-nums">${isUp ? '+' : ''}${extPct.toFixed(2)}%</span>
+                                    <span class="text-[9px]" style="color:var(--text-dim);font-variant-numeric:tabular-nums">$${extPrice.toFixed(2)}</span>
+                                </div>`;
+                            }
+                        }
+                    }
+                });
+            } catch(e) { /* Polygon fetch best-effort */ }
+        }
+
+        function startPolygonPreMarket() {
+            stopPolygonPreMarket();
+            if (!getPolygonKey()) return;
+            polygonActive = true;
+            // Fetch immediately, then every 15s during extended hours
+            fetchPolygonExtendedBatch();
+            polygonPreMarketTimer = setInterval(() => {
+                if (!polygonActive) return;
+                if (!isExtendedHours() && !isMarketOpen()) return; // Only during extended/market hours
+                fetchPolygonExtendedBatch();
+            }, POLYGON_INTERVAL);
+        }
+
+        function stopPolygonPreMarket() {
+            polygonActive = false;
+            if (polygonPreMarketTimer) { clearInterval(polygonPreMarketTimer); polygonPreMarketTimer = null; }
+        }
+
+        // Active Tab Monitoring — pause Polygon fetch when tab hidden
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopPolygonPreMarket();
+            } else {
+                if (getPolygonKey()) startPolygonPreMarket();
+            }
+        });
+
+        // ── Watchlist Sort ────────────────────────────────────────────────────
+        let wlSortKey = null;
+        let wlSortDir = 'desc'; // 'asc' | 'desc'
+
+        function sortWatchlist(key) {
+            if (wlSortKey === key) {
+                wlSortDir = wlSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                wlSortKey = key;
+                wlSortDir = 'desc';
+            }
+            // Update sort button icons
+            document.querySelectorAll('.wl-sort-btn').forEach(btn => {
+                btn.classList.remove('sort-asc', 'sort-desc');
+            });
+            const activeBtn = document.getElementById('wl-sort-' + key);
+            if (activeBtn) activeBtn.classList.add(wlSortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+
+            const getValue = (sym) => {
+                const d = wlDataCache[sym];
+                if (!d) return null;
+                switch(key) {
+                    case 'symbol':    return sym;
+                    case 'price':     return d.c     ?? null;
+                    case 'change':    return d.d     ?? null;
+                    case 'changePct': return d.dp    ?? null;
+                    case 'mktcap':    return d.marketCap ?? null;
+                    case 'pe':        return d.pe    ?? null;
+                    default: return null;
+                }
+            };
+
+            const sorted = [...watchlist].sort((a, b) => {
+                const va = getValue(a), vb = getValue(b);
+                if (va === null && vb === null) return 0;
+                if (va === null) return 1;
+                if (vb === null) return -1;
+                const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+                return wlSortDir === 'asc' ? cmp : -cmp;
+            });
+
+            // Reorder DOM rows to match sorted order
+            const tbody = document.getElementById('watchlist-rows');
+            sorted.forEach((sym, i) => {
+                const row = document.getElementById('wl-row-' + sym);
+                if (row) {
+                    tbody.appendChild(row);
+                    const numEl = row.querySelector('.wl-idx');
+                    if (numEl) numEl.innerText = i + 1;
+                }
+            });
         }
 
         // ── AI Stock Analyst (Gemini) ──────────────────────────────────────────
@@ -4362,6 +4583,7 @@ Analysis guidelines:
         // ── Settings Modal ────────────────────────────────────────────────────
         function getFinnhubKey() { return localStorage.getItem('ps_finnhub_key') || ''; }
         function getErapiKey()   { return localStorage.getItem('ps_erapi_key')   || ''; }
+        function getPolygonKey() { return localStorage.getItem('ps_polygon_key') || ''; }
 
         function openSettingsModal() {
             document.getElementById('settings-modal').classList.remove('hidden');
@@ -4371,6 +4593,7 @@ Analysis guidelines:
             };
             fill('s-finnhub-input',    'ps_finnhub_key');
             fill('s-erapi-input',      'ps_erapi_key');
+            fill('s-polygon-input',    'ps_polygon_key');
             fill('s-openrouter-input', 'ps_openrouter_key');
             fill('s-gist-input',       'ps_gist_token');
             updateSettingsBadges();
@@ -4391,6 +4614,7 @@ Analysis guidelines:
             };
             badge('s-finnhub-badge',    'ps_finnhub_key');
             badge('s-erapi-badge',      'ps_erapi_key');
+            badge('s-polygon-badge',    'ps_polygon_key');
             badge('s-openrouter-badge', 'ps_openrouter_key');
             badge('s-gist-badge',       'ps_gist_token');
         }
@@ -4405,21 +4629,24 @@ Analysis guidelines:
             };
             save('s-finnhub-input',    'ps_finnhub_key');
             save('s-erapi-input',      'ps_erapi_key');
+            save('s-polygon-input',    'ps_polygon_key');
             save('s-openrouter-input', 'ps_openrouter_key', v => v.startsWith('sk-or-'));
             save('s-gist-input',       'ps_gist_token');
             closeSettingsModal();
             // Trigger refresh with new keys
             if (getFinnhubKey()) { refreshWatchlist(); updateAiStatus(); }
+            if (getPolygonKey()) startPolygonPreMarket();
             fetchFxRate();
         }
 
         function clearAllSettings() {
             if (!confirm('ล้าง API keys ทั้งหมดใช่ไหม?')) return;
-            ['ps_finnhub_key','ps_erapi_key','ps_openrouter_key','ps_gist_token'].forEach(k => localStorage.removeItem(k));
-            ['s-finnhub-input','s-erapi-input','s-openrouter-input','s-gist-input'].forEach(id => {
+            ['ps_finnhub_key','ps_erapi_key','ps_polygon_key','ps_openrouter_key','ps_gist_token'].forEach(k => localStorage.removeItem(k));
+            ['s-finnhub-input','s-erapi-input','s-polygon-input','s-openrouter-input','s-gist-input'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
+            stopPolygonPreMarket();
             updateSettingsBadges();
         }
 
@@ -4544,6 +4771,9 @@ Analysis guidelines:
                 localStorage.removeItem('ps_openrouter_key');
             }
             updateAiStatus();
+            updateSettingsBadges();
+            // Start Polygon pre-market polling if key set
+            if (getPolygonKey()) startPolygonPreMarket();
         };
 
         // ── Auto-save: 2-tier smart sync ──────────────────────────────────────
@@ -4842,6 +5072,34 @@ Analysis guidelines:
                     <p class="text-[9px] mt-2" style="color:var(--text-dim)">
                         สมัครฟรีที่ <a href="https://openrouter.ai" target="_blank" class="underline" style="color:#6366f1">openrouter.ai</a>
                         → API Keys → Create Key · ต้องขึ้นต้นด้วย <strong>sk-or-v1-</strong>
+                    </p>
+                </div>
+
+                <!-- Polygon.io — Pre/After-hours data -->
+                <div class="rounded-md p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#f59e0b">
+                                <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold" style="color:var(--text-primary)">Polygon.io</p>
+                                <p class="text-[10px]" style="color:var(--text-dim)">Pre-market &amp; After-hours · polygon.io</p>
+                            </div>
+                        </div>
+                        <span id="s-polygon-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="s-polygon-input" type="password" autocomplete="off" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxx"
+                            class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
+                            onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-polygon-input')" class="px-2.5 rounded-lg text-[10px]"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    </div>
+                    <p class="text-[9px] mt-2" style="color:var(--text-dim)">
+                        สมัครฟรีที่ <a href="https://polygon.io" target="_blank" class="underline" style="color:#f59e0b">polygon.io</a>
+                        · Starter plan ฟรี · ใช้ Batch snapshot endpoint สำหรับ extended hours
                     </p>
                 </div>
 
