@@ -1019,7 +1019,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r111</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r112</div>
                 </div>
             </div>
             
@@ -1781,7 +1781,7 @@
                     if (fhWs && fhWs.readyState >= 2) {
                         fhWs = null;
                     }
-                    connectFinnhubWs();
+                    connectWs();
                 }
                 updateMarketStatus();
 
@@ -1791,7 +1791,7 @@
                 // Step 4: Background refresh for fresh data (delayed 300ms so UI renders first)
                 setTimeout(() => refreshWatchlist(), 300);
             }
-            if (t !== 'watchlist') disconnectFinnhubWs(); // save API quota when not viewing
+            if (t !== 'watchlist') { disconnectFinnhubWs(); disconnectAlpacaWs(); } // save API quota when not viewing
             if (save) try { localStorage.setItem('ps_tab', t); } catch(e) {}
             if (save) scheduleAutoSave(true); // flush pending save on tab switch (not on initial load)
         }
@@ -2749,7 +2749,7 @@
                 `Updated ${new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})}`;
             isWlRefreshing = false;
             saveWlCache(); // persist for instant load next time
-            if (isMarketOpen()) connectFinnhubWs();
+            if (isMarketOpen()) connectWs();
             updateMarketStatus();
             loadMarketNews();
         }
@@ -2816,12 +2816,10 @@
             const prevPriceText = cells[3].innerText;
             const newPriceText = price !== null ? '$' + fmt(price) : '—';
             if (prevPriceText !== newPriceText && prevPriceText !== '') {
-                const row = cells[3].closest('tr');
-                if (row) {
-                    row.classList.remove('flash-up', 'flash-down');
-                    void row.offsetWidth; // force reflow
-                    row.classList.add(isUp ? 'flash-up' : 'flash-down');
-                    setTimeout(() => row.classList.remove('flash-up', 'flash-down'), 400);
+                const tr = cells[3].closest('tr');
+                if (tr && !tr._flashTimer) {
+                    tr.classList.add(isUp ? 'flash-up' : 'flash-down');
+                    tr._flashTimer = setTimeout(() => { tr.classList.remove('flash-up','flash-down'); tr._flashTimer = null; }, 400);
                 }
             }
             setText(cells[3], newPriceText);
@@ -4201,112 +4199,146 @@ ${contextSections}
         let fhWsSubscribed = new Set();
         let fhWsBackoff = 5000; // start 5s, max 30s
 
+        // ── WebSocket router: Alpaca (primary) → Finnhub (fallback) ──────────
+        function connectWs() {
+            const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
+            if (aKey && aSecret) connectAlpacaWs(aKey, aSecret);
+            else connectFinnhubWs();
+        }
+
+        // ── Alpaca WebSocket ────────────────────────────────────────────────────
+        let alpWs = null, alpWsReconnectTimer = null, alpWsBackoff = 5000, alpWsSubscribed = new Set();
+
+        function connectAlpacaWs(apiKey, apiSecret) {
+            if (!watchlist.length) return;
+            if (alpWs && alpWs.readyState <= 1) return;
+            alpWs = new WebSocket('wss://stream.data.alpaca.markets/v2/iex');
+            alpWs.onopen = () => alpWs.send(JSON.stringify({ action:'auth', key:apiKey, secret:apiSecret }));
+            alpWs.onmessage = (e) => {
+                try {
+                    JSON.parse(e.data).forEach(msg => {
+                        if (msg.T === 'success' && msg.msg === 'authenticated') {
+                            alpWsBackoff = 5000;
+                            // Batch subscribe — Paper key allows ~10 symbols per message
+                            const _BATCH = 10;
+                            for (let i = 0; i < watchlist.length; i += _BATCH) {
+                                const chunk = watchlist.slice(i, i + _BATCH);
+                                alpWs.send(JSON.stringify({ action:'subscribe', trades: chunk }));
+                                chunk.forEach(s => alpWsSubscribed.add(s));
+                            }
+                            updateMarketStatus();
+                        } else if (msg.T === 'error') {
+                            console.warn('Alpaca WS:', msg.msg); alpWs.close();
+                        } else if (msg.T === 't') {
+                            _handleTrade(msg.S, msg.p);
+                        }
+                    });
+                } catch(err) {}
+            };
+            alpWs.onclose = () => {
+                alpWs = null; alpWsSubscribed.clear();
+                clearTimeout(alpWsReconnectTimer);
+                alpWsReconnectTimer = setTimeout(() => { if (isMarketOpen()) connectAlpacaWs(apiKey, apiSecret); }, alpWsBackoff);
+                alpWsBackoff = Math.min(alpWsBackoff * 1.5, 30000);
+                updateMarketStatus(false);
+            };
+            alpWs.onerror = () => alpWs?.close();
+        }
+
+        function disconnectAlpacaWs() {
+            clearTimeout(alpWsReconnectTimer); alpWsBackoff = 5000;
+            if (alpWs) { alpWs.close(); alpWs = null; } alpWsSubscribed.clear();
+        }
+
+        // ── Shared trade handler ────────────────────────────────────────────────
+        // rAF batch: accumulate trades, flush once per frame (max 60fps)
+        const _pendingTrades = {};
+        let _rafPending = false;
+        function _flushTrades() {
+            _rafPending = false;
+            for (const [sym, newPrice] of Object.entries(_pendingTrades)) {
+                delete _pendingTrades[sym];
+                const cached = wlDataCache[sym]; if (!cached) continue;
+                const prevClose = cached.pc ?? cached.c ?? newPrice;
+                const change = newPrice - prevClose, changePct = prevClose ? (change/prevClose)*100 : 0;
+                const updated = { ...cached, c: newPrice, d: change, dp: changePct };
+                wlDataCache[sym] = updated;
+                updateWatchlistPriceCells(sym, updated);
+                const row = document.getElementById('wl-row-' + sym);
+                if (row && !row._bgTimer) {
+                    row.style.transition = 'background 0.1s';
+                    row.style.background = change >= 0 ? 'rgba(5,150,105,0.08)' : 'rgba(225,29,72,0.08)';
+                    row._bgTimer = setTimeout(() => { row.style.background = ''; row._bgTimer = null; }, 600);
+                }
+                if (qcCurrentSymbol === sym) {
+                    const heroEl = document.getElementById('qc-price-hero');
+                    if (heroEl) { heroEl.textContent = '$' + newPrice.toFixed(2); heroEl.style.color = change >= 0 ? 'var(--qc-up)' : 'var(--qc-dn)'; }
+                }
+            }
+            const _now = Date.now();
+            if (!_flushTrades._lastStatus || _now - _flushTrades._lastStatus > 5000) {
+                _flushTrades._lastStatus = _now;
+                updateMarketStatus(true);
+            }
+        }
+        function _handleTrade(sym, newPrice) {
+            if (!wlDataCache[sym] || !newPrice) return;
+            _pendingTrades[sym] = newPrice; // latest price wins
+            if (!_rafPending) { _rafPending = true; requestAnimationFrame(_flushTrades); }
+        }
+
+        // ── Finnhub WebSocket (fallback) ────────────────────────────────────────
         function connectFinnhubWs() {
             const key = getFinnhubKey();
-            if (!key || watchlist.length === 0) return;
-            if (fhWs && (fhWs.readyState === 0 || fhWs.readyState === 1)) return; // 0=CONNECTING, 1=OPEN only
-
+            if (!key || !watchlist.length) return;
+            if (fhWs && fhWs.readyState <= 1) return;
             fhWs = new WebSocket(`wss://ws.finnhub.io?token=${key}`);
-
             fhWs.onopen = () => {
-                fhWsBackoff = 5000; // reset backoff on successful connect
-                fhWsSubscribed.clear();
-                watchlist.forEach(sym => subscribeWs(sym));
-                updateMarketStatus();
+                fhWsBackoff = 5000; fhWsSubscribed.clear();
+                watchlist.forEach(sym => subscribeWs(sym)); updateMarketStatus();
             };
-
             fhWs.onmessage = (e) => {
                 try {
                     const msg = JSON.parse(e.data);
                     if (msg.type !== 'trade') return;
                     const latest = {};
-                    msg.data.forEach(t => {
-                        if (!latest[t.s] || t.t > latest[t.s].t) latest[t.s] = t;
-                    });
-                    Object.entries(latest).forEach(([sym, trade]) => {
-                        const cached = wlDataCache[sym];
-                        if (!cached) return;
-                        const newPrice = trade.p;
-                        const prevClose = cached.pc ?? cached.c ?? newPrice;
-                        const change = newPrice - prevClose;
-                        const changePct = prevClose ? (change / prevClose) * 100 : 0;
-                        const updated = { ...cached, c: newPrice, d: change, dp: changePct };
-                        updateWatchlistPriceCells(sym, updated);
-                        const row = document.getElementById('wl-row-' + sym);
-                        if (row) {
-                            row.style.transition = 'background 0.1s';
-                            row.style.background = change >= 0 ? 'rgba(5,150,105,0.08)' : 'rgba(225,29,72,0.08)';
-                            setTimeout(() => { row.style.background = ''; }, 600);
-                        }
-                        if (qcCurrentSymbol === sym) {
-                            // Update legacy hidden elements
-                            document.getElementById('qc-price').textContent = '$' + newPrice.toFixed(2);
-                            // Update Price Hero
-                            const heroEl = document.getElementById('qc-price-hero');
-                            if (heroEl) {
-                                heroEl.textContent = '$' + newPrice.toFixed(2);
-                                heroEl.style.color = change >= 0 ? 'var(--qc-up)' : 'var(--qc-dn)';
-                            }
-                            const heroChangeEl = document.getElementById('qc-change-hero');
-                            if (heroChangeEl) {
-                                const arrow = change >= 0 ? '▲' : '▼';
-                                heroChangeEl.textContent = `${arrow} ${change >= 0 ? '+' : ''}${change.toFixed(2)} (${change >= 0 ? '+' : ''}${changePct.toFixed(2)}%)`;
-                                heroChangeEl.className = 'text-sm font-medium px-2 py-0.5 rounded-md ' + (change >= 0 ? 'wl-badge-up' : 'wl-badge-dn');
-                            }
-                            const pct = Math.abs(changePct).toFixed(2);
-                            const el = document.getElementById('qc-change');
-                            el.textContent = `${change >= 0 ? '▲' : '▼'} ${pct}%`;
-                            el.className = `text-sm font-bold px-2 py-0.5 rounded ${change >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-500 bg-rose-50'}`;
-                        }
-                    });
-                    updateMarketStatus(true);
+                    msg.data.forEach(t => { if (!latest[t.s] || t.t > latest[t.s].t) latest[t.s] = t; });
+                    Object.entries(latest).forEach(([sym, trade]) => _handleTrade(sym, trade.p));
                 } catch(err) {}
             };
-
             fhWs.onclose = () => {
-                fhWs = null;
-                fhWsSubscribed.clear();
+                fhWs = null; fhWsSubscribed.clear();
                 clearTimeout(fhWsReconnectTimer);
-                // Exponential backoff: 5s → 7.5s → 11.25s → ... → max 30s
-                fhWsReconnectTimer = setTimeout(() => {
-                    if (isMarketOpen()) connectFinnhubWs();
-                }, fhWsBackoff);
+                fhWsReconnectTimer = setTimeout(() => { if (isMarketOpen()) connectWs(); }, fhWsBackoff);
                 fhWsBackoff = Math.min(fhWsBackoff * 1.5, 30000);
                 updateMarketStatus(false);
             };
-
-            fhWs.onerror = () => { fhWs?.close(); };
+            fhWs.onerror = () => fhWs?.close();
         }
 
         function subscribeWs(sym) {
             if (!fhWs || fhWs.readyState !== 1 || fhWsSubscribed.has(sym)) return;
-            fhWs.send(JSON.stringify({ type: 'subscribe', symbol: sym }));
-            fhWsSubscribed.add(sym);
+            fhWs.send(JSON.stringify({ type:'subscribe', symbol:sym })); fhWsSubscribed.add(sym);
         }
-
         function unsubscribeWs(sym) {
             if (!fhWs || fhWs.readyState !== 1) return;
-            fhWs.send(JSON.stringify({ type: 'unsubscribe', symbol: sym }));
-            fhWsSubscribed.delete(sym);
+            fhWs.send(JSON.stringify({ type:'unsubscribe', symbol:sym })); fhWsSubscribed.delete(sym);
         }
-
         function disconnectFinnhubWs() {
-            clearTimeout(fhWsReconnectTimer);
-            fhWsBackoff = 5000;
-            if (fhWs) { fhWs.close(); fhWs = null; }
-            fhWsSubscribed.clear();
+            clearTimeout(fhWsReconnectTimer); fhWsBackoff = 5000;
+            if (fhWs) { fhWs.close(); fhWs = null; } fhWsSubscribed.clear();
         }
 
         function isUSDST(date) {
-            // US DST: starts 2nd Sunday March, ends 1st Sunday November
+            // US DST: starts 2nd Sunday March at 2am ET, ends 1st Sunday November at 2am ET
             const y = date.getUTCFullYear();
             let sc=0, dstStart;
-            for(let d=1;d<=31;d++){const dd=new Date(Date.UTC(y,2,d));if(dd.getUTCDay()===0&&++sc===2){dstStart=dd;break;}}
+            for(let d=1;d<=31;d++){const dd=new Date(Date.UTC(y,2,d));if(dd.getUTCDay()===0){sc++;if(sc===2){dstStart=dd;break;}}}
             let dstEnd;
-            for(let d=1;d<=30;d++){const dd=new Date(Date.UTC(y,10,d));if(dd.getUTCDay()===0){dstEnd=dd;break;}}
-            const s=dstStart.getTime()+7*3600*1000; // 2am ET standard → 7am UTC
-            const e=dstEnd.getTime()  +6*3600*1000; // 2am ET DST → 6am UTC
-            return date.getTime()>=s && date.getTime()<e;
+            for(let d=1;d<=7;d++){const dd=new Date(Date.UTC(y,10,d));if(dd.getUTCDay()===0){dstEnd=dd;break;}}
+            const s = dstStart.getTime() + 7*3600*1000;
+            const e = dstEnd.getTime()   + 6*3600*1000;
+            return date.getTime() >= s && date.getTime() < e;
         }
         function isMarketOpen() {
             const now = new Date();
@@ -4323,7 +4355,7 @@ ${contextSections}
             const el = document.getElementById('wl-market-status');
             if (!el) return;
             const open = isMarketOpen();
-            const wsConnected = fhWs && fhWs.readyState === 1;
+            const wsConnected = (fhWs && fhWs.readyState === 1) || (alpWs && alpWs.readyState === 1);
             if (open && wsConnected) {
                 el.textContent = '● LIVE';
                 el.style.background = 'rgba(5,150,105,0.15)';
@@ -4939,7 +4971,7 @@ ${contextSections}
             };
             badge('s-finnhub-badge',    'ps_finnhub_key');
             badge('s-erapi-badge',      'ps_erapi_key');
-            badge('s-alpaca-badge',      'ps_fmp_key');
+            badge('s-alpaca-badge',      'ps_alpaca_key');
             badge('s-openrouter-badge', 'ps_openrouter_key');
             badge('s-gist-badge',       'ps_gist_token');
         }
@@ -5429,7 +5461,6 @@ ${contextSections}
                                 <p class="text-[10px]" style="color:var(--text-dim)">Financial Modeling Prep · ฟรี 250 req/วัน</p>
                             </div>
                         </div>
-                        <span id="s-alpaca-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
                     </div>
                     <div class="flex gap-2 mb-2">
                         <input id="s-fmp-key-input" type="password" autocomplete="off" placeholder="FMP API Key (พิมพ์ demo เพื่อทดสอบ)"
@@ -5442,6 +5473,42 @@ ${contextSections}
                     <p class="text-[9px] mt-1" style="color:var(--text-dim);line-height:1.6">
                         สมัครฟรีที่ <a href="https://financialmodelingprep.com" target="_blank" class="underline" style="color:#818cf8">financialmodelingprep.com</a>
                         → Register → Get Free API Key · อัพเดต pre-market ทุก 15 วินาที
+                    </p>
+                </div>
+
+                <!-- Alpaca Markets WebSocket -->
+                <div class="rounded-md p-4" style="background:var(--bg-card2);border:1px solid var(--border)">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:#FFCD00">
+                                <span style="font-size:10px;font-weight:900;color:#000">A</span>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold" style="color:var(--text-primary)">Alpaca Markets <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(255,205,0,0.15);color:#FFCD00">WebSocket</span></p>
+                                <p class="text-[10px]" style="color:var(--text-dim)">Real-time price ~200-500ms · Paper หรือ Live key</p>
+                            </div>
+                        </div>
+                        <span id="s-alpaca-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                    </div>
+                    <div class="flex gap-2 mb-2">
+                        <input id="s-alpaca-key-input" type="password" autocomplete="off" placeholder="Alpaca API Key ID"
+                            class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
+                            onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-alpaca-key-input')" class="px-2.5 rounded-lg text-[10px]"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    </div>
+                    <div class="flex gap-2 mb-2">
+                        <input id="s-alpaca-secret-input" type="password" autocomplete="off" placeholder="Alpaca Secret Key"
+                            class="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)"
+                            onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-alpaca-secret-input')" class="px-2.5 rounded-lg text-[10px]"
+                            style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    </div>
+                    <p class="text-[9px] mt-1" style="color:var(--text-dim);line-height:1.6">
+                        สมัครฟรีที่ <a href="https://alpaca.markets" target="_blank" class="underline" style="color:#FFCD00">alpaca.markets</a>
+                        → Paper Trading หรือ Live → API Keys · ถ้ามี key นี้จะใช้แทน Finnhub WebSocket อัตโนมัติ
                     </p>
                 </div>
 
