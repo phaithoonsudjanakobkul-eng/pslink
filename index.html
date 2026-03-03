@@ -239,8 +239,8 @@
 
         /* ── Chart open state ── */
         #wl-split-wrap.chart-open #wl-table-panel {
-            flex: 0 0 250px;
-            max-width: 250px;
+            flex: 0 0 230px;
+            max-width: 230px;
             display: flex;
             flex-direction: column;
         }
@@ -323,47 +323,35 @@
         }
 
         /* ── Compact mode when chart is open ── */
-        /* col: 1=# 2=Symbol 3=Name 4=Price 5=CHG$ 6=CHG% 7=PRE-MKT */
-        /* Visible: #(1) + Symbol(2) + Price(4) + CHG%(6) | Hidden: Name(3) CHG$(5) PRE-MKT(7) */
+        /* td: 1=drag 2=Symbol(.td-stack) 3=Name(wl-col-hide) 4=Price(.price-cell)
+               5=CHG$(.num-cell,wl-col-hide) 6=CHG% 7=PRE-MKT(wl-col-hide) 8+=extras */
+
+        /* Hide all wl-col-hide and CHG$ (.num-cell) */
         #wl-split-wrap.chart-open .wl-col-hide { display: none !important; }
+        #wl-split-wrap.chart-open .num-cell     { display: none !important; }
+        /* Hide remove btn (last td) */
+        #wl-split-wrap.chart-open .wl-row > td:last-child { display: none !important; }
+        /* Hide company name subtitle under symbol */
+        #wl-split-wrap.chart-open .name-sub { display: none !important; }
+
+        /* Table: auto width to fill panel */
         #wl-split-wrap.chart-open #watchlist-table {
             min-width: unset !important;
-            table-layout: fixed;
-            width: 250px !important;
+            table-layout: auto;
+            width: 100% !important;
         }
-        #wl-split-wrap.chart-open td:nth-child(3),
-        #wl-split-wrap.chart-open th:nth-child(3),
-        #wl-split-wrap.chart-open td:nth-child(5),
-        #wl-split-wrap.chart-open th:nth-child(5) {
-            display: none !important;
-        }
-        /* 20 + 110 + 0 + 68 + 0 + 52 + 0 = 250px */
-        #wl-split-wrap.chart-open col:nth-child(1)  { width: 20px  !important; }
-        #wl-split-wrap.chart-open col:nth-child(2)  { width: 110px !important; }
-        #wl-split-wrap.chart-open col:nth-child(3)  { width: 0     !important; }
-        #wl-split-wrap.chart-open col:nth-child(4)  { width: 68px  !important; }
-        #wl-split-wrap.chart-open col:nth-child(5)  { width: 0     !important; }
-        #wl-split-wrap.chart-open col:nth-child(6)  { width: 52px  !important; }
-        #wl-split-wrap.chart-open col:nth-child(7)  { width: 0     !important; }
-        #wl-split-wrap.chart-open td:nth-child(2),
-        #wl-split-wrap.chart-open th:nth-child(2) {
-            max-width: 110px;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        /* Smaller logo icon */
+        #wl-split-wrap.chart-open .td-stack img { width:20px!important; height:20px!important; }
+        /* Symbol text */
+        #wl-split-wrap.chart-open .sym-cell { font-size:11px; font-weight:700; }
+        /* Price cell */
+        #wl-split-wrap.chart-open .price-cell {
+            font-size: 11px !important;
+            padding-right: 4px !important;
             white-space: nowrap;
         }
-        #wl-split-wrap.chart-open td:nth-child(4) {
-            text-align: right;
-            padding-right: 4px;
-            font-size: 11px;
-        }
-        #wl-split-wrap.chart-open td:nth-child(6),
-        #wl-split-wrap.chart-open th:nth-child(6) {
-            text-align: right;
-            padding-right: 6px;
-        }
 
-        /* Stats grid — 2 columns with border dividers */
+                /* Stats grid — 2 columns with border dividers */
         .qc-stat-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -1012,7 +1000,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r91</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r92</div>
                 </div>
             </div>
             
