@@ -222,6 +222,15 @@
             transition: flex-basis 0.3s cubic-bezier(0.4,0,0.2,1), max-width 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease;
         }
 
+        /* ── Quick Chart Layout — responsive ── */
+        #quick-chart-panel {
+            flex: 0 0 0px;
+            max-width: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: flex-basis 0.3s cubic-bezier(0.4,0,0.2,1), max-width 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease;
+        }
+
         /* ── Chart open state ── */
         #wl-split-wrap.chart-open #wl-table-panel {
             flex: 0 0 340px;
@@ -229,7 +238,7 @@
             display: flex;
             flex-direction: column;
         }
-        /* Table card fills left panel — exact same height as chart panel */
+        /* Table card fills left panel */
         #wl-split-wrap.chart-open #wl-table-panel .glass-card {
             flex: 1 1 auto;
             height: calc(100vh - 98px);
@@ -237,7 +246,7 @@
             overflow-y: auto;
             overflow-x: hidden;
         }
-        /* Chart panel: sticky full-viewport height */
+        /* Chart panel: sticky, scrollable internally */
         #wl-split-wrap.chart-open #quick-chart-panel {
             flex: 1 1 auto;
             max-width: 100%;
@@ -247,39 +256,107 @@
             height: calc(100vh - 98px);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            border-radius: 12px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border-radius: 6px;
         }
-        /* TV chart: 60% */
+        /* TV chart: fixed aspect ratio, never shrinks past 260px */
         #wl-split-wrap.chart-open #qc-tv-container {
-            flex: 0 0 60%;
-            min-height: 200px;
-            overflow: hidden;
+            flex-shrink: 0;
+            height: min(55vh, 480px);
+            min-height: 260px;
         }
-        /* News: fills remaining 40%, internal scroll */
-        #wl-split-wrap.chart-open #qc-news-panel {
-            flex: 1 1 0;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+        /* Chart.js area */
+        #wl-split-wrap.chart-open #qc-chartjs-area {
+            flex-shrink: 0;
+            height: min(45vh, 380px);
+            min-height: 220px;
+        }
+        /* News: min 300px, scrollable within itself, never cut off */
+        #qc-news-panel {
+            flex-shrink: 0;
+            min-height: 300px;
             border-top: 1px solid var(--border);
         }
-        #wl-split-wrap.chart-open #qc-news-list {
-            flex: 1 1 0;
-            min-height: 0;
+        #qc-news-list {
             overflow-y: auto;
+            max-height: 480px;
         }
+
+        /* Mobile: stack chart + news vertically */
+        @media (max-width: 900px) {
+            #wl-split-wrap.chart-open #wl-table-panel {
+                flex: 0 0 200px;
+                max-width: 200px;
+            }
+            #wl-split-wrap.chart-open #quick-chart-panel {
+                position: relative;
+                top: auto;
+                height: auto;
+                max-height: none;
+                overflow-y: visible;
+            }
+            #qc-news-list {
+                max-height: 360px;
+            }
+        }
+        @media (max-width: 640px) {
+            #wl-split-wrap.chart-open { flex-direction: column; }
+            #wl-split-wrap.chart-open #wl-table-panel {
+                flex: 0 0 auto;
+                max-width: 100%;
+                width: 100%;
+            }
+            #wl-split-wrap.chart-open #wl-table-panel .glass-card {
+                height: 280px;
+                max-height: 280px;
+            }
+            #wl-split-wrap.chart-open #quick-chart-panel {
+                width: 100%;
+            }
+        }
+
         /* Hide extra columns when compact */
         #wl-split-wrap.chart-open .wl-col-hide { display: none !important; }
         #wl-split-wrap.chart-open #watchlist-table { min-width: unset !important; }
-        /* In compact mode name column truncates to fit */
         #wl-split-wrap.chart-open td:nth-child(3),
         #wl-split-wrap.chart-open th:nth-child(3) {
             max-width: 80px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        /* Stats grid — 2 columns with border dividers */
+        .qc-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            background: var(--border);
+            gap: 1px;
+            flex-shrink: 0;
+        }
+        .qc-stat-cell {
+            background: var(--bg-card);
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .qc-stat-cell.span-full { grid-column: 1 / -1; }
+        .qc-stat-cell.span-2 { grid-column: span 2; }
+        .qc-stat-label {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        .qc-stat-value {
+            font-size: 12px;
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
         }
 
         /* ── Skeleton shimmer for loading rows ── */
@@ -301,33 +378,6 @@
             font-variant-numeric: tabular-nums;
             letter-spacing: -0.03em;
             -webkit-font-smoothing: antialiased;
-        }
-        .qc-stat-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1px;
-            background: var(--border);
-        }
-        .qc-stat-cell {
-            background: var(--bg-card);
-            padding: 10px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-        .qc-stat-label {
-            font-size: 9px;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--text-dim);
-        }
-        .qc-stat-value {
-            font-size: 12px;
-            font-weight: 500;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -0.01em;
-            color: var(--text-primary);
         }
 
         /* Fade-in when stock detail changes */
@@ -842,7 +892,7 @@
                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r70</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.03-r71</div>
                 </div>
             </div>
             
@@ -1286,8 +1336,9 @@
 
             <!-- Quick Chart Panel -->
             <div id="quick-chart-panel" class="glass-card overflow-hidden flex flex-col">
-                <!-- Header Bar -->
-                <div class="flex items-center gap-3 px-4 pt-3 pb-2" style="border-bottom:1px solid var(--border)">
+
+                <!-- ── Header Bar ── -->
+                <div class="flex items-center gap-3 px-4 pt-3 pb-2 flex-shrink-0" style="border-bottom:1px solid var(--border);background:var(--bg-card)">
                     <button onclick="closeQuickChart()" 
                         class="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md transition-all hover:scale-110"
                         style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-secondary)"
@@ -1305,7 +1356,7 @@
                             <span id="qc-symbol" class="text-sm font-semibold" style="color:var(--text-primary)"></span>
                             <span id="qc-exchange-badge" class="text-[8px] font-semibold px-1.5 py-0.5 rounded" style="background:var(--bg-card2);color:var(--text-dim)"></span>
                         </div>
-                        <div id="qc-name" class="text-[10px] leading-none mt-0.5 truncate" style="color:var(--text-dim);max-width:200px"></div>
+                        <div id="qc-name" class="text-[10px] leading-none mt-0.5 truncate" style="color:var(--text-dim);max-width:220px"></div>
                     </div>
                     <a id="qc-tv-link" href="#" target="_blank"
                        class="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[9px] font-semibold uppercase tracking-widest transition-all"
@@ -1315,22 +1366,22 @@
                     </a>
                 </div>
 
-                <!-- Price Hero -->
-                <div id="qc-price-hero-section" class="px-4 py-3" style="border-bottom:1px solid var(--border)">
-                    <div class="flex items-baseline gap-3 flex-wrap">
-                        <span id="qc-price-hero" class="text-4xl font-medium tabular-nums leading-none" style="color:var(--text-primary);font-variant-numeric:tabular-nums;letter-spacing:-0.03em"></span>
+                <!-- ── Price Hero ── -->
+                <div id="qc-price-hero-section" class="px-4 py-3 flex-shrink-0" style="border-bottom:1px solid var(--border)">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <span id="qc-price-hero" class="text-4xl font-medium leading-none" style="color:var(--text-primary);font-variant-numeric:tabular-nums;letter-spacing:-0.03em"></span>
                         <div class="flex items-center gap-2">
                             <span id="qc-change-hero" class="text-sm font-medium px-2 py-0.5 rounded-md" style="font-variant-numeric:tabular-nums"></span>
                             <span id="qc-price-label" class="text-[9px] font-medium uppercase tracking-widest" style="color:var(--text-dim)">Last Price</span>
                         </div>
                     </div>
-                    <!-- Keep legacy elements hidden for JS compat -->
+                    <!-- Hidden legacy elements for JS compat -->
                     <span id="qc-price" style="display:none"></span>
                     <span id="qc-change" style="display:none"></span>
                     <span id="qc-symbol-hidden" style="display:none"></span>
                 </div>
 
-                <!-- Stats Grid (3-col) -->
+                <!-- ── Stats Grid (3-col with border dividers) ── -->
                 <div id="qc-stats-grid" class="qc-stat-grid flex-shrink-0">
                     <div class="qc-stat-cell">
                         <span class="qc-stat-label">Open</span>
@@ -1356,35 +1407,60 @@
                         <span class="qc-stat-label">Div Yield</span>
                         <span id="qcs-div" class="qc-stat-value">—</span>
                     </div>
-                    <div class="qc-stat-cell" style="grid-column:1/-1">
-                        <span class="qc-stat-label">52-Week Range</span>
-                        <div class="flex items-center justify-between mt-0.5">
-                            <span id="qcs-52wl" class="qc-stat-value" style="color:var(--danger)">—</span>
-                            <span id="qcs-52wh" class="qc-stat-value" style="color:var(--accent)">—</span>
+                    <!-- 52W Range spanning full row -->
+                    <div class="qc-stat-cell span-full">
+                        <div class="flex items-center justify-between">
+                            <span class="qc-stat-label">52-Week Range</span>
+                            <div class="flex items-center gap-3">
+                                <span id="qcs-52wl" class="qc-stat-value" style="color:var(--danger)">—</span>
+                                <span class="qc-stat-label">Low</span>
+                                <span id="qcs-52wh" class="qc-stat-value" style="color:var(--accent)">—</span>
+                                <span class="qc-stat-label">High</span>
+                            </div>
                         </div>
-                        <div class="range-bar-track">
+                        <div class="range-bar-track" style="margin-top:6px">
                             <div id="qcs-52w-fill" class="range-bar-fill" style="width:0%"></div>
                             <div id="qcs-52w-dot" class="range-bar-dot" style="left:0%"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- TradingView Widget -->
-                <div id="qc-tv-container" style="height:480px;flex-shrink:0"></div>
+                <!-- ── TradingView Widget ── -->
+                <div id="qc-tv-container" class="flex-shrink-0" style="height:min(55vh, 480px);min-height:260px"></div>
 
-                <!-- News Panel -->
-                <div id="qc-news-panel" class="flex flex-col" style="background:var(--bg-card)">
+                <!-- ── Chart.js (Historical, with Volume overlay) ── -->
+                <div id="qc-chartjs-area" class="flex-shrink-0 flex flex-col" style="display:none!important">
+                    <!-- Range buttons -->
+                    <div class="flex items-center gap-1 px-3 py-2 flex-shrink-0" style="border-bottom:1px solid var(--border);background:var(--bg-card2)">
+                        <span class="text-[9px] font-semibold uppercase tracking-widest mr-1" style="color:var(--text-dim)">Range</span>
+                        <button id="qc-btn-D"  onclick="setChartRange('D')"  class="qc-range-btn px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all tab-active">1D</button>
+                        <button id="qc-btn-W"  onclick="setChartRange('W')"  class="qc-range-btn px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all text-gray-400">1W</button>
+                        <button id="qc-btn-M"  onclick="setChartRange('M')"  class="qc-range-btn px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all text-gray-400">1M</button>
+                        <button id="qc-btn-3M" onclick="setChartRange('3M')" class="qc-range-btn px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all text-gray-400">3M</button>
+                    </div>
+                    <!-- Chart canvas -->
+                    <div class="relative flex-1 min-h-0" style="height:min(45vh,360px);min-height:220px">
+                        <div id="qc-loading" class="hidden absolute inset-0 flex items-center justify-center z-10" style="background:var(--bg-card)">
+                            <div class="text-xs" style="color:var(--text-dim)">Loading chart...</div>
+                        </div>
+                        <canvas id="qc-chart" style="display:block;width:100%;height:100%"></canvas>
+                    </div>
+                </div>
+
+                <!-- ── News Panel (per-stock) ── -->
+                <div id="qc-news-panel" style="background:var(--bg-card)">
                     <!-- News Header -->
                     <div class="flex items-center justify-between px-4 py-2 flex-shrink-0" style="background:var(--bg-card2);border-bottom:1px solid var(--border)">
                         <div class="flex items-center gap-2">
-                            <span class="text-[9px] font-black uppercase tracking-widest" style="color:var(--text-dim)">News</span>
-                            <span id="qc-news-symbol" class="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded" style="background:rgba(20,184,166,0.12);color:#14b8a6"></span>
+                            <span class="text-[9px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)">News</span>
+                            <span id="qc-news-symbol" class="text-[9px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded" style="background:rgba(8,153,129,0.12);color:#089981"></span>
                         </div>
                         <span id="qc-news-status" class="text-[9px]" style="color:var(--text-dim)"></span>
                     </div>
-                    <!-- News List -->
-                    <div id="qc-news-list"></div>
+                    <!-- News List — scrollable -->
+                    <div id="qc-news-list" style="overflow-y:auto;max-height:480px"></div>
                 </div>
+
             </div><!-- /quick-chart-panel -->
 
             </div><!-- /wl-split-wrap -->
@@ -2481,7 +2557,12 @@
             wrap.classList.add('chart-open');
             setCompactHeaders(true);
             if (scroll && !isAlreadyOpen) {
-                setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+                setTimeout(() => {
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 80);
+            } else if (scroll && isAlreadyOpen) {
+                // Already open — scroll panel to top for new stock
+                setTimeout(() => panel.scrollTop = 0, 50);
             }
 
             // ── Fade-in the detail panel content ──
@@ -2797,10 +2878,12 @@
         }
 
         async function fetchChartData(symbol, range) {
+            const chartjsArea = document.getElementById('qc-chartjs-area');
             const loading = document.getElementById('qc-loading');
-            const loadingMsg = loading.querySelector('div');
-            loading.classList.remove('hidden');
-            loadingMsg.innerText = 'Loading chart...';
+            const loadingMsg = loading ? loading.querySelector('div') : null;
+            if (chartjsArea) chartjsArea.style.removeProperty('display');
+            if (loading) loading.classList.remove('hidden');
+            if (loadingMsg) loadingMsg.innerText = 'Loading chart...';
             if (qcChart) { qcChart.destroy(); qcChart = null; }
 
             let interval, period;
@@ -2814,26 +2897,28 @@
                 const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`);
                 const json = await res.json();
                 const result = json?.chart?.result?.[0];
+                const quote  = result?.indicators?.quote?.[0];
 
-                if (!result?.timestamp || !result?.indicators?.quote?.[0]?.close) {
-                    loading.classList.remove('hidden');
-                    loadingMsg.innerText = 'No data available';
+                if (!result?.timestamp || !quote?.close) {
+                    if (loading) { loading.classList.remove('hidden'); if(loadingMsg) loadingMsg.innerText = 'No data available'; }
                     return;
                 }
 
                 const timestamps = result.timestamp;
-                const closes = result.indicators.quote[0].close;
+                const closes  = quote.close;
+                const opens   = quote.open   ?? [];
+                const volumes = quote.volume ?? [];
+
                 const points = timestamps
-                    .map((t, i) => ({ t, c: closes[i] }))
+                    .map((t, i) => ({ t, c: closes[i], o: opens[i], v: volumes[i] }))
                     .filter(p => p.c !== null && p.c !== undefined);
 
                 if (points.length === 0) {
-                    loading.classList.remove('hidden');
-                    loadingMsg.innerText = 'No data available';
+                    if (loading) { loading.classList.remove('hidden'); if(loadingMsg) loadingMsg.innerText = 'No data available'; }
                     return;
                 }
 
-                loading.classList.add('hidden');
+                if (loading) loading.classList.add('hidden');
 
                 const labels = points.map(p => {
                     const d = new Date(p.t * 1000);
@@ -2841,55 +2926,136 @@
                         ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
                         : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 });
-                const prices = points.map(p => p.c);
-                const isUp = prices[prices.length - 1] >= prices[0];
-                const isDarkMode = document.documentElement.classList.contains('dark');
-                const lineColor = isUp
-                    ? ('#22c55e')
-                    : ('#f43f5e');
-                const fillColor = isUp
-                    ? ('rgba(34,197,94,0.10)')
-                    : ('rgba(244,63,94,0.10)');
 
-                const isDark = document.documentElement.classList.contains('dark');
-                const gridColor  = isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9';
-                const tickColor  = isDark ? '#475569' : '#9ca3af';
-                const tooltipBg  = isDark ? '#1e293b' : '#ffffff';
-                const tooltipBdr = isDark ? '#334155' : '#e5e7eb';
-                const tooltipTtl = isDark ? '#64748b' : '#6b7280';
-                const tooltipBdy = isDark ? '#f1f5f9' : '#111827';
+                const prices  = points.map(p => p.c);
+                const vols    = points.map(p => p.v ?? 0);
+                const isUp    = prices[prices.length - 1] >= prices[0];
+                const isDark  = document.documentElement.classList.contains('dark');
+
+                // Price line colors — TradingView palette
+                const lineColor = isUp ? '#089981' : '#f23645';
+                const fillColor = isUp ? 'rgba(8,153,129,0.08)' : 'rgba(242,54,69,0.08)';
+
+                // Volume bar colors — direction-aware, per-bar
+                const volColors = points.map(p => {
+                    const up = p.o != null ? p.c >= p.o : isUp;
+                    return up
+                        ? 'rgba(8,153,129,0.22)'
+                        : 'rgba(242,54,69,0.22)';
+                });
+
+                const gridColor  = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+                const tickColor  = isDark ? '#4c525e' : '#9ca3af';
+                const tooltipBg  = isDark ? '#1c2127' : '#ffffff';
+                const tooltipBdr = isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb';
+                const tooltipTtl = isDark ? '#787b86' : '#6b7280';
+                const tooltipBdy = isDark ? '#d1d4dc' : '#111827';
+
+                // Volume scale: cap bars at 28% of chart height
+                const maxVol = Math.max(...vols.filter(v => v > 0));
+                const volMax = maxVol / 0.28; // so max bar = 28% of chart height
 
                 const ctx = document.getElementById('qc-chart').getContext('2d');
                 qcChart = new Chart(ctx, {
-                    type: 'line',
                     data: {
                         labels,
-                        datasets: [{ data: prices, borderColor: lineColor, backgroundColor: fillColor, borderWidth: 2, fill: true, pointRadius: 2, pointHoverRadius: 4, tension: 0.3 }]
+                        datasets: [
+                            // ── Volume bars (behind price line) ──
+                            {
+                                type: 'bar',
+                                label: 'Volume',
+                                data: vols,
+                                backgroundColor: volColors,
+                                borderWidth: 0,
+                                yAxisID: 'yVol',
+                                order: 2,
+                                barPercentage: 0.7,
+                                categoryPercentage: 0.8,
+                            },
+                            // ── Price line (on top) ──
+                            {
+                                type: 'line',
+                                label: 'Price',
+                                data: prices,
+                                borderColor: lineColor,
+                                backgroundColor: fillColor,
+                                borderWidth: 1.8,
+                                fill: true,
+                                pointRadius: 0,
+                                pointHoverRadius: 4,
+                                pointHoverBackgroundColor: lineColor,
+                                tension: 0.4,
+                                yAxisID: 'yPrice',
+                                order: 1,
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        animation: { duration: 280 },
                         plugins: {
                             legend: { display: false },
                             tooltip: {
-                                mode: 'index', intersect: false,
-                                backgroundColor: tooltipBg, borderColor: tooltipBdr, borderWidth: 1,
-                                titleColor: tooltipTtl, bodyColor: tooltipBdy,
-                                titleFont: { family: 'Roboto Mono', size: 10 },
-                                bodyFont: { family: 'Roboto Mono', size: 11, weight: 'bold' },
-                                callbacks: { label: ctx => ' $' + ctx.raw.toFixed(2) }
+                                mode: 'index',
+                                intersect: false,
+                                backgroundColor: tooltipBg,
+                                borderColor: tooltipBdr,
+                                borderWidth: 1,
+                                titleColor: tooltipTtl,
+                                bodyColor: tooltipBdy,
+                                padding: 8,
+                                titleFont: { family: 'Inter', size: 10 },
+                                bodyFont: { family: 'Inter', size: 11, weight: '500' },
+                                callbacks: {
+                                    label: ctx => {
+                                        if (ctx.dataset.label === 'Price') return ' $' + ctx.raw.toFixed(2);
+                                        if (ctx.dataset.label === 'Volume') {
+                                            const v = ctx.raw;
+                                            return ' Vol: ' + (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v);
+                                        }
+                                        return '';
+                                    }
+                                }
                             }
                         },
                         scales: {
-                            x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { family: 'Roboto Mono', size: 9 }, color: tickColor }, border: { display: false } },
-                            y: { position: 'right', grid: { color: gridColor, lineWidth: 1 }, ticks: { font: { family: 'Roboto Mono', size: 9 }, color: tickColor, callback: v => '$' + v.toFixed(0) }, border: { display: false } }
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    maxTicksLimit: 7,
+                                    font: { family: 'Inter', size: 9 },
+                                    color: tickColor,
+                                    maxRotation: 0,
+                                },
+                                border: { display: false }
+                            },
+                            yPrice: {
+                                position: 'right',
+                                grid: { color: gridColor, lineWidth: 1, drawTicks: false },
+                                ticks: {
+                                    font: { family: 'Inter', size: 9 },
+                                    color: tickColor,
+                                    callback: v => '$' + v.toFixed(v >= 100 ? 0 : 2),
+                                    maxTicksLimit: 6,
+                                    padding: 6,
+                                },
+                                border: { display: false }
+                            },
+                            yVol: {
+                                position: 'left',
+                                max: volMax,
+                                min: 0,
+                                grid: { display: false },
+                                ticks: { display: false },
+                                border: { display: false }
+                            }
                         },
                         interaction: { mode: 'index', intersect: false }
                     }
                 });
             } catch(e) {
-                loading.classList.remove('hidden');
-                loadingMsg.innerText = 'Failed to load chart';
+                if (loading) { loading.classList.remove('hidden'); if(loadingMsg) loadingMsg.innerText = 'Chart unavailable'; }
             }
         }
 
