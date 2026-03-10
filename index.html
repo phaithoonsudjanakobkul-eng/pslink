@@ -42,24 +42,24 @@
         }
 
         html.dark {
-            --bg-dark: #0b0e11;
-            --bg-card: #161a1e;
-            --bg-card2: #1c2127;
-            --border: rgba(255,255,255,0.08);
-            --accent: #10b981;
-            --accent2: #34d399;
-            --danger: #f23645;
-            --warning: #f0a500;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --text-dim: #64748b;
-            --qc-up: #089981;
-            --qc-dn: #f23645;
-            --chart-up: #089981;
-            --chart-dn: #f23645;
-            --wl-up: #089981;
-            --wl-dn: #f23645;
-            --bg-main: #0f1318;
+            --bg-dark:        #000000;
+            --bg-main:        #0d0d0d;
+            --bg-card:        #0d0d0d;
+            --bg-card2:       #131722;
+            --border:         rgba(42,46,57,0.8);
+            --accent:         #089981;
+            --accent2:        #26a69a;
+            --danger:         #ef5350;
+            --warning:        #f0a500;
+            --text-primary:   #d1d4dc;
+            --text-secondary: #787b86;
+            --text-dim:       #434651;
+            --qc-up:          #26a69a;
+            --qc-dn:          #ef5350;
+            --chart-up:       #26a69a;
+            --chart-dn:       #ef5350;
+            --wl-up:          #26a69a;
+            --wl-dn:          #ef5350;
         }
 
         /* Price flash animation */
@@ -82,7 +82,7 @@
         }
 
         html.dark body {
-            background-color: #0b0e11;
+            background-color: #0d0d0d;
             color: #d1d4dc;
         }
 
@@ -95,31 +95,283 @@
 
         /* GLASS CARDS */
         html.dark .glass-card {
-            background: #161a1e !important;
-            border-color: rgba(255,255,255,0.07) !important;
+            background: var(--bg-card) !important;
+            border-color: var(--border) !important;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           TradingView Theme — Everything Must Be Dark
+           Every surface, panel, header, card, nav, modal, table,
+           input, scrollbar → overridden to TV dark palette exclusively
+        ═══════════════════════════════════════════════════════════════ */
+        [data-theme="tv"] nav,
+        [data-theme="tv"] nav * { background: #0d0d0d !important; border-color: rgba(42,46,57,0.8) !important; }
+
+        /* Cards & panels */
+        [data-theme="tv"] .glass-card {
+            background: #131722 !important;
+            border: 1px solid rgba(42,46,57,0.8) !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+        }
+        [data-theme="tv"] .glass-card > *:first-child,
+        [data-theme="tv"] [style*="bg-card2"],
+        [data-theme="tv"] .dash-card,
+        [data-theme="tv"] .dash-chart-card { background: #131722 !important; }
+
+        /* Tab pages */
+        [data-theme="tv"] #tab-dashboard,
+        [data-theme="tv"] #tab-watchlist,
+        [data-theme="tv"] #tab-records { background: #0d0d0d !important; }
+
+        /* All bg-white / bg-gray-* Tailwind classes */
+        [data-theme="tv"] .bg-white      { background-color: #131722 !important; }
+        [data-theme="tv"] .bg-gray-50    { background-color: #0d0d0d !important; }
+        [data-theme="tv"] .bg-gray-100   { background-color: #1e222d !important; }
+        [data-theme="tv"] .bg-gray-200   { background-color: #1e222d !important; }
+        [data-theme="tv"] .bg-gray-900   { background-color: #0d0d0d !important; }
+
+        /* Headers / toolbars inside cards */
+        [data-theme="tv"] [style*="--bg-card2"],
+        [data-theme="tv"] #records-toolbar,
+        [data-theme="tv"] #qc-header-bar,
+        [data-theme="tv"] #scanner-key-prompt,
+        [data-theme="tv"] .scanner-tab-btn { background: #1e222d !important; }
+
+        /* Watchlist table */
+        [data-theme="tv"] table thead tr,
+        [data-theme="tv"] #watchlist-table thead tr { background: #1e222d !important; }
+        [data-theme="tv"] .wl-row:hover  { background: rgba(42,46,57,0.6) !important; }
+
+        /* Modals */
+        [data-theme="tv"] .bg-white.rounded-\\[2rem\\],
+        [data-theme="tv"] [class*="modal"] .bg-white { background: #131722 !important; }
+
+        /* Inputs / selects */
+        [data-theme="tv"] input[type="text"],
+        [data-theme="tv"] input[type="number"],
+        [data-theme="tv"] input[type="month"],
+        [data-theme="tv"] input[type="password"],
+        [data-theme="tv"] select,
+        [data-theme="tv"] textarea {
+            background-color: #0d0d0d !important;
+            border-color: rgba(42,46,57,0.9) !important;
+            color: #d1d4dc !important;
+        }
+        [data-theme="tv"] input::placeholder { color: #434651 !important; }
+
+        /* Dashboard cards */
+        [data-theme="tv"] .dash-select    { background: #0d0d0d !important; }
+        [data-theme="tv"] .dash-divider   { border-color: rgba(42,46,57,0.8) !important; }
+
+        /* Borders */
+        [data-theme="tv"] .border-gray-100,
+        [data-theme="tv"] .border-gray-200,
+        [data-theme="tv"] .border-gray-50  { border-color: rgba(42,46,57,0.8) !important; }
+
+        /* Scrollbars */
+        [data-theme="tv"] ::-webkit-scrollbar-track { background: #0d0d0d !important; }
+        [data-theme="tv"] ::-webkit-scrollbar-thumb { background: #2a2e39 !important; }
+        [data-theme="tv"] ::-webkit-scrollbar-thumb:hover { background: #434651 !important; }
+
+        /* AI chat */
+        [data-theme="tv"] #ai-chat-card,
+        [data-theme="tv"] #ai-key-panel { background: #131722 !important; }
+
+        /* Settings modal inner */
+        [data-theme="tv"] #settings-modal .bg-white,
+        [data-theme="tv"] #settings-modal [class*="bg-gray"] { background: #131722 !important; }
+        /* Settings inputs clearly visible on TV dark */
+        [data-theme="tv"] #settings-modal input[type="password"],
+        [data-theme="tv"] #settings-modal input[type="text"] {
+            background: #1e222d !important;
+            border-color: rgba(42,46,57,0.9) !important;
+            color: #d1d4dc !important;
+        }
+
+        /* ── TV: Watchlist table — rows near-black like real TV ── */
+        [data-theme="tv"] #watchlist-table tbody tr.wl-row {
+            background: #0d0d0d !important;
+            border-bottom: 1px solid rgba(42,46,57,0.6) !important;
+        }
+        [data-theme="tv"] #watchlist-table tbody tr.wl-row:hover {
+            background: #131722 !important;
+        }
+        [data-theme="tv"] #wl-table-panel .glass-card thead tr th,
+        [data-theme="tv"] #watchlist-table thead tr,
+        [data-theme="tv"] table thead tr {
+            background: #131722 !important;
+            box-shadow: 0 1px 0 rgba(42,46,57,0.8) !important;
+        }
+        /* TV: wl-table-panel glass-card container = near-black */
+        [data-theme="tv"] #wl-table-panel .glass-card {
+            background: #0d0d0d !important;
+        }
+        /* TV: body background */
+        [data-theme="tv"] body {
+            background-color: #0d0d0d !important;
+        }
+        /* TV: row-paid tint stays dark */
+        [data-theme="tv"] .row-paid {
+            background-color: rgba(8,153,129,0.04) !important;
+        }
+        /* TV: quick-chart panel */
+        [data-theme="tv"] #quick-chart-panel {
+            background: #131722 !important;
+        }
+        /* TV: scrollbar ultra-dark */
+        [data-theme="tv"] ::-webkit-scrollbar-track { background: #0d0d0d !important; }
+        [data-theme="tv"] ::-webkit-scrollbar-thumb { background: #1e222d !important; border-radius: 3px; }
+        [data-theme="tv"] ::-webkit-scrollbar-thumb:hover { background: #2a2e39 !important; }
+
+        /* ── TV: Brand title → white, not accent ── */
+        .ps-brand-title { color: var(--accent); } /* default: accent */
+        [data-theme="tv"] .ps-brand-title { color: #d1d4dc !important; }
+
+        /* ── TV: Nav bar tabs — white text, subtle bg active (no green) ── */
+        [data-theme="tv"] .tab-active {
+            background: #2a2e39 !important;
+            color: #d1d4dc !important;
+            box-shadow: none !important;
+        }
+        [data-theme="tv"] nav button:not(.tab-active) {
+            color: #787b86 !important;
+        }
+        [data-theme="tv"] nav button:not(.tab-active):hover {
+            color: #d1d4dc !important;
+            background: rgba(42,46,57,0.6) !important;
+        }
+        /* Tab pill container */
+        [data-theme="tv"] nav .flex.gap-0\\.5.p-1.rounded-md {
+            background: #1e222d !important;
+        }
+
+        /* ── TV: Scanner tab buttons ── */
+        [data-theme="tv"] .scanner-tab-btn {
+            background: transparent !important;
+            color: #787b86 !important;
+        }
+        [data-theme="tv"] .scanner-tab-active {
+            background: #2a2e39 !important;
+            color: #d1d4dc !important;
+        }
+
+        /* ── TV: Market scanner inner section panels ── */
+        [data-theme="tv"] #market-scanner-card {
+            background: #0d0d0d !important;
+            border-color: rgba(42,46,57,0.8) !important;
+        }
+
+        /* ── TV: Nav pill containers ── */
+        [data-theme="tv"] nav [style*="background:var(--bg-card2)"],
+        [data-theme="tv"] nav .flex.gap-0\\.5.p-1 {
+            background: #131722 !important;
+        }
+
+        /* ── TV: Tab active revised ── */
+        [data-theme="tv"] .tab-active {
+            background: #1e222d !important;
+            color: #d1d4dc !important;
+            box-shadow: none !important;
+        }
+
+        /* ── TV: Scanner tab active ── */
+        [data-theme="tv"] .scanner-tab-active {
+            background: #1e222d !important;
+            color: #d1d4dc !important;
+        }
+
+        /* ── TV: AI chat bottom bar + input ── */
+        [data-theme="tv"] #ai-chat-card {
+            background: #0d0d0d !important;
+        }
+
+        /* ── TV: Status bar (อัพเดต / รีเฟรช) ── */
+        [data-theme="tv"] #scanner-status-bar,
+        [data-theme="tv"] [id*="status-msg"],
+        [data-theme="tv"] .scanner-footer { background: #0d0d0d !important; }
+
+        /* ── TV: AI Chat card ── */
+        [data-theme="tv"] #ai-chat-card { background: #0d0d0d !important; }
+        [data-theme="tv"] #ai-key-panel,
+        [data-theme="tv"] #qc-header-bar {
+            background: #131722 !important;
+            border-color: rgba(42,46,57,0.8) !important;
+        }
+        /* AI message rows */
+        [data-theme="tv"] .ai-msg-body,
+        [data-theme="tv"] .msgbody { color: #d1d4dc !important; }
+        /* News rows */
+        [data-theme="tv"] .news-item,
+        [data-theme="tv"] [class*="news-row"],
+        [data-theme="tv"] #news-list > div {
+            background: transparent !important;
+            border-color: rgba(42,46,57,0.6) !important;
+        }
+        /* Quick prompt chips */
+        [data-theme="tv"] .quick-prompt,
+        [data-theme="tv"] [class*="quick-chip"] {
+            background: #1e222d !important;
+            border-color: rgba(42,46,57,0.8) !important;
+            color: #787b86 !important;
+        }
+        /* AI chat input area */
+        [data-theme="tv"] #ai-input-area,
+        [data-theme="tv"] #chat-input-row {
+            background: #1e222d !important;
+            border-color: rgba(42,46,57,0.8) !important;
+        }
+
+        /* ── TV: Dashboard ── */
+        [data-theme="tv"] .dash-card,
+        [data-theme="tv"] .dash-chart-card {
+            background: #131722 !important;
+            border-color: rgba(42,46,57,0.8) !important;
+        }
+        [data-theme="tv"] #tab-dashboard .glass-card {
+            background: #131722 !important;
+        }
+
+        /* ── TV: Records page ── */
+        [data-theme="tv"] #tab-records .glass-card,
+        [data-theme="tv"] #records-toolbar {
+            background: #131722 !important;
+            border-color: rgba(42,46,57,0.8) !important;
+        }
+        [data-theme="tv"] #tab-records .bg-white,
+        [data-theme="tv"] #tab-records .bg-gray-50 {
+            background: #0d0d0d !important;
+        }
+
+        /* ── TV: Status bar / watchlist toolbar ── */
+        [data-theme="tv"] #wl-status-bar,
+        [data-theme="tv"] #wl-toolbar,
+        [data-theme="tv"] .wl-header-row {
+            background: #0d0d0d !important;
+            border-color: rgba(42,46,57,0.8) !important;
         }
 
         /* TAB BUTTONS */
-        html.dark .bg-gray-100 { background-color: #1c2127 !important; }
+        html.dark .bg-gray-100 { background-color: #1e222d !important; }
         html.dark .tab-active {
-            background: #131722 !important;
+            background: var(--bg-card2, #2a2e39) !important;
             color: var(--accent) !important;
         }
 
         html.dark #tab-dashboard {
-            background: #0b0e11 !important;
+            background: #0d0d0d !important;
             border-color: rgba(255,255,255,0.07) !important;
         }
         html.dark .dash-card {
-            background: #161a1e !important;
+            background: #131722 !important;
             border-color: rgba(255,255,255,0.07) !important;
         }
         html.dark .dash-chart-card {
-            background: #161a1e !important;
+            background: #131722 !important;
             border-color: rgba(255,255,255,0.07) !important;
         }
         html.dark .dash-select {
-            background: #0b0e11 !important;
+            background: #0d0d0d !important;
             border-color: rgba(255,255,255,0.08) !important;
             color: var(--accent)!important;
         }
@@ -130,7 +382,7 @@
 
         /* RECORDS */
         html.dark .bg-white {
-            background-color: #161a1e !important;
+            background-color: #131722 !important;
         }
         html.dark .bg-gray-50 {
             background-color: #131618 !important;
@@ -157,7 +409,7 @@
         html.dark input[type="month"],
         html.dark input[type="password"],
         html.dark select {
-            background-color: #0b0e11 !important;
+            background-color: #0d0d0d !important;
             border-color: rgba(255,255,255,0.1) !important;
             color: #d1d4dc !important;
         }
@@ -185,22 +437,22 @@
         .ps-income-input { color: #1e293b; }         /* light: dark slate */
         html.dark .ps-income-input { color: #f1f5f9 !important; } /* dark: near-white */
         html.dark #month-picker-wrap {
-            background-color: #0b0e11 !important;
+            background-color: #0d0d0d !important;
         }
         html.dark #records-toolbar {
-            background-color: #161a1e !important;
+            background-color: #131722 !important;
             border-color: rgba(255,255,255,0.07) !important;
         }
         html.dark #financial-bar .divide-gray-100 { border-color: rgba(255,255,255,0.07) !important; }
         html.dark #financial-bar > div { border-color: rgba(255,255,255,0.07) !important; }
         html.dark .md\:divide-x > * { border-color: rgba(255,255,255,0.07) !important; }
         html.dark .bg-gray-100.p-0\.5 {
-            background-color: #0b0e11 !important;
+            background-color: #0d0d0d !important;
         }
 
         /* MODALS */
         html.dark .bg-white.rounded-\[2rem\] {
-            background-color: #161a1e !important;
+            background-color: #131722 !important;
         }
 
         /* BADGES */
@@ -215,8 +467,10 @@
         html.dark .text-teal-500 { color: var(--accent)!important; }
         html.dark .bg-purple-50 { background-color: rgba(168,85,247,0.12) !important; }
         html.dark .bg-teal-50 { background-color: rgba(8,153,129,0.1) !important; }
-        html.dark .bg-gray-900 { background-color: #0b0e11 !important; }
-        html.dark .row-paid { background-color: rgba(8,153,129,0.07) !important; }
+        html.dark body {
+            background-color: var(--bg-main) !important;
+            color: var(--text-primary) !important;
+        }
 
         /* Watchlist tab full-width breakout */
         #tab-watchlist {
@@ -497,6 +751,37 @@
         .ai-typing .dots { animation: blink 1.2s infinite; }
         .ai-cursor { display:inline-block; animation: blink 0.7s infinite; color:#4285f4; font-weight:bold; margin-left:1px; }
 
+        /* ── Market Scanner Tabs ── */
+        .scanner-tab-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            transition: background 0.15s, color 0.15s;
+        }
+        .scanner-tab-btn:hover {
+            background: var(--bg-card2);
+            color: var(--text-primary);
+        }
+        .scanner-tab-active {
+            background: var(--bg-card2) !important;
+            color: var(--text-primary) !important;
+            font-weight: 600 !important;
+        }
+        /* scanner-top-row: legacy class, kept for any stray usage */
+        .scanner-top-row { display:flex; align-items:center; gap:10px; padding:9px 0; cursor:pointer; }
+        /* Scanner bottom pill rows */
+        .scanner-pill-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.045);
+            cursor: pointer;
+            transition: opacity 0.12s;
+        }
+        html.dark .scanner-pill-row { border-bottom-color: rgba(255,255,255,0.045); }
+        .scanner-pill-row:last-child { border-bottom: none; }
+        .scanner-pill-row:hover { opacity: 0.75; }
+
         /* Market news grid — tile layout, no inner scroll */
         #market-news-grid {
             min-width: 0;
@@ -573,9 +858,9 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        html.dark ::-webkit-scrollbar-track { background: #0f172a; }
-        html.dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-        html.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        html.dark ::-webkit-scrollbar-track { background: var(--bg-main, #0d0d0d); }
+        html.dark ::-webkit-scrollbar-thumb { background: var(--bg-card2, #2a2e39); border-radius: 3px; }
+        html.dark ::-webkit-scrollbar-thumb:hover { background: var(--text-dim, #434651); }
 
         /* DARK TOGGLE BUTTON */
         .dark-toggle {
@@ -954,8 +1239,8 @@
         html.dark input:-webkit-autofill,
         html.dark input:-webkit-autofill:hover,
         html.dark input:-webkit-autofill:focus {
-            -webkit-box-shadow: 0 0 0 1000px #161a1e inset !important;
-            box-shadow: 0 0 0 1000px #161a1e inset !important;
+            -webkit-box-shadow: 0 0 0 1000px #131722 inset !important;
+            box-shadow: 0 0 0 1000px #131722 inset !important;
             -webkit-text-fill-color: #d1d4dc !important;
         }
         
@@ -1095,12 +1380,12 @@
                 </div>
                 <input type="file" id="avatarInput" accept="image/*" style="display:none;" onchange="handleAvatar(event)">
                 <div>
-                    <div class="font-black text-base tracking-tight leading-none uppercase" style="color:var(--accent);font-family:var(--font-main)">PS SMART FINANCE</div>
+                    <div class="font-black text-base tracking-tight leading-none uppercase ps-brand-title" style="font-family:var(--font-main)">PS SMART FINANCE</div>
                     <div class="flex items-center gap-1.5 mt-1">
                         <div class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--accent)"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.05-r120</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.10-r152</div>
                 </div>
             </div>
             
@@ -1112,7 +1397,7 @@
                     <button onclick="showTab('edit')" id="btn-edit" class="px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all uppercase tracking-wide" style="color:var(--text-dim);font-family:var(--font-main)">Records</button>
                     <button onclick="showTab('watchlist')" id="btn-watchlist" class="px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all uppercase tracking-wide flex items-center gap-1" style="color:var(--text-dim);font-family:var(--font-main)">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                        Watchlist
+                        Market
                     </button>
                 </div>
                 <!-- Divider -->
@@ -1548,6 +1833,12 @@
                            style="background:rgba(37,99,235,0.08);color:#3b82f6;border:1px solid rgba(37,99,235,0.15)">
                             <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M10 6v2H5v11h11v-5h2v7H3V6h7zm11-3v8l-3-3-7 7-1.5-1.5 7-7-3-3h8z"/></svg>TV
                         </a>
+                        <!-- Add to Watchlist button — hidden if symbol already in watchlist -->
+                        <button id="qc-add-btn" onclick="qcAddToWatchlist()"
+                            class="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[8px] font-semibold uppercase tracking-widest"
+                            style="background:rgba(16,185,129,0.10);color:#10b981;border:1px solid rgba(16,185,129,0.25);display:none">
+                            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>Add
+                        </button>
                     </div>
 
                     <!-- Row 2: Price hero (left) + stats inline (right) -->
@@ -1563,8 +1854,8 @@
                         <div id="qc-stats-grid" class="flex items-center gap-0 flex-shrink-0" style="border-left:1px solid var(--border);padding-left:12px">
                             <div class="qc-stat-cell"><span class="qc-stat-label">Open</span><span id="qcs-open" class="qc-stat-value">—</span></div>
                             <div class="qc-stat-cell"><span class="qc-stat-label">Prev Close</span><span id="qcs-prev" class="qc-stat-value">—</span></div>
-                            <div class="qc-stat-cell"><span class="qc-stat-label">Day Low</span><span id="qcs-low" class="qc-stat-value" style="color:#ef4444">—</span></div>
-                            <div class="qc-stat-cell"><span class="qc-stat-label">Day High</span><span id="qcs-high" class="qc-stat-value" style="color:#10b981">—</span></div>
+                            <div class="qc-stat-cell"><span class="qc-stat-label">Day Low</span><span id="qcs-low" class="qc-stat-value" style="color:var(--qc-dn,#ef5350)">—</span></div>
+                            <div class="qc-stat-cell"><span class="qc-stat-label">Day High</span><span id="qcs-high" class="qc-stat-value" style="color:var(--qc-up,#26a69a)">—</span></div>
                             <div class="qc-stat-cell"><span class="qc-stat-label">Mkt Cap</span><span id="qcs-mktcap" class="qc-stat-value">—</span></div>
                             <div class="qc-stat-cell"><span class="qc-stat-label">P/E</span><span id="qcs-pe" class="qc-stat-value">—</span></div>
                             <div class="qc-stat-cell" style="border-right:none"><span class="qc-stat-label">Div</span><span id="qcs-div" class="qc-stat-value">—</span></div>
@@ -1633,6 +1924,102 @@
 
             </div><!-- /wl-split-wrap -->
 
+            <!-- ── Market Scanner (TradingView Style) ── -->
+            <div class="glass-card overflow-hidden" id="market-scanner-card">
+
+                <!-- FMP Key Prompt -->
+                <div id="scanner-key-prompt" class="hidden items-center gap-3 px-5 py-3 border-b" style="border-color:var(--border);background:color-mix(in srgb,#f59e0b 6%,transparent)">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#f59e0b"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                    <span class="text-[10px]" style="color:var(--text-secondary)">ต้องการ <strong>FMP API Key</strong> — ใส่ใน Settings</span>
+                    <button onclick="openSettingsModal()" class="ml-auto px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest flex-shrink-0" style="background:#f59e0b;color:#000">Settings</button>
+                    <span id="scanner-status-msg" class="text-[9px] ml-2" style="color:var(--text-dim)"></span>
+                </div>
+
+                <!-- TOP ROW: Highest Volume | Most Volatile -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)">
+
+                    <!-- HIGHEST VOLUME -->
+                    <div style="border-right:1px solid var(--border);padding:20px 22px 14px">
+                        <div style="display:flex;align-items:center;gap:5px;margin-bottom:14px">
+                            <span style="font-size:17px;font-weight:700;color:var(--text-primary);letter-spacing:-0.02em">Highest volume stocks</span>
+                            <svg width="13" height="13" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" viewBox="0 0 24 24" style="margin-top:2px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                            <button onclick="loadMarketScanner(true)" id="scanner-refresh-btn" title="Refresh" style="margin-left:auto;background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;opacity:0.5">
+                                <svg id="scanner-refresh-icon" class="w-3.5 h-3.5" fill="none" stroke="var(--text-secondary)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            </button>
+                        </div>
+                        <!-- CSS grid: 2 col, rows auto-align because items share the same grid -->
+                        <div id="scanner-active-grid"></div>
+                        <div style="margin-top:12px">
+                            <a href="#" style="font-size:12px;color:#2962ff;text-decoration:none;display:inline-flex;align-items:center;gap:3px">
+                                See all most actively traded stocks
+                                <svg width="11" height="11" fill="none" stroke="#2962ff" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- MOST VOLATILE -->
+                    <div style="padding:20px 22px 14px">
+                        <div style="display:flex;align-items:center;gap:5px;margin-bottom:14px">
+                            <span style="font-size:17px;font-weight:700;color:var(--text-primary);letter-spacing:-0.02em">Most volatile stocks</span>
+                            <svg width="13" height="13" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" viewBox="0 0 24 24" style="margin-top:2px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        </div>
+                        <div id="scanner-volatile-grid"></div>
+                        <div style="margin-top:12px">
+                            <a href="#" style="font-size:12px;color:#2962ff;text-decoration:none;display:inline-flex;align-items:center;gap:3px">
+                                See all stocks with biggest price changes
+                                <svg width="11" height="11" fill="none" stroke="#2962ff" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM ROW: Gainers | Losers -->
+                <div style="display:grid;grid-template-columns:1fr 1fr">
+
+                    <!-- GAINERS -->
+                    <div style="border-right:1px solid var(--border);padding:22px 22px 16px">
+                        <div style="display:flex;align-items:center;gap:5px;margin-bottom:14px">
+                            <span style="font-size:17px;font-weight:700;color:var(--text-primary);letter-spacing:-0.02em">Stock gainers</span>
+                            <svg width="13" height="13" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" viewBox="0 0 24 24" style="margin-top:2px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        </div>
+                        <!-- Session tabs -->
+                        <div style="display:flex;gap:4px;margin-bottom:14px">
+                            <button onclick="setScannerTab('gainers','regular',this)" class="scanner-tab-btn scanner-tab-active" style="padding:5px 12px;border-radius:4px;border:none;cursor:pointer;font-size:11px;font-weight:600;font-family:var(--font-main)">Regular hours</button>
+                            <button onclick="setScannerTab('gainers','premarket',this)" class="scanner-tab-btn" style="padding:5px 12px;border-radius:4px;border:none;cursor:pointer;font-size:11px;font-weight:400;font-family:var(--font-main)">Pre-market</button>
+                            <button onclick="setScannerTab('gainers','afterhours',this)" class="scanner-tab-btn" style="padding:5px 12px;border-radius:4px;border:none;cursor:pointer;font-size:11px;font-weight:400;font-family:var(--font-main)">After-hours</button>
+                        </div>
+                        <div id="scanner-gainers" style="min-height:160px">
+                            <div style="display:flex;align-items:center;justify-content:center;height:160px;color:var(--text-dim);font-size:11px">กำลังโหลด...</div>
+                        </div>
+                    </div>
+
+                    <!-- LOSERS -->
+                    <div style="padding:22px 22px 16px">
+                        <div style="display:flex;align-items:center;gap:5px;margin-bottom:14px">
+                            <span style="font-size:17px;font-weight:700;color:var(--text-primary);letter-spacing:-0.02em">Stock losers</span>
+                            <svg width="13" height="13" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" viewBox="0 0 24 24" style="margin-top:2px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        </div>
+                        <div style="display:flex;gap:4px;margin-bottom:14px">
+                            <button onclick="setScannerTab('losers','regular',this)" class="scanner-tab-btn scanner-tab-active" style="padding:5px 12px;border-radius:4px;border:none;cursor:pointer;font-size:11px;font-weight:600;font-family:var(--font-main)">Regular hours</button>
+                            <button onclick="setScannerTab('losers','premarket',this)" class="scanner-tab-btn" style="padding:5px 12px;border-radius:4px;border:none;cursor:pointer;font-size:11px;font-weight:400;font-family:var(--font-main)">Pre-market</button>
+                            <button onclick="setScannerTab('losers','afterhours',this)" class="scanner-tab-btn" style="padding:5px 12px;border-radius:4px;border:none;cursor:pointer;font-size:11px;font-weight:400;font-family:var(--font-main)">After-hours</button>
+                        </div>
+                        <div id="scanner-losers" style="min-height:160px">
+                            <div style="display:flex;align-items:center;justify-content:center;height:160px;color:var(--text-dim);font-size:11px">กำลังโหลด...</div>
+                        </div>
+                    </div>
+
+                </div><!-- /bottom row -->
+
+                <!-- Status / last update bar -->
+                <div style="padding:6px 22px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px">
+                    <span id="scanner-last-update" style="font-size:9px;color:var(--text-dim);font-family:var(--font-main)"></span>
+                    <span id="scanner-status-msg2" style="font-size:9px;color:var(--text-dim);font-family:var(--font-main)"></span>
+                </div>
+
+            </div><!-- /market-scanner-card -->
+
+
             <!-- ── AI Stock Analyst Chat ── -->
             <div id="ai-chat-card" class="glass-card overflow-hidden">
                 <!-- Header -->
@@ -1698,6 +2085,7 @@
                     </div>
                 </div>
             </div>
+
             <!-- bottom spacer -->
             <div class="pb-4"></div>
 
@@ -1831,6 +2219,9 @@
 
                 // Step 4: Background refresh for fresh data (delayed 300ms so UI renders first)
                 setTimeout(() => refreshWatchlist(), 300);
+
+                // Step 5: Load Market Scanner immediately (uses cache if <5min old)
+                loadMarketScanner(false);
             }
             if (t !== 'watchlist') { disconnectFinnhubWs(); disconnectAlpacaWs(); } // save API quota when not viewing
             if (save) try { localStorage.setItem('ps_tab', t); } catch(e) {}
@@ -2243,8 +2634,18 @@
                 const raw = localStorage.getItem('ps_wl_cache');
                 if (!raw) return;
                 const payload = JSON.parse(raw);
-                Object.assign(wlDataCache,   payload.wl      || {});
-                Object.assign(profileCache,  payload.profile || {});
+                const age = Date.now() - (payload.ts || 0);
+                const staleQuote = age > 8 * 60 * 60 * 1000; // >8h = ข้ามวัน ล้าง quote
+                const wl = payload.wl || {};
+                if (staleQuote) {
+                    // เก็บแค่ profile fields ทิ้ง quote (c/d/dp/pc/o/h/l)
+                    const quoteFields = ['c','d','dp','pc','o','h','l','t','v'];
+                    Object.keys(wl).forEach(sym => {
+                        quoteFields.forEach(f => delete wl[sym][f]);
+                    });
+                }
+                Object.assign(wlDataCache,  wl);
+                Object.assign(profileCache, payload.profile || {});
             } catch(e) {}
         }
 
@@ -2405,7 +2806,7 @@
                     ondragleave="onDragLeave(event)"
                     ondrop="onDrop(event,'${symbol}')"
                     ondragend="onDragEnd(event)"
-                    onclick="openQuickChart('${symbol}')"
+                    onclick="_qcFromScanner=false;openQuickChart('${symbol}')"
                     class="transition-colors group cursor-grab active:cursor-grabbing select-none wl-row" style="border-color:var(--border)">
                     <td style="text-align:left">
                         <div class="flex items-center gap-1">
@@ -2628,21 +3029,23 @@
                     const sn = data[sym]; if (!sn) return;
                     const pc = wlDataCache[sym]?.pc ?? sn.prevDailyBar?.c ?? null;
 
-                    // Alpaca snapshot: minuteBar is latest minute (includes pre/after-hours)
-                    // dailyBar covers regular session, prevDailyBar = yesterday close
-                    const preP  = sn.minuteBar?.c ?? null;  // latest trade price (any session)
-                    const dayC  = sn.dailyBar?.c  ?? null;  // today's regular close (null pre-open)
+                    // Fix 1: ใช้ latestTrade.p แทน minuteBar.c เพื่อได้ราคา tick ล่าสุดจริงๆ
+                    // latestTrade = tick ล่าสุด (real-time), minuteBar.c = ราคาปิด bar นาทีล่าสุด (lag ~1min)
+                    const preP = sn.latestTrade?.p ?? sn.minuteBar?.c ?? null;
 
-                    // Determine if extended hours: minute bar exists but regular session not open
                     if (!preP || !pc) return;
                     const pct = (preP - pc) / pc * 100;
-                    if (Math.abs(pct) > 0.30 * 100) return; // sanity: skip >30% moves
+
+                    // Fix 2: เพิ่ม sanity จาก 30% → 50% ครอบ volatile/meme stocks
+                    if (Math.abs(pct) > 50) return;
 
                     // isAH = after regular close, isPM = before open
-                    const thaiHour = new Date().getUTCHours() + 7; // Thai time
-                    const h = thaiHour % 24;
-                    // Thai: market open 21:30-04:00, pre-market ~19:00-21:30, AH 04:00-09:00
-                    const isAH = h >= 4 && h < 19;
+                    // Thai time (UTC+7): pre-market ~19:00-20:30, market 20:30-03:00, AH 03:00-08:00
+                    const utcH = new Date().getUTCHours();
+                    const thaiH = (utcH + 7) % 24;
+                    const isAH = thaiH >= 3 && thaiH < 13;   // 03:00-13:00 Thai = AH
+                    // 13:00-19:00 Thai = ตลาดปิดสนิท ไม่แสดง extended
+                    if (thaiH >= 13 && thaiH < 19) return;
 
                     const existing = wlDataCache[sym] || {};
                     wlDataCache[sym] = Object.assign({}, existing, isAH
@@ -2954,6 +3357,7 @@
         // --- Quick Chart ---
         let qcChart = null;
         let qcCurrentSymbol = null;
+        let _qcFromScanner  = false; // true when chart was opened from Market Scanner
         let qcCurrentRange = 'D';
 
         function setCompactHeaders(compact) {
@@ -2971,6 +3375,9 @@
 
         async function openQuickChart(symbol, scroll = true) {
             qcCurrentSymbol = symbol;
+            // _qcFromScanner is set externally by addTickerFromScanner before this call.
+            // When scroll=true AND caller is not scanner, reset the flag (normal WL open).
+            // scroll=false = re-render after data fetch — keep existing flag unchanged.
             const d = wlDataCache[symbol];
             const panel = document.getElementById('quick-chart-panel');
             const wrap = document.getElementById('wl-split-wrap');
@@ -3050,15 +3457,17 @@
             const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
             set('qcs-open',   d?.o   != null ? fmt(d.o)   : '—');
             set('qcs-prev',   d?.pc  != null ? fmt(d.pc)  : '—');
-            set('qcs-low',  d?.l != null ? '$' + fmt(d.l) : '—');
-            set('qcs-high', d?.h != null ? '$' + fmt(d.h) : '—');
+            set('qcs-low',    d?.l   != null ? fmt(d.l)   : '—');
+            set('qcs-high',   d?.h   != null ? fmt(d.h)   : '—');
             set('qcs-mktcap', d?.marketCap != null ? fmtCap(d.marketCap) : '—');
             set('qcs-pe',     d?.pe        != null ? d.pe.toFixed(1)     : '—');
             set('qcs-div',    d?.divYield  != null ? d.divYield.toFixed(2) + '%' : '—');
             // 52W range bar
             const w52h = d?.week52High; const w52l = d?.week52Low;
             set('qcs-52wl', w52l != null ? fmt(w52l) : '—');
-            set('qcs-52wh', w52h != null ? fmt(w52h) : '—'); const _52whEl = document.getElementById('qcs-52wh'); if(_52whEl) _52whEl.style.color='#10b981';
+            set('qcs-52wh', w52h != null ? fmt(w52h) : '—');
+            const _52whEl = document.getElementById('qcs-52wh'); if(_52whEl) _52whEl.style.color='var(--qc-up,#26a69a)';
+            const _52wlEl = document.getElementById('qcs-52wl'); if(_52wlEl) _52wlEl.style.color='var(--qc-dn,#ef5350)';
             if (w52h && w52l && price && w52h > w52l) {
                 const pct = Math.min(100, Math.max(0, ((price - w52l) / (w52h - w52l)) * 100));
                 const fillEl = document.getElementById('qcs-52w-fill');
@@ -3069,6 +3478,10 @@
 
             // TradingView link
             document.getElementById('qc-tv-link').href = `https://www.tradingview.com/symbols/${symbol}/`;
+
+            // Add button: show only when symbol is NOT in watchlist
+            const addBtn = document.getElementById('qc-add-btn');
+            if (addBtn) addBtn.style.display = watchlist.includes(symbol) ? 'none' : 'flex';
 
             // Render Lightweight Charts with Alpaca IEX data
             const isDark = document.documentElement.classList.contains('dark');
@@ -3232,7 +3645,7 @@
             _lwcLiveDotFn = null;
 
             // ── Create chart ─────────────────────────────────────────────────
-            const bg   = isDark ? '#161a1e' : '#ffffff';
+            const bg   = isDark ? '#131722' : '#ffffff';
             const text = isDark ? '#94a3b8' : '#64748b';
             const grid = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
             const up = '#10b981', dn = '#e11d48'; // fixed TV palette — never changes with theme
@@ -3276,11 +3689,11 @@
             // ── Series ───────────────────────────────────────────────────────
             let cSeries;
             if (_lwcType === 'candle') {
-                cSeries = _lwcChart.addCandlestickSeries({ upColor:'#10b981', downColor:'#e11d48', borderUpColor:'#10b981', borderDownColor:'#e11d48', wickUpColor:'#10b981', wickDownColor:'#e11d48', lastValueVisible:false, priceLineVisible:false });
+                cSeries = _lwcChart.addCandlestickSeries({ upColor:'#26a69a', downColor:'#ef5350', borderUpColor:'#26a69a', borderDownColor:'#ef5350', wickUpColor:'#26a69a', wickDownColor:'#ef5350', lastValueVisible:false, priceLineVisible:false });
             } else if (_lwcType === 'line') {
-                cSeries = _lwcChart.addLineSeries({ color:'#10b981', lineWidth:2, lineType:2, priceLineVisible:false, lastValueVisible:false });
+                cSeries = _lwcChart.addLineSeries({ color:'#26a69a', lineWidth:2, lineType:2, priceLineVisible:false, lastValueVisible:false });
             } else {
-                cSeries = _lwcChart.addAreaSeries({ lineColor:'#10b981', topColor:'rgba(16,185,129,0.28)', bottomColor:'rgba(16,185,129,0.02)', lineWidth:2, lineType:2, priceLineVisible:false, lastValueVisible:false });
+                cSeries = _lwcChart.addAreaSeries({ lineColor:'#26a69a', topColor:'rgba(38,166,154,0.25)', bottomColor:'rgba(38,166,154,0.02)', lineWidth:2, lineType:2, priceLineVisible:false, lastValueVisible:false });
             }
             const vSeries = _lwcChart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'vol', lastValueVisible:false, priceLineVisible:false });
             vSeries.priceScale().applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
@@ -3474,12 +3887,12 @@
                     const volStr = vol>=1e6?(vol/1e6).toFixed(2)+'M':vol>=1e3?(vol/1e3).toFixed(1)+'K':vol.toFixed(0);
                     if (_lwcType === 'candle') {
                         const chg = d.close-d.open, pct = d.open?(chg/d.open*100):0;
-                        const col = chg>=0?'#10b981':'#e11d48';
+                        const col = chg>=0?'#26a69a':'#ef5350';
                         tip.innerHTML =
                             '<div style="font-size:10px;color:'+dimC+';margin-bottom:4px">'+dateStr+'</div>'+
                             '<div style="display:grid;grid-template-columns:auto auto;gap:1px 14px;font-size:11px;line-height:1.6">'+
                             '<span style="color:'+dimC+'">O</span>'+fmtP(d.open)+
-                            '<span style="color:#10b981">H</span>'+fmtP(d.high)+
+                            '<span style="color:#26a69a">H</span>'+fmtP(d.high)+
                             '<span style="color:#e11d48">L</span>'+fmtP(d.low)+
                             '<span style="color:'+dimC+'">C</span>'+fmtP(d.close)+
                             '</div>'+
@@ -3580,13 +3993,13 @@
                     _lwcChart.removeSeries(_lwcCandleSeries);
                     let newSeries;
                     if (type === 'candle') {
-                        newSeries = _lwcChart.addCandlestickSeries({ upColor:'#10b981', downColor:'#e11d48', borderUpColor:'#10b981', borderDownColor:'#e11d48', wickUpColor:'#10b981', wickDownColor:'#e11d48', lastValueVisible:false, priceLineVisible:false });
+                        newSeries = _lwcChart.addCandlestickSeries({ upColor:'#26a69a', downColor:'#ef5350', borderUpColor:'#26a69a', borderDownColor:'#ef5350', wickUpColor:'#26a69a', wickDownColor:'#ef5350', lastValueVisible:false, priceLineVisible:false });
                         newSeries.setData(_lwcCandles);
                     } else if (type === 'line') {
-                        newSeries = _lwcChart.addLineSeries({ color:'#10b981', lineWidth:2, lineType:2, priceLineVisible:false, lastValueVisible:false });
+                        newSeries = _lwcChart.addLineSeries({ color:'#26a69a', lineWidth:2, lineType:2, priceLineVisible:false, lastValueVisible:false });
                         newSeries.setData(_lwcLineData);
                     } else {
-                        newSeries = _lwcChart.addAreaSeries({ lineColor:'#10b981', topColor:'rgba(16,185,129,0.28)', bottomColor:'rgba(16,185,129,0.02)', lineWidth:2, lineType:2, priceLineVisible:false, lastValueVisible:false });
+                        newSeries = _lwcChart.addAreaSeries({ lineColor:'#26a69a', topColor:'rgba(38,166,154,0.25)', bottomColor:'rgba(38,166,154,0.02)', lineWidth:2, lineType:2, priceLineVisible:false, lastValueVisible:false });
                         newSeries.setData(_lwcLineData);
                     }
                     _lwcCandleSeries = newSeries;
@@ -3596,7 +4009,7 @@
                     window._lwcLivePriceLine = null;
                     if (_liveP && _lwcLastCandle) {
                         window._lwcLivePriceLine = newSeries.createPriceLine({
-                            price: _liveP, color:'#10b981', lineWidth:1,
+                            price: _liveP, color:'#26a69a', lineWidth:1,
                             lineStyle: LightweightCharts.LineStyle.Dashed,
                             axisLabelVisible:true, title:'LIVE'
                         });
@@ -3654,12 +4067,41 @@
             await _lwcDraw(_lwcSymbol, _lwcRange, isDark, aKey, aSecret);
         }
 
+        // Add-to-watchlist from Quick Chart preview (for scanner-clicked symbols)
+        async function qcAddToWatchlist() {
+            const sym = qcCurrentSymbol;
+            if (!sym) return;
+            const addBtn = document.getElementById('qc-add-btn');
+            if (addBtn) { addBtn.style.display = 'none'; }
+            await addTicker(sym);
+            // Re-open as a proper watchlist chart (data already cached)
+            openQuickChart(sym, false);
+        }
+
         function closeQuickChart() {
             _psSetTabTitle(null);
             document.getElementById('wl-split-wrap').classList.remove('chart-open');
-            // Scroll to top of page
-            window.scrollTo({ top: 0, behavior: 'smooth' });
             setCompactHeaders(false);
+
+            // Scroll AFTER layout reflow (chart panel collapse changes DOM height)
+            const _scrollToScanner = _qcFromScanner;
+            _qcFromScanner = false;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    // Double-rAF: first frame removes chart-open class, second frame layout is settled
+                    if (_scrollToScanner) {
+                        const scannerEl = document.getElementById('market-scanner-card');
+                        if (scannerEl) {
+                            const nav  = document.querySelector('nav');
+                            const navH = nav ? nav.getBoundingClientRect().height : 96;
+                            const targetY = scannerEl.getBoundingClientRect().top + window.scrollY - navH - 12;
+                            window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+                        }
+                    } else {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                });
+            });
             if (_lwcChart) { try { _lwcChart.remove(); } catch(e){} _lwcChart = null; }
             _lwcLiveDotFn = null;
             const _cDot = document.getElementById('lwc-live-dot'); if (_cDot) _cDot.remove();
@@ -3757,6 +4199,558 @@
             }, 250);
         }
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNewsModal(); });
+
+        // ── Market Scanner (FMP) — TradingView Style — r124 ──────────────────────
+        let _scannerCache = null;
+        let _scannerCacheTs = 0;
+        const SCANNER_TTL = 15 * 60 * 1000; // 15-min cache — FMP free = 250 calls/day
+        const _scannerSession = { gainers: 'regular', losers: 'regular' };
+
+        // ── Safe field parser — handles FMP quirks ───────────────────────────────
+        // FMP sometimes returns changesPercentage as "5.26%" string OR number 5.26
+        // name field: gainers/losers use "name", most-actives may use "companyName"
+        function _fmpItem(raw) {
+            const sym  = raw.symbol || raw.ticker || '';
+            const name = raw.name || raw.companyName || raw.company || '';
+            const price = parseFloat(raw.price ?? raw.lastPrice ?? 0) || 0;
+
+            // changesPercentage can be: 5.26 | "5.26" | "5.26%" | "+5.26%"
+            let chg = raw.changesPercentage ?? raw.changePercentage ?? raw.change_percentage ?? null;
+            if (chg == null && raw.change != null && price > 0) {
+                // fallback: derive % from absolute change
+                chg = (parseFloat(raw.change) / (price - parseFloat(raw.change))) * 100;
+            }
+            if (typeof chg === 'string') {
+                chg = parseFloat(chg.replace(/[^0-9.\-]/g, ''));
+            } else {
+                chg = parseFloat(chg);
+            }
+            if (isNaN(chg)) chg = 0;
+
+            const vol = parseInt(raw.volume ?? raw.tradingVolume ?? 0) || 0;
+            return { sym, name, price, chg, vol };
+        }
+
+        // ── Logo: FMP CDN image with initials fallback ───────────────────────────
+        // FMP CDN: https://financialmodelingprep.com/image-stock/{SYM}.png (no key needed)
+        // On error → show coloured initials avatar
+        function scannerLogo(sym, size = 40) {
+            const palettes = [
+                {bg:'#1e2d40',fg:'#4a7fa5'},{bg:'#1e2433',fg:'#4e6080'},
+                {bg:'#1c2d1e',fg:'#3d7a46'},{bg:'#2d1e1e',fg:'#7a3d3d'},
+                {bg:'#1e1e2d',fg:'#4e4e80'},{bg:'#2d2a1e',fg:'#7a6a3d'},
+                {bg:'#1e2a2d',fg:'#3d6e7a'},{bg:'#2a1e2d',fg:'#6e3d7a'},
+            ];
+            const idx = sym.split('').reduce((a,c) => a + c.charCodeAt(0), 0) % palettes.length;
+            const {bg, fg} = palettes[idx];
+            const initials = sym.length > 3 ? sym.slice(0,2) : sym;
+            const fs = initials.length > 2 ? Math.round(size*0.27) : Math.round(size*0.33);
+            const imgUrl = 'https://financialmodelingprep.com/image-stock/' + sym + '.png';
+            // Use data-sym attribute + delegated handler to avoid inline quote hell
+            return [
+                '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;',
+                'flex-shrink:0;position:relative;overflow:hidden;',
+                'background:' + bg + ';border:1.5px solid rgba(255,255,255,0.07)">',
+                    '<img src="' + imgUrl + '" alt="" loading="lazy" decoding="async" class="sl-img"',
+                    ' style="width:100%;height:100%;object-fit:contain;border-radius:50%;',
+                    'position:absolute;inset:0;background:#fff;opacity:0;transition:opacity 0.15s">',
+                    '<div class="sl-fb" style="position:absolute;inset:0;display:flex;',
+                    'align-items:center;justify-content:center;font-size:' + fs + 'px;',
+                    'font-weight:800;color:' + fg + ';font-family:var(--font-main);',
+                    'letter-spacing:-0.01em;user-select:none">' + initials + '</div>',
+                '</div>',
+            ].join('');
+        }
+
+        // Delegated img load/error handlers for scanner logos (no inline events)
+        document.addEventListener('load', function(e) {
+            if (e.target && e.target.classList && e.target.classList.contains('sl-img')) {
+                e.target.style.opacity = '1';
+                var fb = e.target.nextElementSibling;
+                if (fb && fb.classList.contains('sl-fb')) fb.style.display = 'none';
+            }
+        }, true);
+        document.addEventListener('error', function(e) {
+            if (e.target && e.target.classList && e.target.classList.contains('sl-img')) {
+                e.target.style.display = 'none';
+            }
+        }, true);
+
+        // ── Ticker badge ─────────────────────────────────────────────────────────
+        function scannerBadge(sym) {
+            return `<span style="display:inline-block;background:rgba(255,255,255,0.08);color:var(--text-secondary);font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:3px;letter-spacing:0.05em;font-family:var(--font-main)">${sym}</span>`;
+        }
+
+        function fmtVolScanner(n) {
+            if (!n || n < 1000) return n ? String(n) : '—';
+            if (n >= 1e9) return (n/1e9).toFixed(2)+'B';
+            if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
+            return (n/1e3).toFixed(0)+'K';
+        }
+
+        // ── TOP CELL (inside pair-row, no outer border — parent row handles border) ──
+        // Layout: [Logo 36px] | [Name truncated / Ticker badge] | [Price / %chg]
+        function _fmtVol(v) {
+            if (!v) return '';
+            if (v >= 1e9) return (v/1e9).toFixed(1) + 'B';
+            if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
+            if (v >= 1e3) return (v/1e3).toFixed(0) + 'K';
+            return String(v);
+        }
+
+        function renderTopCell(raw) {
+            const {sym, name, price, chg, vol} = _fmpItem(raw);
+            if (!sym) return '';
+            const isUp  = chg >= 0;
+            const pStr  = price < 1 ? price.toFixed(4) : price.toFixed(2);
+            const cStr  = (isUp ? '+' : '') + chg.toFixed(2) + '%';
+            const cCol  = isUp ? 'var(--chart-up,#26a69a)' : 'var(--chart-dn,#ef5350)';
+            const volStr = _fmtVol(vol);
+            const shortName = name ? (name.length > 22 ? name.slice(0, 22) + '…' : name) : sym;
+            return `
+            <div style="display:flex;align-items:center;gap:8px;height:100%;cursor:pointer" onclick="addTickerFromScanner('${sym}')">
+                ${scannerLogo(sym, 34)}
+                <div style="flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:2px">
+                    <div style="font-size:11px;font-weight:400;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3">${shortName}</div>
+                    <div style="display:flex;align-items:center;gap:4px">
+                        ${scannerBadge(sym)}
+                        ${volStr ? `<span style="font-size:9px;color:var(--text-dim);letter-spacing:0.01em">Vol ${volStr}</span>` : ''}
+                    </div>
+                </div>
+                <div style="flex-shrink:0;text-align:right;min-width:68px;padding-left:2px">
+                    <div style="display:flex;align-items:baseline;justify-content:flex-end;gap:1px">
+                        <span style="font-size:12.5px;font-weight:600;color:var(--text-primary);font-variant-numeric:tabular-nums;letter-spacing:-0.02em">${pStr}</span>
+                        <span style="font-size:7.5px;color:var(--text-dim)">USD</span>
+                    </div>
+                    <div style="font-size:10.5px;font-weight:600;color:${cCol};font-variant-numeric:tabular-nums">${cStr}</div>
+                </div>
+            </div>`;
+        }
+
+        // ── BOTTOM ROW (Gainers / Losers panels) ─────────────────────────────────
+        // renderPillCell — inner content for one cell in a gainers/losers pair-row
+        function renderPillCell(raw) {
+            const {sym, name, price, chg} = _fmpItem(raw);
+            if (!sym) return '';
+            const isUp  = chg >= 0;
+            const pStr  = price < 1 ? price.toFixed(4) : price.toFixed(2);
+            const cStr  = (isUp ? '+' : '') + chg.toFixed(2) + '%';
+            const pill  = isUp ? 'var(--chart-up,#26a69a)' : 'var(--chart-dn,#ef5350)';
+            const shortName = name ? (name.length > 22 ? name.slice(0, 22) + '\u2026' : name) : sym;
+            return `<div style="display:flex;align-items:center;gap:8px;height:100%;cursor:pointer" onclick="addTickerFromScanner('${sym}')">
+                ${scannerLogo(sym, 34)}
+                <div style="flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:2px">
+                    <div style="font-size:11px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3">${shortName}</div>
+                    <div style="display:flex;align-items:center;gap:4px">
+                        ${scannerBadge(sym)}
+                    </div>
+                </div>
+                <div style="flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                    <div style="display:flex;align-items:baseline;gap:1px">
+                        <span style="font-size:12px;font-weight:600;color:var(--text-primary);font-variant-numeric:tabular-nums;letter-spacing:-0.02em">${pStr}</span>
+                        <span style="font-size:7.5px;color:var(--text-dim)">USD</span>
+                    </div>
+                    <span style="background:${pill};color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:3px;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;white-space:nowrap">${cStr}</span>
+                </div>
+            </div>`;
+        }
+
+        // Legacy alias kept in case any other code references renderPillRow
+        function renderPillRow(raw) { return renderPillCell(raw); }
+
+        // ── FMP fetch ─────────────────────────────────────────────────────────────
+        async function fmpFetch(endpoint, params) {
+            const key = getFmpKey() || 'demo';
+            let qs = 'apikey=' + key;
+            if (params) Object.entries(params).forEach(([k,v]) => { qs += '&' + k + '=' + encodeURIComponent(v); });
+
+            // endpoint map: stable/ → v3/ fallback names
+            const v3map = {
+                'biggest-gainers':  'stock_market/gainers',
+                'biggest-losers':   'stock_market/losers',
+                'most-actives':     'stock_market/actives',
+            };
+
+            const tryFetch = async (base) => {
+                const url = base + endpoint + '?' + qs;
+                const res = await fetch(url);
+                const body = await res.text();
+                let data;
+                try { data = JSON.parse(body); } catch(e) { throw new Error('FMP parse error: ' + body.slice(0,80)); }
+                if (!res.ok) throw new Error('FMP HTTP ' + res.status + ': ' + (data?.message || body).slice(0,80));
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    const errMsg = data['Error Message'] || data.message || data.error;
+                    if (errMsg) throw new Error(errMsg.slice(0, 100));
+                    const keys = Object.keys(data);
+                    if (keys.length === 1 && Array.isArray(data[keys[0]])) return data[keys[0]];
+                }
+                if (!Array.isArray(data)) throw new Error('FMP: expected array, got ' + typeof data + ' | ' + JSON.stringify(data).slice(0,80));
+                return data;
+            };
+
+            // Try stable/ first, fallback to v3/ if it fails
+            try {
+                const result = await tryFetch('https://financialmodelingprep.com/stable/');
+                console.log('[FMP] stable/' + endpoint + ' OK, items:', Array.isArray(result) ? result.length : typeof result);
+                return result;
+            } catch(e1) {
+                console.warn('[FMP] stable/' + endpoint + ' failed:', e1.message.slice(0,100));
+                const v3ep = v3map[endpoint];
+                if (v3ep) {
+                    try {
+                        const ep_backup = endpoint;
+                        endpoint = v3ep;
+                        const result = await tryFetch('https://financialmodelingprep.com/api/v3/');
+                        endpoint = ep_backup;
+                        return result;
+                    } catch(e2) {
+                        throw new Error(e1.message + ' | v3: ' + e2.message);
+                    }
+                }
+                throw e1;
+            }
+        }
+
+        // ── High-volume panel: FMP most-actives sorted by real volume ───────────
+        // FMP /stable/most-actives returns stocks ranked by $ trading volume.
+        // NOTE: when market is closed, FMP may return volume=0 for all items.
+        //       In that case we skip the volume filter and just use price filter only.
+        async function fetchHighVolPanel() {
+            try {
+                const data = await fmpFetch('most-actives');
+                if (!data || data.length === 0) return null;
+
+                console.log('[Scanner] most-actives raw sample:', JSON.stringify(data[0]));
+
+                // Detect market-closed: if all items have volume=0, skip volume filter
+                const totalVol = data.reduce((s, i) => s + parseInt(i.volume || i.tradingVolume || 0), 0);
+                const marketClosed = totalVol === 0;
+
+                // Filter: always remove bad symbols & near-zero price
+                // Volume filter only when market is open (totalVol > 0)
+                const filtered = data.filter(i => {
+                    const sym = i.symbol || '';
+                    const p   = parseFloat(i.price || 0);
+                    const v   = parseInt(i.volume || i.tradingVolume || 0);
+                    if (sym.length > 5) return false;
+                    if (p < 0.01) return false;
+                    if (!marketClosed && v < 50000) return false;
+                    return true;
+                });
+
+                // Sort by volume desc (when market open), or keep FMP's order (closed)
+                if (!marketClosed) {
+                    filtered.sort((a, b) => {
+                        const va = parseInt(a.volume || a.tradingVolume || 0);
+                        const vb = parseInt(b.volume || b.tradingVolume || 0);
+                        return vb - va;
+                    });
+                }
+
+                if (filtered.length === 0) return null;
+
+                // Normalize fields
+                filtered.forEach(i => {
+                    i.name = i.name || i.companyName || i.symbol;
+                    i.changesPercentage = i.changesPercentage ?? i.changePercentage ?? 0;
+                });
+
+                console.log('[Scanner] most-actives filtered:', filtered.length, 'marketClosed:', marketClosed);
+                return filtered.slice(0, 6);
+            } catch(e) {
+                console.error('[Scanner] fetchHighVolPanel error:', e.message);
+                return null;
+            }
+        }
+
+        async function addTickerFromScanner(sym) {
+            if (!sym || sym === '—') return;
+
+            // Track that this chart was opened from Scanner → back button scrolls to scanner
+            _qcFromScanner = true;
+
+            // Switch to watchlist tab so quick-chart panel is visible
+            showTab('watchlist');
+
+            // If symbol is already in watchlist → open its chart directly
+            if (watchlist.includes(sym)) {
+                openQuickChart(sym);
+                return;
+            }
+
+            // Symbol NOT in watchlist — fetch data into cache without adding to list
+            // so openQuickChart has price/name/logo to display
+            if (!wlDataCache[sym]) {
+                // Show chart panel immediately with loading state
+                openQuickChart(sym);
+                try {
+                    await fetchQuote(sym); // populates wlDataCache[sym] & profileCache[sym]
+                    openQuickChart(sym, false); // re-render with real data (no scroll)
+                } catch(e) {
+                    console.warn('[Scanner] preview fetch failed:', sym, e.message);
+                }
+            } else {
+                openQuickChart(sym);
+            }
+        }
+
+        // ── Tab switcher ─────────────────────────────────────────────────────────
+        function setScannerTab(section, session, btn) {
+            _scannerSession[section] = session;
+            btn.parentElement.querySelectorAll('.scanner-tab-btn').forEach(b => {
+                b.classList.remove('scanner-tab-active');
+                b.style.fontWeight = '400';
+            });
+            btn.classList.add('scanner-tab-active');
+            btn.style.fontWeight = '600';
+            if (_scannerCache) renderScannerBottom(_scannerCache);
+        }
+
+        // ── Render helpers ───────────────────────────────────────────────────────
+        function _scannerLoading() {
+            return `<div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:28px;color:var(--text-dim)"><svg style="width:13px;height:13px;animation:spin 1s linear infinite" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg><span style="font-size:11px">กำลังโหลด...</span></div>`;
+        }
+        function _scannerError(hint) {
+            return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px"><span style="font-size:11px;color:var(--danger)">${hint}</span><button onclick="openSettingsModal()" style="font-size:10px;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;background:rgba(242,54,69,0.12);color:var(--danger);font-weight:700;font-family:var(--font-main)">Settings</button></div>`;
+        }
+        function _noKey() {
+            return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px"><span style="font-size:11px;color:var(--text-dim)">ต้องการ FMP API Key</span><button onclick="openSettingsModal()" style="font-size:10px;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;background:rgba(245,158,11,0.12);color:#f59e0b;font-weight:700;font-family:var(--font-main)">ใส่ Key ใน Settings</button></div>`;
+        }
+        function _setAll(html) {
+            ['active-grid','volatile-grid','gainers','losers']
+                .forEach(id => { const el = document.getElementById('scanner-'+id); if(el) el.innerHTML = html; });
+        }
+
+        function renderScannerTop(data) {
+            // Each renderTopRow item goes directly into the 2-col CSS grid
+            // All items share the same grid context → rows auto-align perfectly
+            const renderGrid = (items, gridId) => {
+                const el = document.getElementById('scanner-' + gridId + '-grid');
+                if (!el) return;
+                if (!items || items.length === 0) {
+                    el.innerHTML = '<div style="padding:20px;font-size:11px;color:var(--text-dim);text-align:center">ไม่มีข้อมูล</div>';
+                    return;
+                }
+                // Pair-row layout: group items into rows of 2
+                // Left & right cells in same row-div → always same height
+                let html = '';
+                for (let i = 0; i < items.length; i += 2) {
+                    const left  = items[i];
+                    const right = items[i + 1] || null;
+                    const isLast = (i + 2) >= items.length;
+                    const rowBorder = isLast ? '' : 'border-bottom:1px solid rgba(255,255,255,0.045);';
+                    html += '<div style="display:flex;' + rowBorder + 'min-height:54px">';
+                    html += '<div style="flex:1;min-width:0;border-right:1px solid rgba(255,255,255,0.04);padding:8px 10px 8px 0">' + renderTopCell(left) + '</div>';
+                    html += '<div style="flex:1;min-width:0;padding:8px 0 8px 10px">' + (right ? renderTopCell(right) : '') + '</div>';
+                    html += '</div>';
+                }
+                el.innerHTML = html;
+            };
+            renderGrid((data.active   || []).slice(0, 6), 'active');
+            renderGrid((data.volatile || []).slice(0, 6), 'volatile');
+        }
+
+        function renderScannerBottom(data) {
+            ['gainers','losers'].forEach(sec => {
+                const session = _scannerSession[sec] || 'regular';
+                const el = document.getElementById('scanner-' + sec);
+                if (!el) return;
+                const items = session === 'regular' ? (data[sec] || []).slice(0, 6) : [];
+                if (!items.length) {
+                    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:28px;color:var(--text-dim);font-size:12px">' + (session !== 'regular' ? 'Extended Hours ต้องการ FMP Premium' : 'ไม่มีข้อมูล') + '</div>';
+                    return;
+                }
+                // Pair-row layout: same as top panels — 2 items per row, always equal height
+                let html = '';
+                for (let i = 0; i < items.length; i += 2) {
+                    const left  = items[i];
+                    const right = items[i + 1] || null;
+                    const isLast = (i + 2) >= items.length;
+                    const rowBorder = isLast ? '' : 'border-bottom:1px solid rgba(255,255,255,0.045);';
+                    html += '<div style="display:flex;' + rowBorder + 'min-height:54px">';
+                    html += '<div style="flex:1;min-width:0;border-right:1px solid rgba(255,255,255,0.04);padding:8px 10px 8px 0">' + renderPillCell(left) + '</div>';
+                    html += '<div style="flex:1;min-width:0;padding:8px 0 8px 10px">' + (right ? renderPillCell(right) : '') + '</div>';
+                    html += '</div>';
+                }
+                el.innerHTML = html;
+            });
+        }
+
+        // ── Main loader ──────────────────────────────────────────────────────────
+        async function loadMarketScanner(forceRefresh = false) {
+            const fmpKey     = getFmpKey();
+            const fhKey      = getFinnhubKey();
+            const promptEl   = document.getElementById('scanner-key-prompt');
+            const statusEl   = document.getElementById('scanner-status-msg2');
+            const refreshIco = document.getElementById('scanner-refresh-icon');
+            const lastUpd    = document.getElementById('scanner-last-update');
+
+            // Hide key prompt if we have a real key
+            if (fmpKey) {
+                if (promptEl) promptEl.style.display = 'none';
+            } else {
+                if (promptEl) promptEl.style.display = 'flex';
+                // Still proceed with demo key — fmpFetch uses 'demo' as fallback
+            }
+
+            // Serve from cache if fresh
+            const now = Date.now();
+            if (!forceRefresh && _scannerCache && (now - _scannerCacheTs < SCANNER_TTL)) {
+                renderScannerTop(_scannerCache);
+                renderScannerBottom(_scannerCache);
+                return;
+            }
+
+            if (refreshIco) refreshIco.style.animation = 'spin 1s linear infinite';
+            if (statusEl)   statusEl.textContent = 'กำลังโหลด...';
+            _setAll(_scannerLoading());
+
+            try {
+                // ── 2 FMP calls only (free tier: 250/day) ───────────────────
+                // gainers + losers only — derive volatile & active from these
+                const [gainers, losers] = await Promise.all([
+                    fmpFetch('biggest-gainers').catch(e => { console.warn('[Scanner] gainers:', e.message); return []; }),
+                    fmpFetch('biggest-losers').catch(e  => { console.warn('[Scanner] losers:',  e.message); return []; }),
+                ]);
+
+                console.log('[Scanner] gainers:', gainers?.length, '| losers:', losers?.length);
+                if (statusEl) statusEl.textContent = '';
+
+                // ── Filter: remove obvious junk tickers ─────────────────────
+                const filterMovers = arr => (arr || []).filter(item => {
+                    const sym = item.symbol || '';
+                    const p   = parseFloat(item.price || 0);
+                    if (sym.length > 5) return false;
+                    if (p < 0.001) return false;
+                    return true;
+                });
+
+                const cleanGainers = filterMovers(gainers);
+                const cleanLosers  = filterMovers(losers);
+
+                // ── Most Volatile: union sorted by |chg%| ───────────────────
+                const combined = [...cleanGainers, ...cleanLosers];
+                const seen = new Set();
+                const volatile = combined
+                    .filter(i => {
+                        const sym = i.symbol || i.ticker;
+                        if (!sym || seen.has(sym)) return false;
+                        seen.add(sym); return true;
+                    })
+                    .sort((a,b) => {
+                        const toNum = v => Math.abs(parseFloat(String(v||'0').replace(/[^0-9.\-]/g,'')));
+                        return toNum(b.changesPercentage) - toNum(a.changesPercentage);
+                    });
+
+                // ── Highest Volume: derive from combined, sort by volume ─────
+                const seenVol = new Set();
+                const active = [...cleanGainers, ...cleanLosers]
+                    .filter(i => {
+                        const sym = i.symbol || '';
+                        if (!sym || seenVol.has(sym)) return false;
+                        seenVol.add(sym); return true;
+                    })
+                    .sort((a,b) => {
+                        const va = parseInt(a.volume || a.tradingVolume || 0);
+                        const vb = parseInt(b.volume || b.tradingVolume || 0);
+                        return vb - va;
+                    });
+
+                _scannerCache = {
+                    gainers:  cleanGainers.slice(0, 6),
+                    losers:   cleanLosers.slice(0, 6),
+                    active:   active.slice(0, 6),
+                    volatile: volatile.slice(0, 6),
+                };
+                _scannerCacheTs = now;
+                _scannerLoaded  = true;
+                renderScannerTop(_scannerCache);
+                renderScannerBottom(_scannerCache);
+
+                const t = new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
+                if (lastUpd)  lastUpd.textContent = 'อัปเดต ' + t;
+                if (statusEl) statusEl.textContent = '';
+                // Start countdown display
+                _startCountdown();
+            } catch(err) {
+                const msg = err.message || 'Unknown';
+                console.error('[Scanner]', msg);
+                const isKey = /401|403|Invalid|Limit|subscription|plan/i.test(msg);
+                const hint  = isKey
+                    ? 'API Key ไม่ถูกต้อง หรือเกิน Rate Limit'
+                    : 'โหลดไม่สำเร็จ: ' + msg.slice(0, 80);
+                if (statusEl) statusEl.textContent = '⚠ ' + hint;
+                if (lastUpd)  lastUpd.textContent  = '⚠ Error';
+                _setAll(_scannerError(hint));
+            } finally {
+                if (refreshIco) refreshIco.style.animation = '';
+            }
+        }
+
+        // Legacy shim
+        function renderScannerData(data) {
+            renderScannerTop(data);
+            renderScannerBottom(data);
+        }
+
+        // ── Scanner auto-refresh ─────────────────────────────────────────────────
+        // 1. Initial load: 1.5s after DOMContentLoaded (keys ready from localStorage)
+        // 2. Auto-refresh every 3 min when Market tab is visible
+        //    (matches FMP data update frequency on free tier ~1-5 min)
+        // 3. On visibility change: refresh if tab was hidden > 3 min
+        let _scannerInterval = null;
+
+        // ── Countdown to next refresh ────────────────────────────────────────────
+        let _countdownTimer = null;
+        function _startCountdown() {
+            if (_countdownTimer) clearInterval(_countdownTimer);
+            const statusEl = document.getElementById('scanner-status-msg2');
+            const INTERVAL_MS = 3 * 60 * 1000;
+            const startTs = Date.now();
+            _countdownTimer = setInterval(function() {
+                const elapsed = Date.now() - startTs;
+                const remaining = Math.max(0, INTERVAL_MS - elapsed);
+                const mins = Math.floor(remaining / 60000);
+                const secs = Math.floor((remaining % 60000) / 1000);
+                if (statusEl) {
+                    statusEl.textContent = remaining > 0
+                        ? 'รีเฟรชใน ' + mins + ':' + String(secs).padStart(2,'0')
+                        : '';
+                }
+                if (remaining <= 0) clearInterval(_countdownTimer);
+            }, 1000);
+        }
+
+        function _startScannerInterval() {
+            if (_scannerInterval) return; // already running
+            _scannerInterval = setInterval(function() {
+                // Only refresh if Market tab is currently visible
+                const wlTab = document.getElementById('tab-watchlist');
+                if (wlTab && !wlTab.classList.contains('hidden')) {
+                    loadMarketScanner(true);
+                }
+            }, 3 * 60 * 1000); // every 3 minutes
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            // Initial load after 1.5s (wait for localStorage keys)
+            setTimeout(function() {
+                loadMarketScanner(false);
+                _startScannerInterval();
+            }, 1500);
+
+            // Refresh on tab visibility change (user returns after a break)
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    const wlTab = document.getElementById('tab-watchlist');
+                    const isVisible = wlTab && !wlTab.classList.contains('hidden');
+                    const isStale = (Date.now() - _scannerCacheTs) > SCANNER_TTL;
+                    if (isVisible && isStale) {
+                        loadMarketScanner(true);
+                    }
+                }
+            });
+        });
 
         async function loadMarketNews() {
             const grid = document.getElementById('market-news-grid');
@@ -3919,7 +4913,7 @@
                 const isDark  = document.documentElement.classList.contains('dark');
 
                 // Price line colors — TradingView palette
-                const lineColor = isUp ? (getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#089981') : '#f23645';
+                const lineColor = isUp ? (getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#089981') : 'var(--chart-dn,#ef5350)';
                 const fillColor = isUp ? 'rgba(8,153,129,0.08)' : 'rgba(242,54,69,0.08)';
 
                 // Volume bar colors — direction-aware, per-bar
@@ -3932,7 +4926,7 @@
 
                 const gridColor  = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
                 const tickColor  = isDark ? '#4c525e' : '#9ca3af';
-                const tooltipBg  = isDark ? '#1c2127' : '#ffffff';
+                const tooltipBg  = isDark ? '#1e222d' : '#ffffff';
                 const tooltipBdr = isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb';
                 const tooltipTtl = isDark ? '#787b86' : '#6b7280';
                 const tooltipBdy = isDark ? '#d1d4dc' : '#111827';
@@ -4974,7 +5968,9 @@ ${contextSections}
                 const newPrice = _pendingTrades[sym];
                 delete _pendingTrades[sym];
                 const cached = wlDataCache[sym]; if (!cached) continue;
-                const prevClose = cached.pc ?? cached.c ?? newPrice;
+                // pc = prev close จาก Finnhub quote เท่านั้น
+                // ห้าม fallback ไป cached.c เพราะอาจเป็นราคาเก่าข้ามวัน
+                const prevClose = cached.pc ?? newPrice;
                 const change = newPrice - prevClose, changePct = prevClose ? (change/prevClose)*100 : 0;
                 const updated = { ...cached, c: newPrice, d: change, dp: changePct };
                 wlDataCache[sym] = updated;
@@ -5275,11 +6271,30 @@ ${contextSections}
         const _THEMES = {
             // ── DARK ─────────────────────────────────────────────────────────
             'tv': {
-                name:'TradingView', mode:'dark', accent:'#10b981',
-                swatches:['#0b0e11','#161a1e','#10b981'],
-                vars:{ '--bg-dark':'#0b0e11','--bg-main':'#0f1318','--bg-card':'#161a1e','--bg-card2':'#1c2127',
-                       '--border':'rgba(255,255,255,0.08)','--text-primary':'#e2e8f0','--text-secondary':'#94a3b8',
-                       '--text-dim':'#64748b','--accent':'#10b981','--accent2':'#34d399' }
+                name:'TradingView', mode:'dark', accent:'#089981',
+                swatches:['#0d0d0d','#131722','#26a69a'],
+                vars:{
+                    '--bg-dark':        '#000000',
+                    '--bg-main':        '#0d0d0d',
+                    '--bg-card':        '#0d0d0d',   // panel body = near black (like TV rows)
+                    '--bg-card2':       '#131722',   // card header, toolbar = slightly lighter
+                    '--border':         'rgba(42,46,57,0.8)',
+                    '--text-primary':   '#d1d4dc',
+                    '--text-secondary': '#787b86',
+                    '--text-dim':       '#434651',
+                    '--accent':         '#089981',
+                    '--accent2':        '#26a69a',
+                    '--danger':         '#ef5350',
+                    '--warning':        '#f0a500',
+                    '--qc-up':          '#26a69a',
+                    '--qc-dn':          '#ef5350',
+                    '--chart-up':       '#26a69a',
+                    '--chart-dn':       '#ef5350',
+                    '--wl-up':          '#26a69a',
+                    '--wl-dn':          '#ef5350',
+                    '--glass-bg':       'rgba(13,13,13,0.95)',
+                    '--glass-border':   'rgba(42,46,57,0.9)',
+                }
             },
             'obsidian': {
                 name:'Obsidian', mode:'dark', accent:'#a855f7',
@@ -5315,13 +6330,6 @@ ${contextSections}
                 vars:{ '--bg-dark':'#0d0f0f','--bg-main':'#101515','--bg-card':'#141a1a','--bg-card2':'#1a2222',
                        '--border':'rgba(0,192,135,0.18)','--text-primary':'#d4ede8','--text-secondary':'#7ab8ad',
                        '--text-dim':'#3d6660','--accent':'#00c087','--accent2':'#00e5a0' }
-            },
-            'facebook': {
-                name:'Facebook Dark', mode:'dark', accent:'#1877f2',
-                swatches:['#18191a','#242526','#1877f2'],
-                vars:{ '--bg-dark':'#18191a','--bg-main':'#18191a','--bg-card':'#242526','--bg-card2':'#3a3b3c',
-                       '--border':'rgba(255,255,255,0.1)','--text-primary':'#e4e6eb','--text-secondary':'#b0b3b8',
-                       '--text-dim':'#6a6b6e','--accent':'#1877f2','--accent2':'#4599ff' }
             },
             // ── LIGHT ────────────────────────────────────────────────────────
             'white': {
@@ -5392,7 +6400,8 @@ ${contextSections}
             localStorage.setItem('ps_theme', id);
             // Remember last theme per mode for toggle button
             localStorage.setItem(t.mode === 'dark' ? 'ps_theme_dark' : 'ps_theme_light', id);
-            // Set dark/light class
+            // Set dark/light class + data-theme for CSS targeting
+            document.documentElement.setAttribute('data-theme', id);
             if (t.mode === 'dark') {
                 document.documentElement.classList.add('dark');
                 localStorage.setItem('ps_dark', '1');
@@ -5406,7 +6415,7 @@ ${contextSections}
             // Update LWC chart bg — applyOptions only, never redraw
             if (_lwcChart) {
                 const isDark = t.mode === 'dark';
-                const lwcBg   = t.vars['--bg-card'] || (isDark ? '#161a1e' : '#ffffff');
+                const lwcBg   = t.vars['--bg-card'] || (isDark ? '#131722' : '#ffffff');
                 const lwcText = isDark ? '#94a3b8' : '#64748b';
                 const lwcGrid = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
                 try {
@@ -5929,6 +6938,7 @@ ${contextSections}
             };
             badge('s-finnhub-badge',    'ps_finnhub_key');
             badge('s-erapi-badge',      'ps_erapi_key');
+            badge('s-fmp-badge',        'ps_fmp_key');
             badge('s-alpaca-badge',      'ps_alpaca_key');
             badge('s-openrouter-badge', 'ps_openrouter_key');
             badge('s-gist-badge',       'ps_gist_token');
@@ -6415,15 +7425,16 @@ ${contextSections}
                 <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
                     <div class="flex items-center justify-between mb-2.5">
                         <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:#6366f1"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
-                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">Pre-Market / After-Hours <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(99,102,241,0.15);color:#818cf8">FMP</span></p><p class="text-[10px]" style="color:var(--text-dim)">Financial Modeling Prep · ฟรี 250 req/วัน</p></div>
+                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
+                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">Financial Modeling Prep <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(245,158,11,0.15);color:#f59e0b">FMP</span></p><p class="text-[10px]" style="color:var(--text-dim)">Market Scanner + Pre/After-Hours · ฟรี 250 req/วัน</p></div>
                         </div>
+                        <span id="s-fmp-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
                     </div>
                     <div class="flex gap-2">
-                        <input id="s-fmp-key-input" type="password" autocomplete="off" placeholder="FMP API Key (พิมพ์ demo เพื่อทดสอบ)" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <input id="s-fmp-key-input" type="password" autocomplete="off" placeholder="ใส่ FMP API Key (สมัครฟรีที่ financialmodelingprep.com)" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')saveAllSettings()">
                         <button onclick="toggleVisibility('s-fmp-key-input')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
                     </div>
-                    <p class="text-[9px] mt-1.5" style="color:var(--text-dim)"><a href="https://financialmodelingprep.com" target="_blank" class="underline" style="color:#818cf8">financialmodelingprep.com</a> → Register → Get Free API Key</p>
+                    <p class="text-[9px] mt-1.5" style="color:var(--text-dim)">สมัครฟรีที่ <a href="https://financialmodelingprep.com/developer/docs" target="_blank" class="underline" style="color:#f59e0b">financialmodelingprep.com</a> → Register → Dashboard → API Key · ไม่ต้องใส่บัตรเครดิต</p>
                 </div>
                 <!-- Alpaca -->
                 <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
