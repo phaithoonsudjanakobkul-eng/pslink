@@ -1891,7 +1891,7 @@
                         <div class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--accent)"></div>
                         <div id="db-name-display" class="text-[10px] font-bold uppercase tracking-widest leading-none" style="color:var(--text-dim);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ready</div>
                     </div>
-                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.11-r198</div>
+                    <div class="text-[8px] font-bold uppercase tracking-widest mt-0.5" style="color:var(--text-dim);opacity:0.5">v2026.03.11-r205</div>
                 </div>
             </div>
             
@@ -3182,6 +3182,143 @@
             scheduleAutoSave(true); // immediate — user explicitly changed watchlist
         }
 
+        const SIGNAL_LOG_KEY = 'ps_signal_log_v1';
+        const SIGNAL_LOG_MAX_ITEMS = 800;
+        let signalLog = [];
+        let _signalLogResolving = false;
+
+        function _loadSignalLogLocal() {
+            try {
+                const raw = localStorage.getItem(SIGNAL_LOG_KEY);
+                const arr = raw ? JSON.parse(raw) : [];
+                signalLog = Array.isArray(arr) ? arr : [];
+            } catch(e) {
+                signalLog = [];
+            }
+        }
+
+        function _saveSignalLogLocal(triggerSync = true) {
+            try { localStorage.setItem(SIGNAL_LOG_KEY, JSON.stringify(signalLog)); } catch(e) {}
+            if (triggerSync) scheduleAutoSave(false);
+        }
+
+        function _normalizeSignalLabel(label) {
+            return String(label || '')
+                .replace(/[▲▼•]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function _signalDirection(label) {
+            const t = _normalizeSignalLabel(label).toLowerCase();
+            if (t.includes('buy')) return 1;
+            if (t.includes('sell')) return -1;
+            return 0;
+        }
+
+        function _calcSignalResult(signalLabel, pctChange) {
+            if (!Number.isFinite(pctChange)) return 'FLAT';
+            const dir = _signalDirection(signalLabel);
+            if (dir > 0) {
+                if (pctChange >= 1) return 'WIN';
+                if (pctChange <= -1) return 'LOSS';
+                return 'FLAT';
+            }
+            if (dir < 0) {
+                if (pctChange <= -1) return 'WIN';
+                if (pctChange >= 1) return 'LOSS';
+                return 'FLAT';
+            }
+            return Math.abs(pctChange) < 1 ? 'FLAT' : 'N/A';
+        }
+
+        function logSignalHistoryEntry(payload) {
+            try {
+                const symbol = String(payload?.symbol || '').trim().toUpperCase();
+                const signal = _normalizeSignalLabel(payload?.signal || '');
+                const price = Number(payload?.price_at_signal);
+                if (!symbol || !signal || !Number.isFinite(price) || price <= 0) return;
+                const now = Date.now();
+                const recentWindowMs = 45 * 60 * 1000;
+                const dedup = signalLog.find(e =>
+                    e &&
+                    e.symbol === symbol &&
+                    _normalizeSignalLabel(e.signal) === signal &&
+                    e.setup === (payload?.setup || '') &&
+                    Math.abs(now - Number(e.id || 0)) <= recentWindowMs &&
+                    Number.isFinite(Number(e.price_at_signal || 0)) &&
+                    Math.abs((Number(e.price_at_signal) - price) / Math.max(0.01, price)) < 0.0025
+                );
+                if (dedup) return;
+                const entry = {
+                    id: now,
+                    symbol,
+                    date: new Date(now).toISOString().slice(0, 10),
+                    price_at_signal: +price.toFixed(2),
+                    signal,
+                    analyst: String(payload?.analyst || 'N/A'),
+                    confluence: Number.isFinite(Number(payload?.confluence)) ? Number(payload.confluence) : null,
+                    setup: String(payload?.setup || 'N/A'),
+                    mtf: String(payload?.mtf || 'N/A'),
+                    rsi_d1: Number.isFinite(Number(payload?.rsi_d1)) ? +Number(payload.rsi_d1).toFixed(2) : null,
+                    outcome_price: null,
+                    outcome_date: null,
+                    pct_change: null,
+                    result: null
+                };
+                signalLog.unshift(entry);
+                if (signalLog.length > SIGNAL_LOG_MAX_ITEMS) signalLog = signalLog.slice(0, SIGNAL_LOG_MAX_ITEMS);
+                _saveSignalLogLocal(true);
+            } catch(e) {}
+        }
+
+        async function resolveSignalLogOutcomes() {
+            if (_signalLogResolving) return;
+            _signalLogResolving = true;
+            try {
+                const now = Date.now();
+                const minAgeMs = 7 * 24 * 60 * 60 * 1000;
+                const pending = signalLog.filter(e =>
+                    e &&
+                    (e.result == null) &&
+                    Number.isFinite(Number(e.id || 0)) &&
+                    (now - Number(e.id)) >= minAgeMs &&
+                    Number.isFinite(Number(e.price_at_signal || 0)) &&
+                    Number(e.price_at_signal) > 0
+                ).slice(0, 24);
+                if (!pending.length) return;
+                let changed = false;
+                for (const e of pending) {
+                    const sym = String(e.symbol || '').toUpperCase();
+                    if (!sym) continue;
+                    let px = Number(wlDataCache[sym]?.c || 0);
+                    if (!Number.isFinite(px) || px <= 0) {
+                        try {
+                            const q = await fetchQuote(sym);
+                            px = Number(q?.c || q?._dailyC || q?.pc || 0);
+                        } catch(err) {
+                            px = 0;
+                        }
+                    }
+                    if (!Number.isFinite(px) || px <= 0) continue;
+                    const sigPx = Number(e.price_at_signal || 0);
+                    if (!Number.isFinite(sigPx) || sigPx <= 0) continue;
+                    const pct = ((px - sigPx) / sigPx) * 100;
+                    e.outcome_price = +px.toFixed(2);
+                    e.outcome_date = new Date().toISOString().slice(0, 10);
+                    e.pct_change = +pct.toFixed(2);
+                    e.result = _calcSignalResult(e.signal, pct);
+                    changed = true;
+                }
+                if (changed) {
+                    _saveSignalLogLocal(true);
+                    renderSignalHistoryModal();
+                }
+            } finally {
+                _signalLogResolving = false;
+            }
+        }
+
         function preloadLogo(url) {
             if (!url || logoCache[url]) return;
             const img = new Image();
@@ -3719,6 +3856,73 @@
                 wlSparklineCache[symbol] = { prices: closes, ts: Date.now(), src: 'finnhub', base, open, session: latestDay };
                 scheduleSaveSparklineCache();
                 return closes;
+            } catch(e) {
+                return null;
+            }
+        }
+
+        async function fetchAlpacaIntraday(symbol) {
+            const aKey = getAlpacaKey();
+            const aSecret = getAlpacaSecret();
+            if (!aKey || !aSecret) return null;
+            try {
+                const end = new Date();
+                const start = new Date(end.getTime() - (6 * 24 * 60 * 60 * 1000)); // enough for 48x 1H bars
+                const u = new URL(`https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars`);
+                u.searchParams.set('timeframe', '1Hour');
+                u.searchParams.set('start', start.toISOString());
+                u.searchParams.set('end', end.toISOString());
+                u.searchParams.set('limit', '120');
+                u.searchParams.set('feed', 'iex');
+                u.searchParams.set('adjustment', 'split');
+                u.searchParams.set('sort', 'asc');
+                const res = await fetch(u.toString(), {
+                    headers: {
+                        'APCA-API-KEY-ID': aKey,
+                        'APCA-API-SECRET-KEY': aSecret,
+                    },
+                    signal: AbortSignal.timeout(6500),
+                });
+                if (!res.ok) return null;
+                const json = await res.json();
+                const bars = Array.isArray(json?.bars) ? json.bars : [];
+                if (bars.length < 20) return null;
+                const tail = bars.slice(-48);
+                const closes = tail.map(b => Number(b?.c)).filter(v => Number.isFinite(v) && v > 0);
+                const highs = tail.map(b => Number(b?.h)).filter(v => Number.isFinite(v) && v > 0);
+                const lows = tail.map(b => Number(b?.l)).filter(v => Number.isFinite(v) && v > 0);
+                const vols = tail.map(b => Number(b?.v || 0));
+                if (closes.length < 20 || highs.length !== closes.length || lows.length !== closes.length) return null;
+                const ema9_1h = closes.length >= 9 ? +Number(_ema(closes, 9)).toFixed(2) : null;
+                const ema21_1h = closes.length >= 21 ? +Number(_ema(closes, 21)).toFixed(2) : null;
+                const rsiRaw = closes.length >= 15 ? _rsi(closes, 14) : null;
+                const rsi_1h = Number.isFinite(rsiRaw) ? +Number(rsiRaw).toFixed(2) : null;
+                const atr14_1h = _calcTrueAtr(highs, lows, closes, 14);
+                const macd_1h = _calcMacdDetailed(closes);
+                let vwap_1h = null;
+                let price_vs_vwap = 'near';
+                const totalVol = vols.reduce((s, v) => s + Math.max(0, Number(v || 0)), 0);
+                if (totalVol > 0) {
+                    const tpv = tail.reduce((s, b, i) => {
+                        const h = Number(b?.h || highs[i] || 0);
+                        const l = Number(b?.l || lows[i] || 0);
+                        const c = Number(b?.c || closes[i] || 0);
+                        const v = Math.max(0, Number(b?.v || vols[i] || 0));
+                        const tp = (h + l + c) / 3;
+                        return s + (tp * v);
+                    }, 0);
+                    vwap_1h = +(tpv / totalVol).toFixed(2);
+                    const last = closes[closes.length - 1];
+                    const tol = Math.max(0.01, last * 0.0018);
+                    if (last > (vwap_1h + tol)) price_vs_vwap = 'above';
+                    else if (last < (vwap_1h - tol)) price_vs_vwap = 'below';
+                }
+                let trend = 'neutral';
+                if (Number.isFinite(ema9_1h) && Number.isFinite(ema21_1h)) {
+                    if (ema9_1h > ema21_1h) trend = 'bullish';
+                    else if (ema9_1h < ema21_1h) trend = 'bearish';
+                }
+                return { trend, ema9_1h, ema21_1h, rsi_1h, atr14_1h, macd_1h, vwap_1h, price_vs_vwap };
             } catch(e) {
                 return null;
             }
@@ -4959,6 +5163,129 @@
             if (signal == null) return null;
             return { line, signal, hist: line - signal };
         }
+        function _rsiSeries(arr, period = 14) {
+            const out = new Array(arr?.length || 0).fill(null);
+            if (!Array.isArray(arr) || arr.length <= period) return out;
+            let gain = 0, loss = 0;
+            for (let i = 1; i <= period; i++) {
+                const dlt = arr[i] - arr[i - 1];
+                if (dlt >= 0) gain += dlt; else loss -= dlt;
+            }
+            let avgG = gain / period, avgL = loss / period;
+            out[period] = avgL === 0 ? 100 : 100 - (100 / (1 + (avgG / avgL)));
+            for (let i = period + 1; i < arr.length; i++) {
+                const dlt = arr[i] - arr[i - 1];
+                const g = dlt > 0 ? dlt : 0;
+                const l = dlt < 0 ? -dlt : 0;
+                avgG = (avgG * (period - 1) + g) / period;
+                avgL = (avgL * (period - 1) + l) / period;
+                out[i] = avgL === 0 ? 100 : 100 - (100 / (1 + (avgG / avgL)));
+            }
+            return out;
+        }
+        function _calcTrueAtr(highs, lows, closes, period = 14) {
+            if (!Array.isArray(highs) || !Array.isArray(lows) || !Array.isArray(closes)) return null;
+            if (highs.length <= period || lows.length !== highs.length || closes.length !== highs.length) return null;
+            const trs = [];
+            for (let i = 1; i < highs.length; i++) {
+                const tr = Math.max(
+                    Number(highs[i] - lows[i]),
+                    Math.abs(Number(highs[i] - closes[i - 1])),
+                    Math.abs(Number(lows[i] - closes[i - 1]))
+                );
+                trs.push(tr);
+            }
+            if (trs.length < period) return null;
+            let atr = trs.slice(0, period).reduce((s, v) => s + v, 0) / period;
+            for (let i = period; i < trs.length; i++) atr = ((atr * (period - 1)) + trs[i]) / period;
+            return +Number(atr).toFixed(2);
+        }
+        function _calcMacdDetailed(arr) {
+            if (!Array.isArray(arr) || arr.length < 35) return null;
+            const macdLineSeries = [];
+            for (let i = 26; i < arr.length; i++) {
+                const slice = arr.slice(0, i + 1);
+                const e12 = _ema(slice, 12);
+                const e26 = _ema(slice, 26);
+                if (Number.isFinite(e12) && Number.isFinite(e26)) macdLineSeries.push(e12 - e26);
+            }
+            if (macdLineSeries.length < 9) return null;
+            const line = macdLineSeries[macdLineSeries.length - 1];
+            const signal = _ema(macdLineSeries, 9);
+            if (!Number.isFinite(line) || !Number.isFinite(signal)) return null;
+            const hist = line - signal;
+            const trend = (line > signal && hist >= 0) ? 'bullish' : (line < signal && hist <= 0) ? 'bearish' : 'neutral';
+            return {
+                line: +line.toFixed(4),
+                signal: +signal.toFixed(4),
+                hist: +hist.toFixed(4),
+                trend
+            };
+        }
+        function _calcBollinger(arr, period = 20, mult = 2) {
+            if (!Array.isArray(arr) || arr.length < period) return null;
+            const slice = arr.slice(-period);
+            const mid = slice.reduce((s, v) => s + v, 0) / period;
+            const variance = slice.reduce((s, v) => s + Math.pow(v - mid, 2), 0) / period;
+            const sd = Math.sqrt(variance);
+            const upper = mid + (mult * sd);
+            const lower = mid - (mult * sd);
+            const last = arr[arr.length - 1];
+            let pos = 'mid_band';
+            if (last > upper) pos = 'above_upper';
+            else if (last >= mid + sd) pos = 'upper_band';
+            else if (last < lower) pos = 'below_lower';
+            else if (last <= mid - sd) pos = 'lower_band';
+            const bandwidth = mid !== 0 ? ((upper - lower) / Math.abs(mid)) * 100 : 0;
+            return {
+                upper: +upper.toFixed(2),
+                mid: +mid.toFixed(2),
+                lower: +lower.toFixed(2),
+                bandwidth: +bandwidth.toFixed(2),
+                pos
+            };
+        }
+        function _calcObv(closes, vols) {
+            if (!Array.isArray(closes) || !Array.isArray(vols) || closes.length < 2 || closes.length !== vols.length) return null;
+            let obv = 0;
+            const series = [0];
+            for (let i = 1; i < closes.length; i++) {
+                const v = Number(vols[i] || 0);
+                if (closes[i] > closes[i - 1]) obv += v;
+                else if (closes[i] < closes[i - 1]) obv -= v;
+                series.push(obv);
+            }
+            const n = series.length;
+            const back = Math.max(0, n - 8);
+            const delta = series[n - 1] - series[back];
+            const slope = delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'flat';
+            return { value: obv, slope };
+        }
+        function _calcStochRsiFromSeries(rsiSeries, lookback = 14, smoothK = 3, smoothD = 3) {
+            if (!Array.isArray(rsiSeries) || rsiSeries.length < (lookback + smoothK + smoothD)) return null;
+            const raw = new Array(rsiSeries.length).fill(null);
+            for (let i = lookback; i < rsiSeries.length; i++) {
+                const win = rsiSeries.slice(i - lookback + 1, i + 1).filter(v => Number.isFinite(v));
+                if (win.length < lookback) continue;
+                const minR = Math.min(...win);
+                const maxR = Math.max(...win);
+                const cur = rsiSeries[i];
+                raw[i] = (maxR - minR) === 0 ? 50 : ((cur - minR) / (maxR - minR)) * 100;
+            }
+            const sma = (arr, i, p) => {
+                const s = arr.slice(i - p + 1, i + 1).filter(v => Number.isFinite(v));
+                return s.length === p ? s.reduce((a, b) => a + b, 0) / p : null;
+            };
+            const kSeries = new Array(raw.length).fill(null);
+            for (let i = 0; i < raw.length; i++) kSeries[i] = sma(raw, i, smoothK);
+            const dSeries = new Array(kSeries.length).fill(null);
+            for (let i = 0; i < kSeries.length; i++) dSeries[i] = sma(kSeries, i, smoothD);
+            const k = kSeries[kSeries.length - 1];
+            const d = dSeries[dSeries.length - 1];
+            if (!Number.isFinite(k) || !Number.isFinite(d)) return null;
+            const label = k > 80 ? 'overbought' : k < 20 ? 'oversold' : 'neutral';
+            return { k: +k.toFixed(2), d: +d.toFixed(2), label };
+        }
         function _clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
         function getAnalystRating(d) {
             const r = d?.analystRec;
@@ -4979,8 +5306,12 @@
         }
         function getNewsImpactScore(symbol) {
             const sym = String(symbol || '').trim().toUpperCase();
+            const impactMemo = (window.__newsImpactMemo ||= {});
+            const prev = impactMemo[sym] || null;
             const items = (_newsFeedCache?.[sym]?.items || []);
             if (!Array.isArray(items) || items.length === 0) {
+                const prevFresh = !!(prev && (Date.now() - Number(prev.ts || 0) <= (2 * 60 * 60 * 1000)));
+                if (prevFresh) return { ...prev.value, reason: 'using recent cached impact (news refresh pending)' };
                 return { label: 'Low', cls: 'wl-impact-low', score: 0, reason: 'no recent news in cache' };
             }
             const nowMs = Date.now();
@@ -5001,9 +5332,12 @@
                 if (sentiWords.test(txt)) score += 0.4 * w;
             }
             score += Math.min(2.8, (items24 * 0.42) + (items72 * 0.18));
-            if (score >= 4.2) return { label: 'High', cls: 'wl-impact-high', score: +score.toFixed(2), reason: `${items24} stories/24h` };
-            if (score >= 2.2) return { label: 'Med', cls: 'wl-impact-med', score: +score.toFixed(2), reason: `${items24} stories/24h` };
-            return { label: 'Low', cls: 'wl-impact-low', score: +score.toFixed(2), reason: `${items24} stories/24h` };
+            let out;
+            if (score >= 4.2) out = { label: 'High', cls: 'wl-impact-high', score: +score.toFixed(2), reason: `${items24} stories/24h` };
+            else if (score >= 2.2) out = { label: 'Med', cls: 'wl-impact-med', score: +score.toFixed(2), reason: `${items24} stories/24h` };
+            else out = { label: 'Low', cls: 'wl-impact-low', score: +score.toFixed(2), reason: `${items24} stories/24h` };
+            impactMemo[sym] = { ts: Date.now(), value: out };
+            return out;
         }
         function getWatchlistSignal(symbol, d) {
             if (!d) return { label: 'Neutral •', cls: 'wl-sig-neu', confidence: 50 };
@@ -7436,8 +7770,26 @@ ${sourceText}`;
                 const d    = await res.json();
                 if (!d || d.s !== 'ok' || !d.c?.length) return null;
 
-                const closes = d.c, highs = d.h, lows = d.l, vols = d.v || [];
+                const closes = Array.isArray(d.c) ? d.c : [];
+                const highs = Array.isArray(d.h) ? d.h : [];
+                const lows = Array.isArray(d.l) ? d.l : [];
+                const vols = Array.isArray(d.v) ? d.v : [];
                 const n = closes.length;
+                const highsValid = highs.length === n && highs.every(v => Number.isFinite(Number(v)));
+                const lowsValid = lows.length === n && lows.every(v => Number.isFinite(Number(v)));
+                const warmup14 = n >= 15 && highs.length >= 15 && lows.length >= 15;
+                const atr14Probe = (highsValid && lowsValid && warmup14) ? _calcTrueAtr(highs, lows, closes, 14) : null;
+                const entryRefProbe = Number(closes[n - 1] || 0);
+                const entryFloorProbe = entryRefProbe > 0 ? (entryRefProbe * 0.005) : 0;
+                const reliableProbe = Number.isFinite(atr14Probe) && atr14Probe > entryFloorProbe;
+                console.log(`[ATR Debug] ${symbol}:
+  n=${n},
+  atr14_d1=${Number.isFinite(atr14Probe) ? atr14Probe.toFixed(4) : 'N/A'},
+  entry_floor=${entryFloorProbe > 0 ? entryFloorProbe.toFixed(4) : 'N/A'},
+  reliable=${reliableProbe},
+  highs_valid=${highsValid},
+  lows_valid=${lowsValid},
+  warmup14=${warmup14}`);
                 if (n < 20) return null;
 
                 // SMA
@@ -7448,6 +7800,9 @@ ${sourceText}`;
                 const sma20  = sma(closes, 20);
                 const sma50  = n >= 50 ? sma(closes, 50) : null;
                 const sma200 = n >= 200 ? sma(closes, 200) : null;
+                const ema9   = n >= 9   ? +Number(_ema(closes, 9)).toFixed(2)  : null;
+                const ema21  = n >= 21  ? +Number(_ema(closes, 21)).toFixed(2) : null;
+                const atr14_d1 = _calcTrueAtr(highs, lows, closes, 14);
 
                 // Swing High/Low over last 90 days for Fibonacci
                 const swingHigh = Math.max(...highs);
@@ -7476,55 +7831,55 @@ ${sourceText}`;
                 const topBucketIdx = volBuckets.indexOf(Math.max(...volBuckets));
                 const hvLevel = +(minP + (topBucketIdx + 0.5) * bucketSize).toFixed(2);
 
-                // Recent pivot highs/lows (last 20 candles, look-back 3)
+                // Recent pivot highs/lows (last 45 candles, look-back 5 + strength filter)
                 const pivots = { supports: [], resistances: [] };
-                for (let i = 3; i < n - 3; i++) {
-                    const isLow  = lows[i]  < Math.min(...lows.slice(i-3,i), ...lows.slice(i+1,i+4));
-                    const isHigh = highs[i] > Math.max(...highs.slice(i-3,i), ...highs.slice(i+1,i+4));
-                    if (isLow  && i >= n - 30) pivots.supports.push(+lows[i].toFixed(2));
-                    if (isHigh && i >= n - 30) pivots.resistances.push(+highs[i].toFixed(2));
+                const lb = 5;
+                const pivotStrengthMin = (Number.isFinite(atr14_d1) && atr14_d1 > 0) ? (atr14_d1 * 0.18) : ((swingHigh - swingLow) * 0.005);
+                for (let i = lb; i < n - lb; i++) {
+                    const leftLow = Math.min(...lows.slice(i - lb, i));
+                    const rightLow = Math.min(...lows.slice(i + 1, i + 1 + lb));
+                    const leftHigh = Math.max(...highs.slice(i - lb, i));
+                    const rightHigh = Math.max(...highs.slice(i + 1, i + 1 + lb));
+                    const lowProm = Math.min(leftLow, rightLow) - lows[i];
+                    const highProm = highs[i] - Math.max(leftHigh, rightHigh);
+                    const isLow  = lows[i] < leftLow && lows[i] < rightLow && lowProm >= pivotStrengthMin;
+                    const isHigh = highs[i] > leftHigh && highs[i] > rightHigh && highProm >= pivotStrengthMin;
+                    if (isLow  && i >= n - 45) pivots.supports.push(+lows[i].toFixed(2));
+                    if (isHigh && i >= n - 45) pivots.resistances.push(+highs[i].toFixed(2));
                 }
 
                 // RSI(14) + simple bullish divergence detection on recent swing lows
-                const rsiSeries = (arr, period = 14) => {
-                    const out = new Array(arr.length).fill(null);
-                    if (arr.length <= period) return out;
-                    let gain = 0, loss = 0;
-                    for (let i = 1; i <= period; i++) {
-                        const dlt = arr[i] - arr[i - 1];
-                        if (dlt >= 0) gain += dlt; else loss -= dlt;
-                    }
-                    let avgG = gain / period, avgL = loss / period;
-                    out[period] = avgL === 0 ? 100 : 100 - (100 / (1 + (avgG / avgL)));
-                    for (let i = period + 1; i < arr.length; i++) {
-                        const dlt = arr[i] - arr[i - 1];
-                        const g = dlt > 0 ? dlt : 0;
-                        const l = dlt < 0 ? -dlt : 0;
-                        avgG = (avgG * (period - 1) + g) / period;
-                        avgL = (avgL * (period - 1) + l) / period;
-                        out[i] = avgL === 0 ? 100 : 100 - (100 / (1 + (avgG / avgL)));
-                    }
-                    return out;
-                };
-                const rsiArr = rsiSeries(closes, 14);
+                const rsiArr = _rsiSeries(closes, 14);
                 const rsi14 = Number.isFinite(rsiArr[n - 1]) ? +rsiArr[n - 1].toFixed(2) : null;
                 const lowIdx = [];
+                const highIdx = [];
                 for (let i = 2; i < n - 2; i++) {
-                    const isLocalLow = closes[i] <= closes[i - 1] && closes[i] <= closes[i + 1] && closes[i] < closes[i - 2] && closes[i] < closes[i + 2];
+                    const isLocalLow = lows[i] <= lows[i - 1] && lows[i] <= lows[i + 1] && lows[i] < lows[i - 2] && lows[i] < lows[i + 2];
+                    const isLocalHigh = highs[i] >= highs[i - 1] && highs[i] >= highs[i + 1] && highs[i] > highs[i - 2] && highs[i] > highs[i + 2];
                     if (isLocalLow) lowIdx.push(i);
+                    if (isLocalHigh) highIdx.push(i);
                 }
                 const recentLows = lowIdx.filter(i => i >= n - 45);
+                const recentHighs = highIdx.filter(i => i >= n - 45);
                 let bullishDivergence = false;
+                let bearishDivergence = false;
                 let bullishDivText = '';
                 if (recentLows.length >= 2) {
                     const i2 = recentLows[recentLows.length - 1];
                     const i1 = recentLows[recentLows.length - 2];
-                    const p1 = closes[i1], p2 = closes[i2];
+                    const p1 = lows[i1], p2 = lows[i2];
                     const r1 = rsiArr[i1], r2 = rsiArr[i2];
                     if (Number.isFinite(r1) && Number.isFinite(r2) && p2 < p1 && r2 > (r1 + 1.5)) {
                         bullishDivergence = true;
                         bullishDivText = `Bullish divergence: price ${p1.toFixed(2)} -> ${p2.toFixed(2)}, RSI ${r1.toFixed(1)} -> ${r2.toFixed(1)}`;
                     }
+                }
+                if (recentHighs.length >= 2) {
+                    const i2 = recentHighs[recentHighs.length - 1];
+                    const i1 = recentHighs[recentHighs.length - 2];
+                    const p1 = highs[i1], p2 = highs[i2];
+                    const r1 = rsiArr[i1], r2 = rsiArr[i2];
+                    if (Number.isFinite(r1) && Number.isFinite(r2) && p2 > p1 && r2 < (r1 - 1.5)) bearishDivergence = true;
                 }
 
                 // Volume profile (last 60 candles): check node strength near current price
@@ -7549,11 +7904,22 @@ ${sourceText}`;
                 const avg20Vol = vols.slice(-20).reduce((s, v) => s + Number(v || 0), 0) / Math.max(1, Math.min(20, vols.length));
                 const recentVol = Number(vols[n - 1] || 0);
                 const recentVolRatio = avg20Vol > 0 ? +(recentVol / avg20Vol).toFixed(2) : null;
+                const macd_d1 = _calcMacdDetailed(closes);
+                const bb_d1 = _calcBollinger(closes, 20, 2);
+                const obvObj = _calcObv(closes, vols.map(v => Number(v || 0)));
+                const stochObj = _calcStochRsiFromSeries(rsiArr, 14, 3, 3);
+                const divLabel = bullishDivergence ? 'bullish' : bearishDivergence ? 'bearish' : 'none';
 
                 return {
-                    sma20, sma50, sma200, fib, hvLevel, pivots,
+                    sma20, sma50, sma200, ema9, ema21, atr14_d1, fib, hvLevel, pivots,
                     swingHigh: +swingHigh.toFixed(2), swingLow: +swingLow.toFixed(2),
-                    rsi14, bullishDivergence, bullishDivText,
+                    rsi14, bullishDivergence, bearishDivergence, divergenceLabel: divLabel, bullishDivText,
+                    macd_d1, bb_d1,
+                    obv_d1: Number.isFinite(obvObj?.value) ? Math.round(obvObj.value) : null,
+                    obv_slope: obvObj?.slope || 'flat',
+                    stoch_rsi_k: Number.isFinite(stochObj?.k) ? stochObj.k : null,
+                    stoch_rsi_d: Number.isFinite(stochObj?.d) ? stochObj.d : null,
+                    stoch_rsi_label: stochObj?.label || 'neutral',
                     volumeProfile: { nodeStrength, nodeLabel, recentVolRatio }
                 };
             } catch(e) {
@@ -7850,8 +8216,26 @@ ${sourceText}`;
                 const d    = await res.json();
                 if (!d || d.s !== 'ok' || !d.c?.length) return null;
 
-                const closes = d.c, highs = d.h, lows = d.l, vols = d.v || [];
+                const closes = Array.isArray(d.c) ? d.c : [];
+                const highs = Array.isArray(d.h) ? d.h : [];
+                const lows = Array.isArray(d.l) ? d.l : [];
+                const vols = Array.isArray(d.v) ? d.v : [];
                 const n = closes.length;
+                const highsValid = highs.length === n && highs.every(v => Number.isFinite(Number(v)));
+                const lowsValid = lows.length === n && lows.every(v => Number.isFinite(Number(v)));
+                const warmup14 = n >= 15 && highs.length >= 15 && lows.length >= 15;
+                const atr14_d1 = (highsValid && lowsValid && warmup14) ? _calcTrueAtr(highs, lows, closes, 14) : null;
+                const entryRef = Number(closes[n - 1] || 0);
+                const entryFloor = entryRef > 0 ? (entryRef * 0.005) : 0;
+                const reliable = Number.isFinite(atr14_d1) && atr14_d1 > entryFloor;
+                console.log(`[ATR Debug] ${sym}:
+  n=${n},
+  atr14_d1=${Number.isFinite(atr14_d1) ? atr14_d1.toFixed(4) : 'N/A'},
+  entry_floor=${entryFloor > 0 ? entryFloor.toFixed(4) : 'N/A'},
+  reliable=${reliable},
+  highs_valid=${highsValid},
+  lows_valid=${lowsValid},
+  warmup14=${warmup14}`);
                 if (n < 20) return null;
 
                 // SMA
@@ -8351,6 +8735,7 @@ ${_clip(contextSections, 2600)}`;
                 const askDeep = /แนวรับ|แนวต้าน|เข้า|ออก|cut|stop|support|resistance|สถานการณ์|ปัจจัย|ข่าว|risk|reward|rsi|divergence|volume/i.test(userText || '');
                 const isSingleSymbolQuery = syms.length === 1;
                 const techMap = {};
+                const htfMap = {};
                 // Pro Local Logic v2: for single-symbol questions, always attempt technical pack.
                 if ((askDeep || isSingleSymbolQuery) && fKey) {
                     try {
@@ -8361,6 +8746,18 @@ ${_clip(contextSections, 2600)}`;
                         ]);
                         const arr = await timed;
                         techTargets.forEach((s, i) => { techMap[s] = arr[i] || null; });
+                    } catch(e) {}
+                }
+                // MTF pack from Alpaca 1H bars (for conflict resolution and trend alignment)
+                if ((askDeep || isSingleSymbolQuery) && getAlpacaKey() && getAlpacaSecret()) {
+                    try {
+                        const htfTargets = syms.slice(0, 2);
+                        const timedHtf = Promise.race([
+                            Promise.all(htfTargets.map(s => fetchAlpacaIntraday(s))),
+                            new Promise(res => setTimeout(() => res(new Array(htfTargets.length).fill(null)), isSingleSymbolQuery ? 2500 : 2000))
+                        ]);
+                        const arrHtf = await timedHtf;
+                        htfTargets.forEach((s, i) => { htfMap[s] = arrHtf[i] || null; });
                     } catch(e) {}
                 }
                 // If technical API is slow/unavailable, try warming intraday sparkline quickly
@@ -8379,7 +8776,24 @@ ${_clip(contextSections, 2600)}`;
                     const prices = (wlSparklineCache[sym]?.prices || []).filter(v => Number.isFinite(v) && v > 0);
                     const hasDensePrices = prices.length >= 20;
                     const hasSomePrices = prices.length >= 8;
+                    const prices60 = prices.slice(-60);
+                    const ema9 = prices.length >= 9 ? +Number(_ema(prices, 9)).toFixed(2) : null;
+                    const ema21 = prices.length >= 21 ? +Number(_ema(prices, 21)).toFixed(2) : null;
+                    const calcAtrFromCloses = (arr, period = 14) => {
+                        if (!Array.isArray(arr) || arr.length <= period) return null;
+                        const trs = [];
+                        for (let i = 1; i < arr.length; i++) trs.push(Math.abs(arr[i] - arr[i - 1]));
+                        if (trs.length < period) return null;
+                        let atr = trs.slice(0, period).reduce((s, v) => s + v, 0) / period;
+                        for (let i = period; i < trs.length; i++) atr = ((atr * (period - 1)) + trs[i]) / period;
+                        return +Number(atr).toFixed(2);
+                    };
+                    const atr14Proxy = calcAtrFromCloses(prices, 14);
                     const rsiVal = hasDensePrices ? _rsi(prices, 14) : null;
+                    const rsiSeriesLocal = hasDensePrices ? _rsiSeries(prices, 14) : [];
+                    const stochLocal = hasDensePrices ? _calcStochRsiFromSeries(rsiSeriesLocal, 14, 3, 3) : null;
+                    const macdLocal = hasDensePrices ? _calcMacdDetailed(prices) : null;
+                    const bbLocal = hasDensePrices ? _calcBollinger(prices, 20, 2) : null;
                     const rsiHeuristic = Number.isFinite(d?.dp) ? _clamp(50 + (Number(d.dp) * 3.5), 15, 85) : 50;
                     const rsi14 = Number.isFinite(rsiVal) ? +Number(rsiVal).toFixed(2) : +Number(rsiHeuristic).toFixed(2);
                     // local bullish divergence from last two swing lows
@@ -8398,19 +8812,41 @@ ${_clip(contextSections, 2600)}`;
                         const r2 = _rsi(prices.slice(0, i2 + 1), 14);
                         if (Number.isFinite(r1) && Number.isFinite(r2) && p2 < p1 && r2 > (r1 + 1.2)) bullishDivergence = true;
                     }
-                    // price-node profile from intraday path (count density)
+                    // pivot supports/resistances from intraday path (look-back 5 + prominence filter)
+                    const pivots = { supports: [], resistances: [] };
+                    if (prices.length >= 16) {
+                        const lb = 5;
+                        const localHigh = Math.max(...prices);
+                        const localLow = Math.min(...prices);
+                        const pivotStrengthMin = (Number.isFinite(atr14Proxy) && atr14Proxy > 0) ? (atr14Proxy * 0.18) : ((localHigh - localLow) * 0.005);
+                        for (let i = lb; i < prices.length - lb; i++) {
+                            const leftMin = Math.min(...prices.slice(i - lb, i));
+                            const rightMin = Math.min(...prices.slice(i + 1, i + 1 + lb));
+                            const leftMax = Math.max(...prices.slice(i - lb, i));
+                            const rightMax = Math.max(...prices.slice(i + 1, i + 1 + lb));
+                            const lowProm = Math.min(leftMin, rightMin) - prices[i];
+                            const highProm = prices[i] - Math.max(leftMax, rightMax);
+                            const isLow = prices[i] < leftMin && prices[i] < rightMin && lowProm >= pivotStrengthMin;
+                            const isHigh = prices[i] > leftMax && prices[i] > rightMax && highProm >= pivotStrengthMin;
+                            if (isLow && i >= prices.length - 60) pivots.supports.push(+prices[i].toFixed(2));
+                            if (isHigh && i >= prices.length - 60) pivots.resistances.push(+prices[i].toFixed(2));
+                        }
+                    }
+                    pivots.supports = Array.from(new Set(pivots.supports)).slice(-6);
+                    pivots.resistances = Array.from(new Set(pivots.resistances)).slice(-6);
+                    // volume profile from intraday path (window 60 points)
                     let nodeStrength = 1;
                     let nodeLabel = 'Balanced-volume node';
-                    if (hasDensePrices) {
-                        const minP = Math.min(...prices), maxP = Math.max(...prices);
+                    if (prices60.length >= 20) {
+                        const minP = Math.min(...prices60), maxP = Math.max(...prices60);
                         const bins = 12;
                         const size = (maxP - minP) / bins || 1;
                         const buckets = new Array(bins).fill(0);
-                        prices.forEach(px => {
+                        prices60.forEach(px => {
                             const idx = Math.min(bins - 1, Math.max(0, Math.floor((px - minP) / size)));
                             buckets[idx] += 1;
                         });
-                        const cur = prices[prices.length - 1];
+                        const cur = prices60[prices60.length - 1];
                         const curIdx = Math.min(bins - 1, Math.max(0, Math.floor((cur - minP) / size)));
                         const curNode = buckets[curIdx] || 0;
                         const avgNode = buckets.reduce((s, v) => s + v, 0) / Math.max(1, buckets.filter(v => v > 0).length || bins);
@@ -8425,14 +8861,28 @@ ${_clip(contextSections, 2600)}`;
                         nodeStrength = +Number(recentVolRatio).toFixed(2);
                     }
                     return {
+                        ema9,
+                        ema21,
+                        atr14_d1: atr14Proxy,
+                        atr14_source: Number.isFinite(atr14Proxy) ? 'heuristic-close-proxy' : 'heuristic',
+                        pivots,
                         rsi14,
                         bullishDivergence,
+                        bearishDivergence: false,
+                        divergenceLabel: bullishDivergence ? 'bullish' : 'none',
+                        macd_d1: macdLocal,
+                        bb_d1: bbLocal,
+                        obv_d1: null,
+                        obv_slope: 'flat',
+                        stoch_rsi_k: Number.isFinite(stochLocal?.k) ? stochLocal.k : null,
+                        stoch_rsi_d: Number.isFinite(stochLocal?.d) ? stochLocal.d : null,
+                        stoch_rsi_label: stochLocal?.label || 'neutral',
                         bullishDivText: bullishDivergence ? 'Local bullish divergence from intraday path' : (hasDensePrices ? '' : 'Insufficient intraday points for strict divergence'),
                         volumeProfile: { nodeStrength, nodeLabel, recentVolRatio },
                         rsiSource: Number.isFinite(rsiVal) ? 'strict' : 'heuristic',
                         divSource: hasDensePrices ? 'strict' : 'heuristic',
-                        vpSource: hasDensePrices ? 'strict' : 'heuristic',
-                        pointDensity: hasDensePrices ? 'dense' : (hasSomePrices ? 'medium' : 'sparse')
+                        vpSource: prices60.length >= 20 ? 'strict' : 'heuristic',
+                        pointDensity: prices.length >= 60 ? 'dense' : (hasDensePrices ? 'medium' : (hasSomePrices ? 'light' : 'sparse'))
                     };
                 };
 
@@ -8459,20 +8909,76 @@ ${_clip(contextSections, 2600)}`;
                         const localT = _deriveLocalTech(sym, d);
                         if (localT) t = Object.assign({}, t || {}, localT);
                     }
+                    if (htfMap[sym]) t = Object.assign({}, t || {}, { htf: htfMap[sym] });
                     const rsiSource = t?.rsiSource || (t?.rsi14 != null ? 'strict-api' : 'heuristic');
                     const divSource = t?.divSource || (t?.bullishDivergence != null ? 'strict-api' : 'heuristic');
                     const vpSource = t?.vpSource || (t?.volumeProfile ? 'strict-api' : 'heuristic');
+                    const w52h = Number(d?.week52High || 0);
+                    const w52l = Number(d?.week52Low || 0);
+                    const has52w = Number.isFinite(w52h) && Number.isFinite(w52l) && w52h > w52l;
+                    const fibRefHigh = has52w ? w52h : Number(t?.swingHigh || 0);
+                    const fibRefLow = has52w ? w52l : Number(t?.swingLow || 0);
+                    const fibSource = has52w ? '52w' : 'swing-90d';
+                    if (fibRefHigh > fibRefLow) {
+                        const diff = fibRefHigh - fibRefLow;
+                        t.fib = {
+                            '100%': +fibRefHigh.toFixed(2),
+                            '78.6%': +(fibRefHigh - diff * 0.214).toFixed(2),
+                            '61.8%': +(fibRefHigh - diff * 0.382).toFixed(2),
+                            '50%': +(fibRefHigh - diff * 0.500).toFixed(2),
+                            '38.2%': +(fibRefHigh - diff * 0.618).toFixed(2),
+                            '23.6%': +(fibRefHigh - diff * 0.764).toFixed(2),
+                            '0%': +fibRefLow.toFixed(2),
+                        };
+                    }
 
                     const levels = [];
                     if (l > 0) levels.push(l);
                     if (pc > 0) levels.push(pc);
                     if (h > 0) levels.push(h);
+                    if (t?.ema9) levels.push(t.ema9);
+                    if (t?.ema21) levels.push(t.ema21);
                     if (t?.sma20) levels.push(t.sma20);
                     if (t?.sma50) levels.push(t.sma50);
+                    if (t?.fib?.['61.8%']) levels.push(Number(t.fib['61.8%']));
+                    if (t?.fib?.['50%']) levels.push(Number(t.fib['50%']));
+                    if (t?.fib?.['38.2%']) levels.push(Number(t.fib['38.2%']));
                     if (Array.isArray(t?.pivots?.supports)) levels.push(...t.pivots.supports.slice(-3));
                     if (Array.isArray(t?.pivots?.resistances)) levels.push(...t.pivots.resistances.slice(-3));
                     const uniq = arr => Array.from(new Set(arr.filter(v => Number.isFinite(v) && v > 0).map(v => Number(v.toFixed(2)))));
-                    const lv = uniq(levels).sort((a, b) => a - b);
+                    const clusterLevels = (arr, pct = 0.003) => {
+                        const src = [...arr].sort((a, b) => a - b);
+                        if (!src.length) return { mids: [], zones: [] };
+                        const mids = [];
+                        const zones = [];
+                        let bucket = [src[0]];
+                        for (let i = 1; i < src.length; i++) {
+                            const v = src[i];
+                            const mean = bucket.reduce((s, x) => s + x, 0) / bucket.length;
+                            const within = Math.abs(v - mean) <= (Math.max(0.01, mean * pct));
+                            if (within) bucket.push(v);
+                            else {
+                                const mid = +(bucket.reduce((s, x) => s + x, 0) / bucket.length).toFixed(2);
+                                mids.push(mid);
+                                zones.push({
+                                    min: +Math.min(...bucket).toFixed(2),
+                                    max: +Math.max(...bucket).toFixed(2),
+                                    count: bucket.length
+                                });
+                                bucket = [v];
+                            }
+                        }
+                        const finalMid = +(bucket.reduce((s, x) => s + x, 0) / bucket.length).toFixed(2);
+                        mids.push(finalMid);
+                        zones.push({
+                            min: +Math.min(...bucket).toFixed(2),
+                            max: +Math.max(...bucket).toFixed(2),
+                            count: bucket.length
+                        });
+                        return { mids, zones };
+                    };
+                    const clustered = clusterLevels(uniq(levels), 0.003);
+                    const lv = clustered.mids;
                     // Support should be at/under current price; resistance should be at/above current price.
                     let supports = lv.filter(v => v <= p).sort((a, b) => b - a).slice(0, 3);
                     let resistances = lv.filter(v => v >= p).sort((a, b) => a - b).slice(0, 3);
@@ -8484,8 +8990,15 @@ ${_clip(contextSections, 2600)}`;
                         supports = supports.filter(v => v <= mid);
                         resistances = resistances.filter(v => v >= mid);
                     }
-                    const sTxt = supports.length ? supports.map(v => `**${v.toFixed(2)}**`).join(', ') : 'N/A';
-                    const rTxt = resistances.length ? resistances.map(v => `**${v.toFixed(2)}**`).join(', ') : 'N/A';
+                    const levelToZoneText = (v) => {
+                        const idx = lv.findIndex(x => x === v);
+                        const z = idx >= 0 ? clustered.zones[idx] : null;
+                        if (!z) return `**${v.toFixed(2)}**`;
+                        if ((z.count || 0) <= 1 || z.min === z.max) return `**${v.toFixed(2)}**`;
+                        return `**${z.min.toFixed(2)}-${z.max.toFixed(2)}**`;
+                    };
+                    const sTxt = supports.length ? supports.map(levelToZoneText).join(', ') : 'N/A';
+                    const rTxt = resistances.length ? resistances.map(levelToZoneText).join(', ') : 'N/A';
 
                     const rangePos = (h > l && p > 0) ? ((p - l) / (h - l)) : 0.5;
                     let scenario = 'โมเมนตัมยังไม่ชัด ควรรอ confirmation';
@@ -8494,6 +9007,7 @@ ${_clip(contextSections, 2600)}`;
                     else if (rangePos > 0.75) scenario = 'ราคาอยู่โซนบนของวัน เสี่ยงย่อระยะสั้น';
                     else if (rangePos < 0.25) scenario = 'ราคาอยู่โซนล่างของวัน มีโอกาสรีบาวด์ถ้าไม่หลุด low';
                     if (t?.bullishDivergence) scenario = 'พบ bullish divergence (ราคา lower low แต่ RSI higher low) มีโอกาสกลับตัว ถ้าราคา reclaim แนวรับหลัก';
+                    else if (t?.bearishDivergence) scenario = 'พบ bearish divergence (ราคา higher high แต่ RSI lower high) ระวังแรงขายกลับ';
 
                     const firstSupport = supports[0] || null;
                     const nearSupportRetest = firstSupport ? (Math.abs(p - firstSupport) / Math.max(0.01, p) <= 0.0045) : false;
@@ -8501,33 +9015,141 @@ ${_clip(contextSections, 2600)}`;
                     if (lowRetestVol) scenario += ' | ทดสอบแนวรับด้วย volume เบาบาง -> Wait & See จนกว่าจะมีแรงซื้อยืนยัน';
 
                     const brokenSupport = supports.length && p < supports[0];
+                    const entryRef = supports.length ? supports[0] : p;
                     const entry = supports.length
                         ? (brokenSupport
                             ? `ราคาอยู่ต่ำกว่าแนวรับหลัก รอ reclaim เหนือ ${supports[0].toFixed(2)} ก่อนเข้า`
                             : `รอเข้าใกล้ ${supports[0].toFixed(2)} และต้องไม่หลุด`)
                         : 'รอแท่งยืนยันกลับตัวก่อนเข้า';
-                    const cut = supports.length > 1 ? `${(supports[supports.length - 1] * 0.995).toFixed(2)}` : (l > 0 ? (l * 0.995).toFixed(2) : 'N/A');
+                    const atrD1 = Number(t?.atr14_d1 || 0);
+                    const atr1h = Number(t?.htf?.atr14_1h || 0);
+                    const legacyAtr = Number(t?.atr14 || 0);
+                    const atrReliabilityMin = (Number.isFinite(entryRef) && entryRef > 0) ? (entryRef * 0.005) : 0; // 0.5%
+                    const atrFloor = (Number.isFinite(entryRef) && entryRef > 0) ? (entryRef * 0.02) : 0; // 2%
+                    const atrD1Reliable = Number.isFinite(atrD1) && atrD1 >= atrReliabilityMin;
+                    const atrPrimary = atrD1Reliable ? atrD1 : (atrFloor > 0 ? atrFloor : atrD1);
+                    let cutRaw = null;
+                    if (Number.isFinite(atrPrimary) && atrPrimary > 0 && Number.isFinite(entryRef) && entryRef > 0) {
+                        cutRaw = Number(entryRef) - (atrPrimary * 1.5); // primary with reliability floor
+                    } else if (Number.isFinite(atr1h) && atr1h > 0 && Number.isFinite(entryRef) && entryRef > 0) {
+                        cutRaw = Number(entryRef) - (atr1h * 2.0); // fallback 1H
+                    } else if (Number.isFinite(legacyAtr) && legacyAtr > 0 && Number.isFinite(entryRef) && entryRef > 0) {
+                        cutRaw = Number(entryRef) - (legacyAtr * 1.5); // legacy compatibility
+                    } else if (Number.isFinite(entryRef) && entryRef > 0) {
+                        cutRaw = entryRef * 0.965; // graceful fallback
+                    }
+                    const cutFloor8 = (Number.isFinite(entryRef) && entryRef > 0) ? (entryRef * 0.92) : null; // max loss 8%
+                    let cutNum = (cutRaw != null && Number.isFinite(cutRaw) && cutRaw > 0) ? cutRaw : null;
+                    const cutWasCapped = !!(cutNum != null && cutFloor8 != null && cutNum < cutFloor8);
+                    if (cutWasCapped) cutNum = cutFloor8;
+                    const cut = (cutNum != null && Number.isFinite(cutNum) && cutNum > 0) ? Number(cutNum).toFixed(2) : 'N/A';
                     const target = resistances.length ? resistances[0].toFixed(2) : (h > 0 ? h.toFixed(2) : 'N/A');
                     const newsTop = (_newsFeedCache?.[sym]?.items || [])[0]?.headline || '';
                     const rsiTxt = (t?.rsi14 != null) ? `${t.rsi14.toFixed ? t.rsi14.toFixed(1) : t.rsi14}` : 'N/A';
-                    const divTxt = t?.bullishDivergence ? 'Bullish divergence' : (t ? 'No clear divergence' : 'N/A');
+                    const divTxt = (t?.divergenceLabel === 'bullish' || t?.bullishDivergence)
+                        ? 'Bullish divergence'
+                        : (t?.divergenceLabel === 'bearish' || t?.bearishDivergence)
+                            ? 'Bearish divergence'
+                            : (t ? 'No clear divergence' : 'N/A');
                     const vpTxt = t?.volumeProfile?.nodeLabel || 'N/A';
-                    const vpRatioTxt = (t?.volumeProfile?.recentVolRatio != null) ? t.volumeProfile.recentVolRatio.toFixed(2) : 'N/A';
                     const sigL = (sig?.label || '').toLowerCase();
-                    const sigPts = sigL.includes('strong buy') || sigL.includes('strong sell') ? 20 : (sigL.includes('buy') || sigL.includes('sell') ? 14 : 9);
+                    const analystL = (analyst?.label || '').toLowerCase();
+                    const sigDir = sigL.includes('buy') ? 1 : (sigL.includes('sell') ? -1 : 0);
+                    const analystDir = analystL.includes('buy') ? 1 : (analystL.includes('sell') ? -1 : 0);
+                    const hasSignalConflict = (sigDir !== 0 && analystDir !== 0 && sigDir !== analystDir);
+                    const htfTrend = String(t?.htf?.trend || 'neutral').toLowerCase();
+                    const htfRsi = Number.isFinite(t?.htf?.rsi_1h) ? Number(t.htf.rsi_1h).toFixed(1) : 'N/A';
+                    const htfMacdTrend = String(t?.htf?.macd_1h?.trend || 'neutral').toLowerCase();
+                    const d1MacdTrend = String(t?.macd_d1?.trend || 'neutral').toLowerCase();
+                    const htfVwapBias = String(t?.htf?.price_vs_vwap || 'near').toLowerCase();
+                    const bbPos = String(t?.bb_d1?.pos || 'mid_band');
+                    const stochLabel = String(t?.stoch_rsi_label || 'neutral');
+                    let mtfConfluence = 'Unknown';
+                    let mtfGuide = '';
+                    if (sigDir > 0 && htfTrend === 'bullish') {
+                        mtfConfluence = 'Bullish-Aligned';
+                        mtfGuide = 'MTF ยืนยันตรงกัน: D1 Buy + 1H Bullish -> High-Conviction Long';
+                    } else if (sigDir > 0 && htfTrend === 'bearish') {
+                        mtfConfluence = 'Bullish-vs-Bearish Diverged';
+                        mtfGuide = 'MTF ขัดกัน: D1 Buy แต่ 1H ยังลง -> Wait จน 1H trend พลิกขึ้น';
+                    } else if (sigDir < 0 && htfTrend === 'bearish') {
+                        mtfConfluence = 'Bearish-Aligned';
+                        mtfGuide = 'MTF ยืนยันตรงกัน: D1 Sell + 1H Bearish -> High-Conviction Short/Avoid';
+                    } else if (sigDir < 0 && htfTrend === 'bullish') {
+                        mtfConfluence = 'Bearish-vs-Bullish Diverged';
+                        mtfGuide = 'MTF ขัดกัน: D1 Sell แต่ 1H กลับขึ้น -> Potential Reversal, watch';
+                    } else if (sigDir === 0 && htfTrend === 'bullish') {
+                        mtfConfluence = 'Bullish-leaning';
+                        mtfGuide = 'D1 ยังไม่ชัด แต่ 1H เริ่มเป็นบวก -> Bullish-leaning รอ D1 confirm';
+                    } else if (sigDir === 0 && htfTrend === 'bearish') {
+                        mtfConfluence = 'Bearish-leaning';
+                        mtfGuide = 'D1 ยังไม่ชัด แต่ 1H เอียงลง -> Bearish-leaning รอ D1 confirm';
+                    } else if (htfTrend !== 'neutral') {
+                        mtfConfluence = 'Neutral';
+                        mtfGuide = 'สัญญาณ D1 ยังไม่ชัดเจน รอให้ D1/1H ไปทางเดียวกันก่อน';
+                    }
+                    if (htfVwapBias === 'below') mtfGuide += (mtfGuide ? ' | ' : '') + 'ราคาใต้ VWAP 1H = bias ระวังลงต่อ';
+                    else if (htfVwapBias === 'above') mtfGuide += (mtfGuide ? ' | ' : '') + 'ราคาเหนือ VWAP 1H = bias ฝั่งขึ้นได้เปรียบ';
+                    let conflictGuide = '';
+                    if (hasSignalConflict && sigDir < 0 && analystDir > 0) {
+                        conflictGuide = `สัญญาณขัดกัน (โมเมนตัมลง vs มุมมองนักวิเคราะห์บวก) -> Wait: รอ RSI กลับยืนเหนือ 40 และราคา reclaim เหนือแนวรับแรกก่อนค่อยสะสม`;
+                    } else if (hasSignalConflict && sigDir > 0 && analystDir < 0) {
+                        conflictGuide = `สัญญาณขัดกัน (โมเมนตัมขึ้น vs มุมมองนักวิเคราะห์ลบ) -> เทรดสั้นได้แต่ลดขนาดไม้ และต้องยืนเหนือแนวรับแรกตลอด`;
+                    } else if (hasSignalConflict) {
+                        conflictGuide = 'สัญญาณขัดกัน -> ลดขนาดสถานะและรอแท่งยืนยันเพิ่มก่อนตัดสินใจ';
+                    }
+                    const anchorMap = (window.__aiConfluenceAnchorMap ||= {});
+                    const anchor = anchorMap[sym] || null;
+                    const anchorAgeOk = !!(anchor && (Date.now() - Number(anchor.ts || 0) <= (6 * 60 * 60 * 1000)));
+                    const anchorPx = Number(anchor?.price || 0);
+                    const anchorMovePct = (anchorPx > 0 && p > 0) ? Math.abs((p - anchorPx) / anchorPx) : 0;
+                    const anchorInvalidByMove = anchorMovePct >= 0.02; // invalidate when price context shifts >2%
+                    const anchorFresh = anchorAgeOk && !anchorInvalidByMove;
+                    const sparkCount = Array.isArray(wlSparklineCache[sym]?.prices) ? wlSparklineCache[sym].prices.length : 0;
+                    const signalReliable = sparkCount >= 35 && Number.isFinite(d?.pc) && Number.isFinite(d?.c);
+                    const analystRec = d?.analystRec || null;
+                    const analystTotal = analystRec
+                        ? Number(analystRec.strongBuy || 0) + Number(analystRec.buy || 0) + Number(analystRec.hold || 0) + Number(analystRec.sell || 0) + Number(analystRec.strongSell || 0)
+                        : 0;
+                    const analystReliable = analystTotal > 0;
+                    const techReliable = String(rsiSource).includes('strict') && String(vpSource).includes('strict') && String(divSource).includes('strict');
+                    const sigPtsRaw = sigL.includes('strong buy') || sigL.includes('strong sell') ? 20 : (sigL.includes('buy') || sigL.includes('sell') ? 14 : 9);
+                    const sigPts = (!signalReliable && anchorFresh && Number.isFinite(anchor.sigPts)) ? Number(anchor.sigPts) : sigPtsRaw;
                     const rsiv = Number(t?.rsi14 ?? 50);
                     const rsiPts = (rsiv >= 38 && rsiv <= 62) ? 18 : ((rsiv < 30 || rsiv > 70) ? 10 : 14);
-                    const divPts = t?.bullishDivergence ? 19 : 11;
+                    const divPts = (t?.bullishDivergence || t?.divergenceLabel === 'bullish') ? 19 : ((t?.bearishDivergence || t?.divergenceLabel === 'bearish') ? 8 : 11);
                     const volPts = (t?.volumeProfile?.nodeStrength >= 1.35) ? 18 : ((t?.volumeProfile?.nodeStrength <= 0.8) ? 10 : 14);
-                    const analystL = (analyst?.label || '').toLowerCase();
-                    const analystPts = analystL.includes('strong buy') || analystL.includes('strong sell') ? 16 : (analystL.includes('buy') || analystL.includes('sell') ? 12 : 8);
+                    const analystPtsRaw = analystL.includes('strong buy') || analystL.includes('strong sell') ? 16 : (analystL.includes('buy') || analystL.includes('sell') ? 12 : 8);
+                    const analystPts = (!analystReliable && anchorFresh && Number.isFinite(anchor.analystPts)) ? Number(anchor.analystPts) : analystPtsRaw;
                     const structurePts = (!brokenSupport && supports.length && resistances.length) ? 14 : 8;
-                    const confScoreRaw = _clamp(Math.round(sigPts + rsiPts + divPts + volPts + analystPts + structurePts), 0, 100);
+                    const macdAlign = sigDir > 0 ? (d1MacdTrend === 'bullish' ? 1 : d1MacdTrend === 'bearish' ? -1 : 0)
+                        : sigDir < 0 ? (d1MacdTrend === 'bearish' ? 1 : d1MacdTrend === 'bullish' ? -1 : 0)
+                            : 0;
+                    const macdPts = macdAlign > 0 ? 8 : macdAlign < 0 ? 3 : 5;
+                    const vwapAlign = sigDir > 0 ? (htfVwapBias === 'above' ? 1 : htfVwapBias === 'below' ? -1 : 0)
+                        : sigDir < 0 ? (htfVwapBias === 'below' ? 1 : htfVwapBias === 'above' ? -1 : 0)
+                            : 0;
+                    const vwapPts = vwapAlign > 0 ? 7 : vwapAlign < 0 ? 3 : 5;
+                    const bbPts = (bbPos === 'above_upper' || bbPos === 'below_lower') ? 4 : 6;
+                    const stochPts = (stochLabel === 'overbought' || stochLabel === 'oversold') ? 4 : 6;
+                    const obvPts = t?.obv_slope === 'positive' || t?.obv_slope === 'negative' ? 5 : 4;
+                    const heuristicPenalty = techReliable ? 0 : 6;
+                    const neutralPenalty = sigDir === 0 ? 11 : 0;
+                    const confScoreRaw = _clamp(Math.round(sigPts + rsiPts + divPts + volPts + analystPts + structurePts + macdPts + vwapPts + bbPts + stochPts + obvPts - heuristicPenalty - neutralPenalty), 0, 85);
+                    if (signalReliable || analystReliable || techReliable) {
+                        anchorMap[sym] = {
+                            ts: Date.now(),
+                            price: p,
+                            sigPts,
+                            analystPts,
+                            confScoreRaw
+                        };
+                    }
                     // Invalidation Cliff: if price decisively breaks key support, force confidence down hard.
                     const supportBreakPct = firstSupport && p > 0 ? ((firstSupport - p) / firstSupport) : 0;
                     const invalidated = !!(brokenSupport && supportBreakPct >= 0.003);
                     const invalidPenalty = invalidated ? Math.min(42, 24 + Math.round(supportBreakPct * 1000)) : 0;
-                    let confScore = _clamp(confScoreRaw - invalidPenalty, 0, 100);
+                    let confScore = _clamp(confScoreRaw - invalidPenalty, 0, 85);
                     if (invalidated) confScore = Math.min(confScore, 54);
                     const confGrade = confScore >= 78 ? 'A' : confScore >= 62 ? 'B' : 'C';
                     const noTrade = confScore < 55 || (brokenSupport && !t?.bullishDivergence);
@@ -8541,15 +9163,57 @@ ${_clip(contextSections, 2600)}`;
                     } else if (invalidated) {
                         scenario = `ราคาเสียแนวรับหลัก ${firstSupport.toFixed(2)} แล้ว (break ${(supportBreakPct * 100).toFixed(2)}%) -> แผนเดิม invalidated รอสร้างฐานใหม่หรือ reclaim ก่อน`;
                     }
+                    if (rsiv > 75) scenario += ` | ⚠️ RSI Overbought (${rsiv.toFixed(1)}) — เสี่ยงย่อ ไม่แนะนำ chase`;
+                    else if (rsiv < 28) scenario += ` | RSI Oversold (${rsiv.toFixed(1)}) — จับตา reversal signal`;
+                    if (!atrD1Reliable && atrFloor > 0) scenario += ` | ใช้ ATR floor 2% เพราะ ATR D1 ต่ำผิดปกติ`;
+                    if (cutWasCapped) scenario += ` | ⚠️ cut loss ถูก cap ที่ 8% จากจุดเข้าเพื่อกัน stop ที่ไกลเกินจริง`;
+                    if (stochLabel === 'overbought') scenario += ` | Stoch RSI overbought`;
+                    else if (stochLabel === 'oversold') scenario += ` | Stoch RSI oversold`;
+                    if (conflictGuide) scenario += ` | ${conflictGuide}`;
+                    if (mtfGuide) scenario += ` | ${mtfGuide}`;
+                    const signalLower = String(displaySignal || '').toLowerCase();
+                    const signalEmoji = (signalLower.includes('buy') || signalLower.includes('long')) ? '🟢'
+                        : (signalLower.includes('sell') || signalLower.includes('short')) ? '🔴'
+                        : '⚪';
+                    let actionTxt = 'Wait/Range';
+                    if (invalidated) actionTxt = 'Avoid (Invalidated)';
+                    else if (conflictGuide) actionTxt = 'Wait';
+                    else if (signalLower.includes('buy') || signalLower.includes('long')) actionTxt = 'Long Bias';
+                    else if (signalLower.includes('sell') || signalLower.includes('short')) actionTxt = 'Short/Avoid';
+                    if (actionTxt === 'Wait/Range' && (htfVwapBias === 'below' || d1MacdTrend === 'bearish')) actionTxt = 'Wait (Bearish pressure)';
+                    if (actionTxt === 'Wait/Range' && (htfVwapBias === 'above' || d1MacdTrend === 'bullish')) actionTxt = 'Wait (Bullish pressure)';
+                    const keyCondition = rsiv > 75
+                        ? `RSI overbought ${rsiv.toFixed(1)}`
+                        : rsiv < 28
+                            ? `RSI oversold ${rsiv.toFixed(1)}`
+                            : (t?.bullishDivergence ? 'bullish divergence' : (d1MacdTrend !== 'neutral' ? `MACD D1 ${d1MacdTrend}` : 'รอ D1/1H confirm'));
+                    const quickSummary = `${sym}: ${actionTxt} — ${mtfConfluence}, ${keyCondition}`;
+                    const macdSummary = `MACD D1/1H: ${d1MacdTrend}/${htfMacdTrend}`;
+                    const vwapSummary = `VWAP 1H: ${Number.isFinite(t?.htf?.vwap_1h) ? t.htf.vwap_1h.toFixed(2) : 'N/A'} (${htfVwapBias})`;
+                    const bbSummary = `BB: ${bbPos}`;
+                    logSignalHistoryEntry({
+                        symbol: sym,
+                        price_at_signal: p,
+                        signal: displaySignal,
+                        analyst: analyst?.label || 'N/A',
+                        confluence: confScore,
+                        setup: setupTxt,
+                        mtf: `${mtfConfluence}${htfTrend && htfTrend !== 'neutral' ? ` (${htfTrend})` : ''}`,
+                        rsi_d1: t?.rsi14
+                    });
 
                     blocks.push(
-                        `**${sym}** ราคา **${p.toFixed(2)}** (${dp >= 0 ? '+' : ''}${dp.toFixed(2)}%) | Signal: **${displaySignal}** | Analyst: **${analyst?.label || 'N/A'}** | News Impact: **${impact?.label || 'Low'}**\n` +
+                        `**${quickSummary}**\n` +
+                        `**${sym}** ราคา **${p.toFixed(2)}** (${dp >= 0 ? '+' : ''}${dp.toFixed(2)}%) | Signal: ${signalEmoji} **${displaySignal}** | Analyst: **${analyst?.label || 'N/A'}** | News Impact: **${impact?.label || 'Low'}**\n` +
                         `แนวรับ: ${sTxt} | แนวต้าน: ${rTxt}\n` +
-                        `RSI(14): **${rsiTxt}** [${rsiSource}] | Divergence: **${divTxt}** [${divSource}] | Volume Profile: **${vpTxt}** (vol ratio ${vpRatioTxt}) [${vpSource}]\n` +
-                        `Confluence: **${confScore}/100 (${confGrade})** | Setup: **${setupTxt}**\n` +
+                        `RSI(14): **${rsiTxt}** | Divergence: **${divTxt}** | Volume Profile: **${vpTxt}**\n` +
+                        `1H Trend: **${htfTrend === 'bullish' ? 'Bullish' : htfTrend === 'bearish' ? 'Bearish' : 'Neutral/N.A.'}** | RSI(1H): **${htfRsi}** | MTF Confluence: **${mtfConfluence}**\n` +
+                        `Tech Summary: **${macdSummary}** | **${vwapSummary}** | **${bbSummary}**\n` +
+                        `Confluence: **${confScore}/85 (${confGrade})** | Setup: **${setupTxt}**\n` +
+                        `Action: **${actionTxt}**\n` +
                         `แผนเข้า-ออก: ${entry}, เป้าสั้น **${target}**, cut loss ใต้ **${cut}**\n` +
                         `สถานการณ์ที่กระทบ: ${scenario}${newsTop ? ` | ข่าวล่าสุด: ${newsTop}` : ''}` +
-                        (aiLocalDebug ? `\n[debug] points=${wlSparklineCache[sym]?.prices?.length || 0}, density=${t?.pointDensity || 'n/a'}, node=${t?.volumeProfile?.nodeStrength ?? 'n/a'}, reversal=${reversalWatch ? 1 : 0}, invalidated=${invalidated ? 1 : 0}, breakPct=${(supportBreakPct * 100).toFixed(2)}%, scoreRaw=${confScoreRaw}, penalty=${invalidPenalty}, scoreParts=${sigPts}/${rsiPts}/${divPts}/${volPts}/${analystPts}/${structurePts}` : '')
+                        (aiLocalDebug ? `\n[debug] points=${wlSparklineCache[sym]?.prices?.length || 0}, density=${t?.pointDensity || 'n/a'}, node=${t?.volumeProfile?.nodeStrength ?? 'n/a'}, reversal=${reversalWatch ? 1 : 0}, invalidated=${invalidated ? 1 : 0}, breakPct=${(supportBreakPct * 100).toFixed(2)}%, anchorFresh=${anchorFresh ? 1 : 0}, anchorMovePct=${(anchorMovePct * 100).toFixed(2)}%, signalReliable=${signalReliable ? 1 : 0}, analystReliable=${analystReliable ? 1 : 0}, techReliable=${techReliable ? 1 : 0}, fibSource=${fibSource}, htfTrend=${htfTrend}, htfRsi=${htfRsi}, htfVwap=${htfVwapBias}, d1Macd=${d1MacdTrend}, scoreRaw=${confScoreRaw}, penalty=${invalidPenalty}, scoreParts=${sigPts}/${rsiPts}/${divPts}/${volPts}/${analystPts}/${structurePts}/${macdPts}/${vwapPts}/${bbPts}/${stochPts}/${obvPts}` : '')
                     );
                 });
                 if (!hasUsable && requestedSyms.length) {
@@ -9690,12 +10354,14 @@ ${_clip(contextSections, 2600)}`;
             // Save locally first as fallback
             try { localStorage.setItem('ps_records',   JSON.stringify(records));   } catch(e) {}
             try { localStorage.setItem('ps_watchlist', JSON.stringify(watchlist)); } catch(e) {}
+            try { localStorage.setItem(SIGNAL_LOG_KEY, JSON.stringify(signalLog)); } catch(e) {}
             try {
                 const exportData = {
                     meta: { avatar: db.avatar, dark: document.documentElement.classList.contains('dark'), theme: _activeTheme },
                     chartPrefs: (() => { try { return JSON.parse(localStorage.getItem('ps_lwc_prefs')||'{}'); } catch(e){return{};} })(),
                     records,
                     watchlist,
+                    signalLog,
                     movementCache: { version: 5, ts: Date.now(), data: _collectSparklineCacheData() },
                     logoDataCache: _collectLogoDataCacheData(),
                     symbolLogoCache: _collectSymbolLogoCacheData(),
@@ -9767,6 +10433,7 @@ ${_clip(contextSections, 2600)}`;
                 } else {
                     if (Array.isArray(data.records))  records   = data.records;
                     if (Array.isArray(data.watchlist)) watchlist = data.watchlist;
+                    if (Array.isArray(data.signalLog)) signalLog = data.signalLog;
                     if (data.movementCache?.data && typeof data.movementCache.data === 'object') {
                         _applySparklineCacheData(data.movementCache.data, { applyToMemory: !isMarketOpen() });
                     }
@@ -9796,6 +10463,7 @@ ${_clip(contextSections, 2600)}`;
                 // Persist everything to localStorage
                 try { localStorage.setItem('ps_records',   JSON.stringify(records));   } catch(e) {}
                 try { localStorage.setItem('ps_watchlist', JSON.stringify(watchlist)); } catch(e) {}
+                try { localStorage.setItem(SIGNAL_LOG_KEY, JSON.stringify(signalLog)); } catch(e) {}
                 const nextRecordsSig = (() => { try { return JSON.stringify(records || []); } catch(e) { return ''; } })();
                 const recordsChanged = prevRecordsSig !== nextRecordsSig;
 
@@ -9883,6 +10551,7 @@ ${_clip(contextSections, 2600)}`;
                 settings,   // ← API keys + all settings
                 records,
                 watchlist,
+                signalLog,
                 movementCache: { version: 5, ts: Date.now(), data: _collectSparklineCacheData() },
                 logoDataCache: _collectLogoDataCacheData(),
                 symbolLogoCache: _collectSymbolLogoCacheData(),
@@ -9911,6 +10580,7 @@ ${_clip(contextSections, 2600)}`;
                     } else if (data.records || data.watchlist) {
                         if (data.records)  records   = data.records;
                         if (data.watchlist) watchlist = data.watchlist;
+                        if (Array.isArray(data.signalLog)) signalLog = data.signalLog;
                         if (data.movementCache?.data && typeof data.movementCache.data === 'object') {
                             _applySparklineCacheData(data.movementCache.data, { applyToMemory: !isMarketOpen() });
                         }
@@ -9955,6 +10625,7 @@ ${_clip(contextSections, 2600)}`;
                     // Save records and watchlist
                     try { localStorage.setItem('ps_records',   JSON.stringify(records));   } catch(e) {}
                     try { localStorage.setItem('ps_watchlist', JSON.stringify(watchlist)); } catch(e) {}
+                    try { localStorage.setItem(SIGNAL_LOG_KEY, JSON.stringify(signalLog)); } catch(e) {}
                     prewarmWatchlistLogos(80);
 
                     // Reload records tab
@@ -10101,6 +10772,136 @@ ${_clip(contextSections, 2600)}`;
             document.getElementById('confirm-modal').classList.add('hidden');
         }
 
+        function _escHtml(v) {
+            return String(v ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function openSignalHistoryModal() {
+            const m = document.getElementById('signal-history-modal');
+            if (!m) return;
+            m.classList.remove('hidden');
+            renderSignalHistoryModal();
+            resolveSignalLogOutcomes();
+        }
+
+        function closeSignalHistoryModal() {
+            const m = document.getElementById('signal-history-modal');
+            if (!m) return;
+            m.classList.add('hidden');
+        }
+
+        function renderSignalHistoryModal() {
+            const root = document.getElementById('signal-history-content');
+            if (!root) return;
+            const rows = Array.isArray(signalLog) ? signalLog : [];
+            const resolved = rows.filter(r => !!r?.result);
+            const wins = resolved.filter(r => r.result === 'WIN').length;
+            const losses = resolved.filter(r => r.result === 'LOSS').length;
+            const flats = resolved.filter(r => r.result === 'FLAT').length;
+            const wr = resolved.length ? ((wins / resolved.length) * 100) : 0;
+            const setupStats = {};
+            resolved.forEach(r => {
+                const k = String(r.setup || 'N/A');
+                if (!setupStats[k]) setupStats[k] = { total: 0, win: 0, loss: 0, flat: 0 };
+                setupStats[k].total += 1;
+                if (r.result === 'WIN') setupStats[k].win += 1;
+                else if (r.result === 'LOSS') setupStats[k].loss += 1;
+                else if (r.result === 'FLAT') setupStats[k].flat += 1;
+            });
+            const setupRows = Object.entries(setupStats)
+                .sort((a, b) => b[1].total - a[1].total)
+                .map(([k, s]) => {
+                    const setupWr = s.total ? ((s.win / s.total) * 100).toFixed(1) : '0.0';
+                    return `<tr>
+                        <td class="px-2 py-1.5">${_escHtml(k)}</td>
+                        <td class="px-2 py-1.5 text-right">${s.total}</td>
+                        <td class="px-2 py-1.5 text-right">${s.win}</td>
+                        <td class="px-2 py-1.5 text-right">${s.loss}</td>
+                        <td class="px-2 py-1.5 text-right">${s.flat}</td>
+                        <td class="px-2 py-1.5 text-right">${setupWr}%</td>
+                    </tr>`;
+                }).join('');
+            const tableRows = rows.slice(0, 240).map(r => {
+                const pct = Number.isFinite(Number(r?.pct_change)) ? Number(r.pct_change) : null;
+                const pctTxt = pct == null ? '—' : `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+                const res = String(r?.result || 'PENDING');
+                const resCls = res === 'WIN' ? 'color:#16a34a' : res === 'LOSS' ? 'color:#dc2626' : res === 'FLAT' ? 'color:#f59e0b' : 'color:var(--text-dim)';
+                return `<tr>
+                    <td class="px-2 py-1.5">${_escHtml(r?.symbol || '')}</td>
+                    <td class="px-2 py-1.5">${_escHtml(r?.date || '')}</td>
+                    <td class="px-2 py-1.5">${_escHtml(_normalizeSignalLabel(r?.signal || ''))}</td>
+                    <td class="px-2 py-1.5 text-right">${Number.isFinite(Number(r?.price_at_signal)) ? Number(r.price_at_signal).toFixed(2) : '—'}</td>
+                    <td class="px-2 py-1.5 text-right">${Number.isFinite(Number(r?.outcome_price)) ? Number(r.outcome_price).toFixed(2) : '—'}</td>
+                    <td class="px-2 py-1.5 text-right">${pctTxt}</td>
+                    <td class="px-2 py-1.5 text-center" style="${resCls}">${_escHtml(res)}</td>
+                </tr>`;
+            }).join('');
+            root.innerHTML = `
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="rounded-lg p-2.5" style="background:var(--bg-card2);border:1px solid var(--border)">
+                        <div class="text-[9px] uppercase tracking-wider font-bold" style="color:var(--text-dim)">Resolved</div>
+                        <div class="text-sm font-black" style="color:var(--text-primary)">${resolved.length}</div>
+                    </div>
+                    <div class="rounded-lg p-2.5" style="background:var(--bg-card2);border:1px solid var(--border)">
+                        <div class="text-[9px] uppercase tracking-wider font-bold" style="color:var(--text-dim)">Win Rate</div>
+                        <div class="text-sm font-black" style="color:var(--text-primary)">${wr.toFixed(1)}%</div>
+                    </div>
+                    <div class="rounded-lg p-2.5" style="background:var(--bg-card2);border:1px solid var(--border)">
+                        <div class="text-[9px] uppercase tracking-wider font-bold" style="color:var(--text-dim)">WIN / LOSS / FLAT</div>
+                        <div class="text-xs font-bold" style="color:var(--text-primary)">${wins} / ${losses} / ${flats}</div>
+                    </div>
+                    <div class="rounded-lg p-2.5" style="background:var(--bg-card2);border:1px solid var(--border)">
+                        <div class="text-[9px] uppercase tracking-wider font-bold" style="color:var(--text-dim)">Total Logs</div>
+                        <div class="text-sm font-black" style="color:var(--text-primary)">${rows.length}</div>
+                    </div>
+                </div>
+
+                <div class="rounded-lg overflow-hidden mb-3" style="border:1px solid var(--border)">
+                    <div class="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider" style="background:var(--bg-card2);color:var(--text-dim)">Breakdown by Setup</div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-[10px]">
+                            <thead style="background:var(--bg-main);color:var(--text-dim)">
+                                <tr>
+                                    <th class="px-2 py-1.5 text-left">Setup</th>
+                                    <th class="px-2 py-1.5 text-right">N</th>
+                                    <th class="px-2 py-1.5 text-right">Win</th>
+                                    <th class="px-2 py-1.5 text-right">Loss</th>
+                                    <th class="px-2 py-1.5 text-right">Flat</th>
+                                    <th class="px-2 py-1.5 text-right">WR</th>
+                                </tr>
+                            </thead>
+                            <tbody>${setupRows || '<tr><td class="px-2 py-2" colspan="6" style="color:var(--text-dim)">ยังไม่มีผลลัพธ์ที่ประเมินแล้ว</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="rounded-lg overflow-hidden" style="border:1px solid var(--border)">
+                    <div class="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider" style="background:var(--bg-card2);color:var(--text-dim)">Signal Log</div>
+                    <div class="overflow-auto" style="max-height:38vh">
+                        <table class="w-full text-[10px]">
+                            <thead style="position:sticky;top:0;background:var(--bg-main);color:var(--text-dim)">
+                                <tr>
+                                    <th class="px-2 py-1.5 text-left">Sym</th>
+                                    <th class="px-2 py-1.5 text-left">Date</th>
+                                    <th class="px-2 py-1.5 text-left">Signal</th>
+                                    <th class="px-2 py-1.5 text-right">Entry</th>
+                                    <th class="px-2 py-1.5 text-right">Now</th>
+                                    <th class="px-2 py-1.5 text-right">%Chg</th>
+                                    <th class="px-2 py-1.5 text-center">Result</th>
+                                </tr>
+                            </thead>
+                            <tbody>${tableRows || '<tr><td class="px-2 py-2" colspan="7" style="color:var(--text-dim)">ยังไม่มี signal log</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
         function executeClear() {
             records = records.filter(r => r.id !== curMonth);
             try { localStorage.setItem('ps_records', JSON.stringify(records)); } catch(e) {}
@@ -10124,6 +10925,7 @@ ${_clip(contextSections, 2600)}`;
                 if (savedName) document.getElementById('db-name-display').innerText = savedName;
                 const savedWl = localStorage.getItem('ps_watchlist');
                 if (savedWl) watchlist = JSON.parse(savedWl);
+                _loadSignalLogLocal();
                 _loadLogoDataCacheLocal(); // keep logo cache across F5 before rendering NEWS
                 loadWlCache(); // restore price/profile cache for instant display
                 prewarmWatchlistLogos(80); // warm visible symbols ASAP after refresh
@@ -10278,6 +11080,7 @@ ${_clip(contextSections, 2600)}`;
             }
             updateAiStatus();
             updateSettingsBadges();
+            setTimeout(() => { resolveSignalLogOutcomes(); }, 1200);
             startExtHoursPolling(); // TV Scanner — no API key needed
         };
 
@@ -10304,6 +11107,7 @@ ${_clip(contextSections, 2600)}`;
                 chartPrefs: (() => { try { return JSON.parse(localStorage.getItem('ps_lwc_prefs')||'{}'); } catch(e){return{};} })(),
                 records,
                 watchlist,
+                signalLog,
                 movementCache: { version: 5, ts: Date.now(), data: _collectSparklineCacheData() },
                 logoDataCache: _collectLogoDataCacheData(),
                 symbolLogoCache: _collectSymbolLogoCacheData(),
@@ -10354,7 +11158,10 @@ ${_clip(contextSections, 2600)}`;
                 (r.fixed  ||[]).map(x=>(x.name||'')+(x.val||x.amount||0)+(x.isPaid?1:0)).join(',') + '|' +
                 (r.dynamic||[]).map(x=>(x.name||'')+(x.val||x.amount||0)+(x.isPaid?1:0)).join(',')
             ).join(';');
-            return rHash + '::wl:' + watchlist.join(',');
+            const sHash = (signalLog || []).slice(0, 120).map(s =>
+                [s.id, s.symbol, s.signal, s.result, s.outcome_price, s.pct_change].join('|')
+            ).join(';');
+            return rHash + '::wl:' + watchlist.join(',') + '::sig:' + sHash;
         }
         setInterval(() => {
             if (!getGistToken()) return;
@@ -10372,6 +11179,7 @@ ${_clip(contextSections, 2600)}`;
                     chartPrefs: (() => { try { return JSON.parse(localStorage.getItem('ps_lwc_prefs')||'{}'); } catch(e){return{};} })(),
                     records,
                     watchlist,
+                    signalLog,
                     movementCache: { version: 5, ts: Date.now(), data: _collectSparklineCacheData() },
                     logoDataCache: _collectLogoDataCacheData(),
                     symbolLogoCache: _collectSymbolLogoCacheData(),
@@ -11053,6 +11861,7 @@ ${_clip(contextSections, 2600)}`;
                 </div>
                 <div class="flex items-center gap-1.5">
                     <button id="ai-glossary-btn" onclick="toggleAiGlossary()" aria-expanded="false" class="text-[9px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide transition-all" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim)">คู่มือคำศัพท์</button>
+                    <button onclick="openSignalHistoryModal()" class="text-[9px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide transition-all" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim)">Signal History</button>
                     <button onclick="clearAiChat()" class="text-[9px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide transition-all" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim)">ล้างแชท</button>
                     <!-- Minimize -->
                     <button onclick="minimizeAiPopup()" class="w-6 h-6 flex items-center justify-center rounded-lg transition-all hover:scale-110" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary)" title="ย่อ">
@@ -11113,6 +11922,26 @@ ${_clip(contextSections, 2600)}`;
                     หยุด
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- ── Signal History Modal ─────────────────────────────────────────── -->
+    <div id="signal-history-modal" class="fixed inset-0 z-[220] hidden">
+        <div class="fixed inset-0" style="background:rgba(0,0,0,0.58)" onclick="closeSignalHistoryModal()"></div>
+        <div class="relative z-10 w-full max-w-4xl mx-auto mt-8 rounded-xl shadow-2xl overflow-hidden" style="background:var(--bg-main);border:1px solid var(--border);max-height:86vh">
+            <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color:var(--border)">
+                <div>
+                    <div class="text-xs font-black uppercase tracking-wider" style="color:var(--text-primary)">Signal History</div>
+                    <div class="text-[10px]" style="color:var(--text-dim)">Win/Loss tracker from Local AI signals</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="resolveSignalLogOutcomes()" class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim)">Refresh Outcome</button>
+                    <button onclick="closeSignalHistoryModal()" class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim)">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="signal-history-content" class="p-3.5 overflow-auto" style="max-height:calc(86vh - 58px)"></div>
         </div>
     </div>
 
