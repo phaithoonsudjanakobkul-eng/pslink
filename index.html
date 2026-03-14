@@ -2,8 +2,20 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>PSLink</title>
+
+    <!-- PWA: iOS / Safari Home Screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PSLink">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0f1e" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+
+    <!-- Apple Touch Icon — orbit logo on dark pill, 180x180 for iPhone -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%230a0f1e'/><circle cx='90' cy='90' r='34' fill='none' stroke='%233b82f6' stroke-width='6' opacity='0.4'/><circle cx='90' cy='90' r='21' fill='%233b82f6'/><text x='90' y='97' text-anchor='middle' style='font-size:18px;font-weight:700;fill:%23fff;font-family:sans-serif;letter-spacing:-1px'>PS</text><path d='M90,22 A68,68 0 0,1 157.8,90' fill='none' stroke='%233b82f6' stroke-width='14' stroke-linecap='round'/><path d='M157.8,90 A68,68 0 0,1 90,158' fill='none' stroke='%233b82f6' stroke-width='14' stroke-linecap='round' opacity='0.6'/><path d='M90,158 A68,68 0 0,1 22.2,90' fill='none' stroke='%233b82f6' stroke-width='14' stroke-linecap='round' opacity='0.3'/><path d='M22.2,90 A68,68 0 0,1 90,22' fill='none' stroke='%233b82f6' stroke-width='14' stroke-linecap='round' opacity='0.75'/></svg>">
+
     <link id="ps-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='6' fill='none' stroke='%233b82f6' stroke-width='1.8' opacity='0.45'/><circle cx='16' cy='16' r='3.5' fill='%233b82f6'/><path d='M16,4 A12,12 0 0,1 27.8,16' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round'/><path d='M27.8,16 A12,12 0 0,1 16,28' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round' opacity='0.6'/><path d='M16,28 A12,12 0 0,1 4.2,16' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round' opacity='0.3'/><path d='M4.2,16 A12,12 0 0,1 16,4' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round' opacity='0.75'/></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -20,7 +32,13 @@
         /* Prevent FOUT: system fallback matching Inter metrics */
         body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
+        /* iOS Safe Area — Dynamic Island / notch support */
         :root {
+            --sat: env(safe-area-inset-top, 0px);
+            --sar: env(safe-area-inset-right, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left, 0px);
+        }
             --font-main: 'Inter', 'IBM Plex Sans Thai', system-ui, sans-serif;
             --font-mono: 'Roboto Mono', 'Consolas', monospace;
             --bg-dark: #f0f4f8;
@@ -1816,13 +1834,386 @@
             animation:lwc-pulse-ring 1.8s ease-out infinite;
             transform-origin:center center;
         }
+
+        /* ============================================================
+           MOBILE RESPONSIVE — max-width: 768px
+           Desktop layout ไม่ถูกแตะเลย ทุกอย่างอยู่ใน block นี้
+           v2 — แก้ครบ: nav fixed, symbol col, scanner grid, header,
+                         horizontal fade, session tabs, touch feedback
+        ============================================================ */
+        @media (max-width: 768px) {
+
+            /* 1. Nav: ซ่อน desktop nav ทั้งหมด แสดง mobile top bar แทน */
+            nav > div { display: none !important; }
+            nav {
+                height: calc(52px + var(--sat)) !important;
+                display: flex;
+                align-items: flex-end;
+                padding-bottom: 0 !important;
+                position: fixed !important;
+                z-index: 99 !important;
+            }
+            #mobile-topbar { display: flex !important; z-index: 100 !important; }
+
+            /* ป้องกัน horizontal overflow ทั้งหน้า */
+            main { overflow-x: hidden !important; }
+            /* ใช้ clip-path แทน hidden สำหรับ tab containers เพื่อไม่ตัด table columns */
+            #tab-edit, #tab-dashboard, #tab-news {
+                overflow-x: hidden !important;
+                max-width: 100% !important;
+            }
+            /* watchlist overflow handled in watchlist block below */
+            #tab-watchlist {
+                max-width: 100% !important;
+                overflow-x: hidden !important;
+            }
+
+            /* 2. Main content padding */
+            main {
+                padding-top: calc(52px + var(--sat)) !important;
+                padding-bottom: calc(49px + var(--sab) + 8px) !important;
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+            }
+
+            /* 3. Bottom Tab Bar */
+            #mobile-bottom-nav { display: flex !important; }
+
+            /* 4. Dashboard cards: 2 cols */
+            .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+            .grid.grid-cols-1.lg\\:grid-cols-2 {
+                grid-template-columns: 1fr !important;
+            }
+            .grid.grid-cols-1.md\\:grid-cols-2,
+            .grid.grid-cols-1.md\\:grid-cols-3 {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* 5. Records toolbar: stack */
+            #records-toolbar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 8px !important;
+                padding: 12px !important;
+                border-radius: 16px !important;
+            }
+            #records-toolbar > div {
+                width: 100% !important;
+                justify-content: space-between !important;
+            }
+
+            /* 6. Financial bar: stack */
+            #financial-bar {
+                grid-template-columns: 1fr !important;
+            }
+            #financial-bar > div {
+                border-bottom: 1px solid var(--border) !important;
+                border-right: none !important;
+            }
+            #financial-bar > div:last-child { border-bottom: none !important; }
+
+            /* 7. Watchlist: stack vertically + stretch full width */
+            #wl-split-wrap {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            #wl-split-wrap.chart-open #wl-table-panel {
+                width: 100% !important;
+                max-height: 50vh !important;
+            }
+
+            /* 8. Settings modal: fullscreen */
+            #settings-modal > div {
+                width: 100% !important;
+                height: 100% !important;
+                max-height: 100% !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* 9. Wizard card: full width */
+            #empty-state .dash-card {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+
+            /* 10. AI Analyst + Toast: ขยับขึ้นเหนือ bottom nav */
+            #ai-analyst-btn-wrap, [id*="ai-analyst"] {
+                bottom: calc(49px + var(--sab) + 12px) !important;
+            }
+            #wl-toast-wrap {
+                bottom: calc(49px + var(--sab) + 8px) !important;
+                top: auto !important;
+                right: 12px !important;
+                left: 12px !important;
+            }
+
+            /* 11. Watchlist table: ซ่อน wl-col-hide columns + drag handle */
+            .wl-col-hide { display: none !important; }
+            #watchlist-table td:first-child svg { display: none !important; }
+            #watchlist-table .wl-idx { font-size: 9px !important; min-width: 10px !important; }
+            #watchlist-table thead { display: table-header-group !important; }
+            #watchlist-table thead th { font-size: 9px !important; white-space: nowrap !important; }
+
+            /* 12. Scanner grid: stack เป็น 1 col */
+            #market-scanner-card [style*="grid-template-columns:1fr 1fr"],
+            #market-scanner-card [style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+            /* ลบ border-right ออกเมื่อ stack */
+            #market-scanner-card [style*="border-right:1px solid"] {
+                border-right: none !important;
+                border-bottom: 1px solid var(--border) !important;
+            }
+            /* ลด padding scanner sections */
+            #market-scanner-card > div > div[style*="padding:20px"],
+            #market-scanner-card > div > div[style*="padding:22px"] {
+                padding: 14px 14px 12px !important;
+            }
+
+            /* 13. Session tabs (Regular / Pre-market / After-hours): shrink */
+            .scanner-tab-btn {
+                padding: 4px 8px !important;
+                font-size: 10px !important;
+                white-space: nowrap !important;
+            }
+
+            /* 14. Touch feedback — visual tap highlight */
+            .wl-row:active { background: rgba(59,130,246,0.08) !important; }
+            button:active, [onclick]:active { opacity: 0.7 !important; }
+
+            /* 16. font size ปรับเล็กลงนิดนึง */
+            .dash-value { font-size: 1.4rem !important; }
+
+            /* 17. "See all" link — wrap ได้ */
+            #market-scanner-card a[href="#"] {
+                white-space: normal !important;
+                line-height: 1.4 !important;
+            }
+
+            /* ── WATCHLIST MOBILE — styling only, JS handles column show/hide ── */
+            .wl-col-hide { display: none !important; }
+
+            #watchlist-table th,
+            #watchlist-table td { padding: 8px 4px !important; overflow: hidden !important; }
+            #watchlist-table td:first-child,
+            #watchlist-table th:first-child { padding: 8px 2px 8px 6px !important; }
+
+            #watchlist-table td.td-stack > div > img,
+            #watchlist-table td.td-stack > div > div.w-6 { display: none !important; }
+            #watchlist-table td:first-child svg { display: none !important; }
+
+            #watchlist-table .sym-cell { font-size: 12px !important; font-weight: 700 !important; white-space: nowrap !important; }
+            #watchlist-table .name-sub { font-size: 9px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 88px !important; }
+            #watchlist-table .wl-idx { font-size: 9px !important; }
+            #watchlist-table .wl-signal-badge { font-size: 10px !important; white-space: nowrap !important; }
+            #watchlist-table .price-cell { font-size: 12px !important; white-space: nowrap !important; }
+            #watchlist-table .wl-badge-up,
+            #watchlist-table .wl-badge-dn,
+            #watchlist-table .wl-badge-neu { font-size: 10px !important; padding: 2px 4px !important; white-space: nowrap !important; }
+
+            #watchlist-table thead { display: table-header-group !important; }
+            #watchlist-table thead th { font-size: 9px !important; white-space: nowrap !important; }
+
+            #tab-watchlist, #wl-table-panel,
+            #wl-table-panel .glass-card,
+            #wl-table-panel .glass-card > div {
+                overflow-x: hidden !important;
+            }
+
+            /* ── RECORDS TOOLBAR ──
+            #records-toolbar {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 8px !important;
+                padding: 12px !important;
+                border-radius: 16px !important;
+                align-items: stretch !important;
+            }
+            /* แถวบน: month picker เต็มความกว้าง */
+            #records-toolbar > div:first-child {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+            /* month picker กว้างเต็ม */
+            #month-picker-wrap {
+                width: 100% !important;
+                justify-content: space-between !important;
+            }
+            #month-picker-wrap input[type="month"] {
+                flex: 1 !important;
+                font-size: 15px !important;
+                text-align: center !important;
+            }
+            /* แถวล่าง: ปุ่ม Pull Last + Clear Month เรียงกันกว้างเท่ากัน */
+            #records-toolbar .flex.gap-1 {
+                display: flex !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+            #records-toolbar .flex.gap-1 button,
+            #records-toolbar .flex.gap-1 .relative {
+                flex: 1 !important;
+                text-align: center !important;
+                justify-content: center !important;
+            }
+            #records-toolbar .flex.gap-1 button {
+                font-size: 11px !important;
+                padding: 8px 4px !important;
+            }
+            /* ── FIX: ซ่อน FX widget + AI chatbox ใน watchlist header ──
+               คับแน่นและอ่านไม่ออกบนจอเล็ก ใช้ AI Analyst float button แทน */
+            #fx-widget,
+            #erapi-prompt,
+            #wl-search-wrap ~ div > .flex.items-center.gap-2.rounded-xl { display: none !important; }
+            /* ซ่อน AI chatbox inline */
+            #tab-watchlist .flex.items-center.gap-2.rounded-xl[style*="height:34px"] { display: none !important; }
+
+            /* ── FIX 2: Watchlist header row — จัดใหม่บน mobile ── */
+            #tab-watchlist > div.flex.flex-col > div.flex.items-center.gap-2.flex-wrap {
+                gap: 6px !important;
+                flex-wrap: nowrap !important;
+                align-items: center !important;
+            }
+            /* Search bar — เต็มความกว้าง */
+            #wl-search-wrap {
+                width: 100% !important;
+                flex: 1 !important;
+                min-width: 0 !important;
+            }
+            /* Title + status badge — shrink */
+            #tab-watchlist .flex.items-center.gap-2.flex-shrink-0:has(h3) {
+                flex-shrink: 1 !important;
+                min-width: 0 !important;
+            }
+
+            /* ── FIX 3: FMP warning ซ้ำ — แสดงแค่ที่เดียว ──
+               ซ่อน top bar warning ใน scanner (เหลือแค่ empty state กลางหน้า) */
+            #scanner-key-prompt {
+                display: none !important;
+            }
+            /* เพิ่ม empty state ที่ชัดเจนแทน — จัดการใน scanner grid */
+            #scanner-active-grid:empty::after,
+            #scanner-volatile-grid:empty::after,
+            #scanner-gainers:empty::after,
+            #scanner-losers:empty::after {
+                content: '';
+                display: none;
+            }
+
+            /* ── FIX 4: Scanner grid spacing — ลด gap ── */
+            #market-scanner-card {
+                margin-top: 0 !important;
+            }
+            #market-scanner-card > div[style*="grid"] {
+                gap: 0 !important;
+            }
+            #market-scanner-card > div > div[style*="padding:20px"],
+            #market-scanner-card > div > div[style*="padding:22px"] {
+                padding: 12px 14px 10px !important;
+            }
+            /* Section title เล็กลง */
+            #market-scanner-card span[style*="font-size:17px"] {
+                font-size: 13px !important;
+            }
+            /* ลด spacing ระหว่าง watchlist tab sections */
+            #tab-watchlist.space-y-3 > * { margin-top: 8px !important; }
+            #tab-watchlist.space-y-3 > *:first-child { margin-top: 0 !important; }
+
+            /* ── FIX 5: Logo บน topbar — เพิ่ม dark pill ── */
+            #mobile-topbar svg:first-child {
+                background: #0a0f1e !important;
+                border-radius: 8px !important;
+                padding: 2px !important;
+            }
+
+            /* ── FIX 6: CLOSED badge — เพิ่ม tooltip hint ── */
+            #wl-market-status { cursor: default !important; }
+        }
+
     </style>
 </head>
+
+    <!-- Mobile Top Bar (hidden on desktop, shown on mobile via CSS) -->
+    <div id="mobile-topbar" style="display:none;position:fixed;top:0;left:0;right:0;padding-top:var(--sat);height:calc(52px + var(--sat));padding-left:16px;padding-right:16px;align-items:center;justify-content:space-between;z-index:100;background:var(--bg-card);border-bottom:1px solid var(--border);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+        <!-- Left: logo + title -->
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div style="background:#0a0f1e;border-radius:10px;padding:4px;display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;">
+                <svg viewBox="0 0 28 28" width="24" height="24">
+                    <circle cx="14" cy="14" r="5" fill="none" stroke="#3b82f6" stroke-width="1.4" opacity="0.4"/>
+                    <circle cx="14" cy="14" r="3" fill="#3b82f6"/>
+                    <path d="M14,3 A11,11 0 0,1 24.8,14" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M24.8,14 A11,11 0 0,1 14,25" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+                    <path d="M14,25 A11,11 0 0,1 3.2,14" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+                    <path d="M3.2,14 A11,11 0 0,1 14,3" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" opacity="0.75"/>
+                </svg>
+            </div>
+            <span style="font-weight:900;font-size:15px;color:var(--text-primary);font-family:var(--font-main);letter-spacing:-0.3px;">PSLink</span>
+        </div>
+        <!-- Right: dark mode toggle + settings -->
+        <div style="display:flex;align-items:center;gap:4px;">
+            <button onclick="toggleDarkMode()" style="width:36px;height:36px;border-radius:10px;border:none;background:var(--bg-card2);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            </button>
+            <button onclick="openSettingsModal()" style="width:36px;height:36px;border-radius:10px;border:none;background:var(--bg-card2);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Tab Bar (hidden on desktop) -->
+    <div id="mobile-bottom-nav" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--bg-card);border-top:1px solid var(--border);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);">
+        <!-- Safe area spacer + tab row -->
+        <div style="display:flex;align-items:stretch;height:49px;">
+
+            <!-- หน้าหลัก -->
+            <button onclick="showTab('dashboard')" id="mob-btn-dash"
+                style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:transparent;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;min-height:44px;">
+                <div id="mob-pip-dash" style="width:40px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--accent) 15%,transparent);transition:background 0.15s;">
+                    <svg width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                </div>
+                <span style="font-size:10px;font-weight:700;color:var(--accent);font-family:var(--font-main);line-height:1;">หน้าหลัก</span>
+            </button>
+
+            <!-- บันทึก -->
+            <button onclick="showTab('edit')" id="mob-btn-edit"
+                style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:transparent;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;min-height:44px;">
+                <div id="mob-pip-edit" style="width:40px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:transparent;transition:background 0.15s;">
+                    <svg width="18" height="18" fill="none" stroke="var(--text-dim)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </div>
+                <span style="font-size:10px;font-weight:600;color:var(--text-dim);font-family:var(--font-main);line-height:1;">บันทึก</span>
+            </button>
+
+            <!-- ตลาด -->
+            <button onclick="showTab('watchlist')" id="mob-btn-watchlist"
+                style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:transparent;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;min-height:44px;">
+                <div id="mob-pip-watchlist" style="width:40px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:transparent;transition:background 0.15s;">
+                    <svg width="18" height="18" fill="none" stroke="var(--text-dim)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                </div>
+                <span style="font-size:10px;font-weight:600;color:var(--text-dim);font-family:var(--font-main);line-height:1;">ตลาด</span>
+            </button>
+
+            <!-- ข่าว -->
+            <button onclick="showTab('news')" id="mob-btn-news"
+                style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:transparent;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;min-height:44px;">
+                <div id="mob-pip-news" style="width:40px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:transparent;transition:background 0.15s;">
+                    <svg width="18" height="18" fill="none" stroke="var(--text-dim)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
+                </div>
+                <span style="font-size:10px;font-weight:600;color:var(--text-dim);font-family:var(--font-main);line-height:1;">ข่าว</span>
+            </button>
+        </div>
+        <!-- iOS home indicator safe area -->
+        <div style="height:var(--sab);"></div>
+    </div>
 
     <!-- Dummy hidden fields to prevent Chrome autofill on real inputs -->
     <input type="text" style="display:none" aria-hidden="true">
     <input type="password" style="display:none" aria-hidden="true">
-    <body class="min-h-screen pb-20">
+    <body class="min-h-screen pb-20" style="padding-bottom:calc(5rem + var(--sab));padding-left:var(--sal);padding-right:var(--sar)">
 <script>
 // Pre-load avatar before first paint to prevent blank flash
 (function(){
@@ -1876,7 +2267,7 @@
     </div>
 
     <!-- Header & Navigation -->
-    <nav class="fixed top-0 left-0 right-0 z-50 border-b" style="background:var(--bg-card);border-color:var(--border);backdrop-filter:blur(12px)">
+    <nav class="fixed top-0 left-0 right-0 z-50 border-b" style="background:var(--bg-card);border-color:var(--border);backdrop-filter:blur(12px);padding-top:var(--sat)">
         <div class="w-full px-4 h-24 flex items-center justify-between gap-3">
             <!-- Left: Avatar + brand -->
             <div class="flex items-center gap-3 flex-shrink-0">
@@ -2427,7 +2818,7 @@
                     <div class="flex items-center gap-2 flex-shrink-0">
                         <h3 class="font-black text-sm uppercase tracking-tight" style="color:var(--text-primary);font-family:var(--font-main)">Watchlist</h3>
                         <span id="wl-last-update" class="text-[9px] font-bold uppercase tracking-widest" style="color:var(--text-dim);min-width:68px;display:inline-block"></span>
-                        <span id="wl-market-status" class="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest" style="width:88px;text-align:center;flex-shrink:0;display:inline-block"></span>
+                        <span id="wl-market-status" class="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest" title="สถานะตลาด NYSE/NASDAQ" style="width:88px;text-align:center;flex-shrink:0;display:inline-block"></span>
                     </div>
 
                     <!-- FX Widget — fixed size cards, no flex-grow -->
@@ -2961,6 +3352,31 @@
             document.getElementById('btn-edit').className = t === 'edit' ? 'px-4 py-1.5 rounded-md text-xs font-bold tab-active transition-all uppercase' : 'px-4 py-1.5 rounded-md text-xs font-bold text-gray-400 transition-all uppercase';
             document.getElementById('btn-watchlist').className = t === 'watchlist' ? 'px-4 py-1.5 rounded-md text-xs font-bold tab-active transition-all uppercase flex items-center gap-1.5' : 'px-4 py-1.5 rounded-md text-xs font-bold text-gray-400 transition-all uppercase flex items-center gap-1.5';
             document.getElementById('btn-news').className = t === 'news' ? 'px-4 py-1.5 rounded-md text-xs font-bold tab-active transition-all uppercase flex items-center gap-1.5' : 'px-4 py-1.5 rounded-md text-xs font-bold text-gray-400 transition-all uppercase flex items-center gap-1.5';
+            // Mobile bottom nav active state — pip highlight + icon color + label weight
+            const mobTabs = {
+                dashboard: { btn: 'mob-btn-dash',      pip: 'mob-pip-dash' },
+                edit:      { btn: 'mob-btn-edit',      pip: 'mob-pip-edit' },
+                watchlist: { btn: 'mob-btn-watchlist', pip: 'mob-pip-watchlist' },
+                news:      { btn: 'mob-btn-news',      pip: 'mob-pip-news' },
+            };
+            Object.entries(mobTabs).forEach(([tab, ids]) => {
+                const btn = document.getElementById(ids.btn);
+                const pip = document.getElementById(ids.pip);
+                const isActive = tab === t;
+                if (btn) {
+                    const lbl = btn.querySelector('span');
+                    const ico = btn.querySelector('svg');
+                    if (isActive) {
+                        if (pip) { pip.style.background = 'color-mix(in srgb,var(--accent) 15%,transparent)'; }
+                        if (ico) { ico.setAttribute('stroke', 'var(--accent)'); }
+                        if (lbl) { lbl.style.color = 'var(--accent)'; lbl.style.fontWeight = '700'; }
+                    } else {
+                        if (pip) { pip.style.background = 'transparent'; }
+                        if (ico) { ico.setAttribute('stroke', 'var(--text-dim)'); }
+                        if (lbl) { lbl.style.color = 'var(--text-dim)'; lbl.style.fontWeight = '600'; }
+                    }
+                }
+            });
             if (showTab._newsEnterTimer) {
                 clearTimeout(showTab._newsEnterTimer);
                 showTab._newsEnterTimer = null;
@@ -2986,6 +3402,11 @@
                     if (!document.getElementById('wl-row-' + s))
                         renderWatchlistRow(s, wlDataCache[s] || null);
                 });
+
+                // Apply mobile column layout after rows are in DOM
+                if (window.innerWidth <= 768) {
+                    requestAnimationFrame(applyMobileWatchlistCols);
+                }
 
                 // Step 2: Flush any trades that arrived while on another tab — zero delay
                 if (Object.keys(_pendingTrades).length > 0) {
@@ -4980,6 +5401,10 @@
                 if (!wlDataCache[symbol]) wlDataCache[symbol] = {};
                 wlDataCache[symbol]._tr    = _row;
                 wlDataCache[symbol]._cells = _row.querySelectorAll('td');
+            }
+            // Re-apply mobile column layout after new row inserted
+            if (window.innerWidth <= 768) {
+                requestAnimationFrame(applyMobileWatchlistCols);
             }
         }
         let dragSrc = null;
@@ -10588,35 +11013,55 @@ ${_clip(contextSections, 2600)}`;
                 swatches:['#09090b','#18181b','#a855f7'],
                 vars:{ '--bg-dark':'#09090b','--bg-main':'#0d0d10','--bg-card':'#18181b','--bg-card2':'#1f1f23',
                        '--border':'rgba(168,85,247,0.15)','--text-primary':'#fafafa','--text-secondary':'#a1a1aa',
-                       '--text-dim':'#52525b','--accent':'#a855f7','--accent2':'#c084fc' }
+                       '--text-dim':'#52525b','--accent':'#a855f7','--accent2':'#c084fc',
+                       '--wl-up':'#22c55e','--wl-dn':'#ef4444',
+                       '--qc-up':'#22c55e','--qc-dn':'#ef4444',
+                       '--chart-up':'#22c55e','--chart-dn':'#ef4444',
+                       '--danger':'#ef4444','--warning':'#f59e0b' }
             },
             'bloomberg': {
                 name:'Bloomberg', mode:'dark', accent:'#f59e0b',
                 swatches:['#000000','#0a0a0a','#f59e0b'],
                 vars:{ '--bg-dark':'#000000','--bg-main':'#050505','--bg-card':'#0f0f0f','--bg-card2':'#1a1a1a',
                        '--border':'rgba(245,158,11,0.2)','--text-primary':'#fef3c7','--text-secondary':'#d97706',
-                       '--text-dim':'#78716c','--accent':'#f59e0b','--accent2':'#fbbf24' }
+                       '--text-dim':'#78716c','--accent':'#f59e0b','--accent2':'#fbbf24',
+                       '--wl-up':'#22c55e','--wl-dn':'#ef4444',
+                       '--qc-up':'#22c55e','--qc-dn':'#ef4444',
+                       '--chart-up':'#22c55e','--chart-dn':'#ef4444',
+                       '--danger':'#ef4444','--warning':'#f59e0b' }
             },
             'midnight': {
                 name:'Midnight Blue', mode:'dark', accent:'#3b82f6',
                 swatches:['#0a0f1e','#0f172a','#3b82f6'],
                 vars:{ '--bg-dark':'#080d1a','--bg-main':'#0a1020','--bg-card':'#0d1528','--bg-card2':'#162040',
                        '--border':'rgba(59,130,246,0.22)','--text-primary':'#f0f4ff','--text-secondary':'#7ea8e8',
-                       '--text-dim':'#3d5a8a','--accent':'#3b82f6','--accent2':'#2563eb' }
+                       '--text-dim':'#3d5a8a','--accent':'#3b82f6','--accent2':'#2563eb',
+                       '--wl-up':'#34d399','--wl-dn':'#f87171',
+                       '--qc-up':'#34d399','--qc-dn':'#f87171',
+                       '--chart-up':'#34d399','--chart-dn':'#f87171',
+                       '--danger':'#f87171','--warning':'#fbbf24' }
             },
             'forest': {
                 name:'Forest', mode:'dark', accent:'#4ade80',
                 swatches:['#0a130a','#0f1f0f','#4ade80'],
                 vars:{ '--bg-dark':'#0a130a','--bg-main':'#0d1a0d','--bg-card':'#122012','--bg-card2':'#1a2e1a',
                        '--border':'rgba(74,222,128,0.15)','--text-primary':'#dcfce7','--text-secondary':'#86efac',
-                       '--text-dim':'#4b7c4b','--accent':'#4ade80','--accent2':'#86efac' }
+                       '--text-dim':'#4b7c4b','--accent':'#4ade80','--accent2':'#86efac',
+                       '--wl-up':'#4ade80','--wl-dn':'#f87171',
+                       '--qc-up':'#4ade80','--qc-dn':'#f87171',
+                       '--chart-up':'#4ade80','--chart-dn':'#f87171',
+                       '--danger':'#f87171','--warning':'#fbbf24' }
             },
             'webull': {
                 name:'Webull', mode:'dark', accent:'#00c087',
                 swatches:['#0d0f0f','#141a1a','#00c087'],
                 vars:{ '--bg-dark':'#0d0f0f','--bg-main':'#101515','--bg-card':'#141a1a','--bg-card2':'#1a2222',
                        '--border':'rgba(0,192,135,0.18)','--text-primary':'#d4ede8','--text-secondary':'#7ab8ad',
-                       '--text-dim':'#3d6660','--accent':'#00c087','--accent2':'#00e5a0' }
+                       '--text-dim':'#3d6660','--accent':'#00c087','--accent2':'#00e5a0',
+                       '--wl-up':'#00c087','--wl-dn':'#ff6b6b',
+                       '--qc-up':'#00c087','--qc-dn':'#ff6b6b',
+                       '--chart-up':'#00c087','--chart-dn':'#ff6b6b',
+                       '--danger':'#ff6b6b','--warning':'#fbbf24' }
             },
             // ── LIGHT ────────────────────────────────────────────────────────
             'white': {
@@ -10624,35 +11069,55 @@ ${_clip(contextSections, 2600)}`;
                 swatches:['#f8fafc','#ffffff','#089981'],
                 vars:{ '--bg-dark':'#f0f4f8','--bg-main':'#f8fafc','--bg-card':'#ffffff','--bg-card2':'#e8eef5',
                        '--border':'#d0dce8','--text-primary':'#0f2030','--text-secondary':'#64748b',
-                       '--text-dim':'#94a3b8','--accent':'#089981','--accent2':'#0f766e' }
+                       '--text-dim':'#94a3b8','--accent':'#089981','--accent2':'#0f766e',
+                       '--wl-up':'#089981','--wl-dn':'#f23645',
+                       '--qc-up':'#089981','--qc-dn':'#f23645',
+                       '--chart-up':'#089981','--chart-dn':'#f23645',
+                       '--danger':'#f23645','--warning':'#d97706' }
             },
             'arctic': {
                 name:'Arctic', mode:'light', accent:'#2563eb',
                 swatches:['#eff6ff','#f0f9ff','#2563eb'],
                 vars:{ '--bg-dark':'#dbeafe','--bg-main':'#eff6ff','--bg-card':'#f0f9ff','--bg-card2':'#e0f2fe',
                        '--border':'#bfdbfe','--text-primary':'#1e3a5f','--text-secondary':'#3b82f6',
-                       '--text-dim':'#93c5fd','--accent':'#2563eb','--accent2':'#1d4ed8' }
+                       '--text-dim':'#93c5fd','--accent':'#2563eb','--accent2':'#1d4ed8',
+                       '--wl-up':'#059669','--wl-dn':'#dc2626',
+                       '--qc-up':'#059669','--qc-dn':'#dc2626',
+                       '--chart-up':'#059669','--chart-dn':'#dc2626',
+                       '--danger':'#dc2626','--warning':'#d97706' }
             },
             'notion': {
                 name:'Soft Gray', mode:'light', accent:'#0f9d58',
                 swatches:['#f7f6f3','#ffffff','#0f9d58'],
                 vars:{ '--bg-dark':'#e9e9e4','--bg-main':'#f7f6f3','--bg-card':'#ffffff','--bg-card2':'#f1f0ec',
                        '--border':'#e3e2de','--text-primary':'#37352f','--text-secondary':'#6b7280',
-                       '--text-dim':'#9ca3af','--accent':'#0f9d58','--accent2':'#059669' }
+                       '--text-dim':'#9ca3af','--accent':'#0f9d58','--accent2':'#059669',
+                       '--wl-up':'#0f9d58','--wl-dn':'#f23645',
+                       '--qc-up':'#0f9d58','--qc-dn':'#f23645',
+                       '--chart-up':'#0f9d58','--chart-dn':'#f23645',
+                       '--danger':'#f23645','--warning':'#d97706' }
             },
             'paper': {
                 name:'Warm Paper', mode:'light', accent:'#b45309',
                 swatches:['#fdf6e3','#fefce8','#b45309'],
                 vars:{ '--bg-dark':'#f5e6c8','--bg-main':'#fdf6e3','--bg-card':'#fefce8','--bg-card2':'#fef9c3',
                        '--border':'#fde68a','--text-primary':'#1c1917','--text-secondary':'#78350f',
-                       '--text-dim':'#d97706','--accent':'#b45309','--accent2':'#92400e' }
+                       '--text-dim':'#d97706','--accent':'#b45309','--accent2':'#92400e',
+                       '--wl-up':'#059669','--wl-dn':'#dc2626',
+                       '--qc-up':'#059669','--qc-dn':'#dc2626',
+                       '--chart-up':'#059669','--chart-dn':'#dc2626',
+                       '--danger':'#dc2626','--warning':'#d97706' }
             },
             'apple': {
                 name:'Minimalist Grey', mode:'light', accent:'#007aff',
                 swatches:['#f5f5f7','#ffffff','#007aff'],
                 vars:{ '--bg-dark':'#e5e5ea','--bg-main':'#f5f5f7','--bg-card':'#ffffff','--bg-card2':'#f2f2f7',
                        '--border':'#d1d1d6','--text-primary':'#1d1d1f','--text-secondary':'#6e6e73',
-                       '--text-dim':'#aeaeb2','--accent':'#007aff','--accent2':'#0056d6' }
+                       '--text-dim':'#aeaeb2','--accent':'#007aff','--accent2':'#0056d6',
+                       '--wl-up':'#089981','--wl-dn':'#f23645',
+                       '--qc-up':'#089981','--qc-dn':'#f23645',
+                       '--chart-up':'#089981','--chart-dn':'#f23645',
+                       '--danger':'#f23645','--warning':'#d97706' }
             },
         };
 
@@ -10765,10 +11230,12 @@ ${_clip(contextSections, 2600)}`;
         // Init theme on load
         (function() {
             const saved = localStorage.getItem('ps_theme');
-            if (saved && _THEMES[saved]) _applyTheme(saved);
-            else {
+            if (saved && _THEMES[saved]) {
+                _applyTheme(saved);
+            } else {
+                // ผู้ใช้ใหม่ — ใช้ apple (Minimalist Grey) เป็น default
                 const isDark = localStorage.getItem('ps_dark') === '1';
-                _applyTheme(isDark ? 'tv' : 'white');
+                _applyTheme(isDark ? 'tv' : 'apple');
             }
         })();
 
@@ -11490,7 +11957,77 @@ ${_clip(contextSections, 2600)}`;
             scheduleAutoSave(true); // immediate — month cleared
         }
 
+        // Mobile watchlist column layout — JS inject
+        function applyMobileWatchlistCols() {
+            if (window.innerWidth > 768) return;
+            const tbl = document.getElementById('watchlist-table');
+            if (!tbl) return;
+
+            // 0-based index → px width (0 = hide), Symbol(1) gets remaining space
+            const WIDTHS = { 0:26, 1:null, 2:0, 3:0, 4:80, 5:0, 6:72, 7:0, 8:60 };
+
+            // Kill overflow-x:auto on scroll wrapper only — don't change maxWidth
+            let el = tbl.parentElement;
+            while (el && el.id !== 'wl-table-panel') {
+                const ov = getComputedStyle(el).overflowX;
+                if (ov === 'auto' || ov === 'scroll') {
+                    el.style.overflowX = 'hidden';
+                }
+                el = el.parentElement;
+            }
+
+            // Use auto layout so browser respects td widths, not col widths
+            tbl.style.tableLayout = 'auto';
+            tbl.style.width       = '100%';
+            tbl.style.maxWidth    = '100%';
+            tbl.style.minWidth    = 'unset';
+
+            // Reset all colgroup cols to auto
+            tbl.querySelectorAll('colgroup col').forEach(col => {
+                col.style.width = 'auto';
+            });
+
+            // Process all rows — set width directly on each cell
+            tbl.querySelectorAll('tr').forEach(row => {
+                const cells = Array.from(row.children);
+                const total = cells.length;
+                cells.forEach((cell, i) => {
+                    const isLast = i === total - 1;
+                    const w = WIDTHS[i];
+                    const hide = (w === 0) || isLast || cell.classList.contains('wl-col-hide');
+                    if (hide) {
+                        cell.style.display  = 'none';
+                        cell.style.width    = '0px';
+                        cell.style.padding  = '0';
+                    } else if (w === null) {
+                        // flexible column — fills remaining space
+                        cell.style.display  = '';
+                        cell.style.width    = 'auto';
+                        cell.style.minWidth = '80px';
+                        cell.style.maxWidth = 'none';
+                        cell.style.overflow = 'hidden';
+                        cell.style.whiteSpace = 'nowrap';
+                    } else {
+                        cell.style.display  = '';
+                        cell.style.width    = w + 'px';
+                        cell.style.minWidth = w + 'px';
+                        cell.style.maxWidth = w + 'px';
+                        cell.style.overflow = 'hidden';
+                        cell.style.whiteSpace = 'nowrap';
+                    }
+                });
+            });
+        }
+
         window.onload = () => {
+            // Apply mobile watchlist columns via JS (CSS nth-child unreliable with hidden cols)
+            if (window.innerWidth <= 768) {
+                applyMobileWatchlistCols();
+            }
+            window.addEventListener('resize', () => {
+                if (window.innerWidth <= 768) applyMobileWatchlistCols();
+            });
+
             // Apply dark mode immediately — localStorage is the source of truth
             const savedDark = localStorage.getItem('ps_dark');
             applyDarkMode(savedDark === '1');
