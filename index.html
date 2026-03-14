@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PSLink</title>
-    <link id="ps-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2032%2032%27%3E%3Crect%20width=%2732%27%20height=%2732%27%20rx=%278%27%20fill=%27%230a0f1e%27/%3E%3Ccircle%20cx=%2716%27%20cy=%2716%27%20r=%275.5%27%20fill=%27none%27%20stroke=%27%233b82f6%27%20stroke-width=%271.2%27%20opacity=%270.6%27/%3E%3Ccircle%20cx=%2716%27%20cy=%2716%27%20r=%273.5%27%20fill=%27%233b82f6%27/%3E%3Cpath%20d=%27M16,4%20A12,12%200%200,1%2027.8,16%27%20fill=%27none%27%20stroke=%27%233b82f6%27%20stroke-width=%272.4%27%20stroke-linecap=%27round%27%20opacity=%270.95%27/%3E%3Cpath%20d=%27M27.8,16%20A12,12%200%200,1%2016,28%27%20fill=%27none%27%20stroke=%27%233b82f6%27%20stroke-width=%272.4%27%20stroke-linecap=%27round%27%20opacity=%270.55%27/%3E%3Cpath%20d=%27M16,28%20A12,12%200%200,1%204.2,16%27%20fill=%27none%27%20stroke=%27%233b82f6%27%20stroke-width=%272.4%27%20stroke-linecap=%27round%27%20opacity=%270.28%27/%3E%3Cpath%20d=%27M4.2,16%20A12,12%200%200,1%2016,4%27%20fill=%27none%27%20stroke=%27%233b82f6%27%20stroke-width=%272.4%27%20stroke-linecap=%27round%27%20opacity=%270.68%27/%3E%3C/svg%3E">
+    <link id="ps-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='6' fill='none' stroke='%233b82f6' stroke-width='1.8' opacity='0.45'/><circle cx='16' cy='16' r='3.5' fill='%233b82f6'/><path d='M16,4 A12,12 0 0,1 27.8,16' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round'/><path d='M27.8,16 A12,12 0 0,1 16,28' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round' opacity='0.6'/><path d='M16,28 A12,12 0 0,1 4.2,16' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round' opacity='0.3'/><path d='M4.2,16 A12,12 0 0,1 16,4' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round' opacity='0.75'/></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -2024,17 +2024,245 @@
                 </div>
             </div>
 
-            <div class="dash-card p-12 text-center max-w-xl mx-auto hidden" id="empty-state">
-                <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(13,148,136,0.12);border:1px solid var(--border);">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#0d9488"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                </div>
-                <h3 style="color:var(--text-primary);font-family:var(--font-mono);" class="font-bold text-lg mb-2">เริ่มวางแผนการเงินของคุณ</h3>
-                <p style="color:var(--text-secondary);" class="text-sm mb-6">ยังไม่มีข้อมูลในระบบ คุณสามารถเริ่มกรอกที่เมนู RECORDS หรือ Import ไฟล์สำรองข้อมูลที่มีอยู่</p>
-                <div class="flex flex-col sm:flex-row gap-2 justify-center">
-                    <button onclick="showTab('edit')" style="background:#089981;color:#fff;font-family:var(--font-mono);font-weight:700;" class="px-8 py-3 rounded-xl text-xs uppercase tracking-widest transition-all active:scale-95">ไปหน้าบันทึก</button>
-                    <button onclick="document.getElementById('fileInput').click()" style="background:var(--bg-card2);color:var(--text-secondary);border:1px solid var(--border);font-family:var(--font-mono);" class="px-8 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all active:scale-95">Import Data</button>
+            <!-- EMPTY STATE — Setup Wizard 3 steps -->
+            <div class="hidden" id="empty-state">
+                <div class="dash-card p-8 max-w-2xl mx-auto" style="border:1px solid var(--border);">
+
+                    <!-- Logo + Title -->
+                    <div class="flex flex-col items-center text-center mb-7">
+                        <svg viewBox="0 0 56 56" width="56" height="56" class="mb-4">
+                            <circle cx="28" cy="28" r="10" fill="none" stroke="#3b82f6" stroke-width="2" opacity="0.4"/>
+                            <circle cx="28" cy="28" r="6" fill="#3b82f6"/>
+                            <text x="28" y="32" text-anchor="middle" style="font-size:6px;font-weight:700;fill:#fff;font-family:sans-serif;letter-spacing:-0.5px">PS</text>
+                            <path d="M28,7 A21,21 0 0,1 48.8,28" fill="none" stroke="#3b82f6" stroke-width="5" stroke-linecap="round"/>
+                            <path d="M48.8,28 A21,21 0 0,1 28,49" fill="none" stroke="#3b82f6" stroke-width="5" stroke-linecap="round" opacity="0.6"/>
+                            <path d="M28,49 A21,21 0 0,1 7.2,28" fill="none" stroke="#3b82f6" stroke-width="5" stroke-linecap="round" opacity="0.3"/>
+                            <path d="M7.2,28 A21,21 0 0,1 28,7" fill="none" stroke="#3b82f6" stroke-width="5" stroke-linecap="round" opacity="0.75"/>
+                        </svg>
+                        <h2 style="color:var(--text-primary);" class="font-black text-xl mb-1">ยินดีต้อนรับสู่ PSLink</h2>
+                        <p style="color:var(--text-secondary);" class="text-sm">ตั้งค่าเบื้องต้นเพียง 3 ขั้นตอน แล้วเริ่มใช้งานได้เลย</p>
+                    </div>
+
+                    <!-- Step indicator -->
+                    <div class="flex items-center justify-center gap-2 mb-8" id="wz-step-indicator">
+                        <div class="wz-dot flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-black transition-all" id="wz-dot-1" style="background:#3b82f6;color:#fff;">1</div>
+                        <div class="h-px w-10" style="background:var(--border);" id="wz-line-1"></div>
+                        <div class="wz-dot flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-black transition-all" id="wz-dot-2" style="background:var(--bg-card2);color:var(--text-dim);border:1px solid var(--border);">2</div>
+                        <div class="h-px w-10" style="background:var(--border);" id="wz-line-2"></div>
+                        <div class="wz-dot flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-black transition-all" id="wz-dot-3" style="background:var(--bg-card2);color:var(--text-dim);border:1px solid var(--border);">3</div>
+                    </div>
+
+                    <!-- STEP 1: เลือก feature -->
+                    <div id="wz-step-1">
+                        <p style="color:var(--text-primary);" class="font-bold text-sm mb-1">ขั้นตอนที่ 1 — เลือกฟีเจอร์ที่ต้องการใช้</p>
+                        <p style="color:var(--text-dim);" class="text-xs mb-4">เลือกได้มากกว่าหนึ่งอย่าง สามารถเปลี่ยนได้ภายหลังในหน้าตั้งค่า</p>
+                        <div class="grid grid-cols-2 gap-2 mb-6" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr));">
+                            <!-- Records -->
+                            <label class="wz-feature-card flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all" style="border:1.5px solid var(--border);background:var(--bg-card2);" id="wz-card-records">
+                                <input type="checkbox" class="wz-feature-check hidden" value="records" onchange="wzToggleCard('records')">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(8,153,129,0.12);">
+                                    <svg class="w-4 h-4" fill="none" stroke="#089981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                </div>
+                                <div>
+                                    <div style="color:var(--text-primary);" class="font-bold text-xs">บันทึกรายรับ-รายจ่าย</div>
+                                    <div style="color:var(--text-dim);" class="text-[10px] mt-0.5">ติดตามการเงินส่วนตัวรายเดือน</div>
+                                </div>
+                            </label>
+                            <!-- Market -->
+                            <label class="wz-feature-card flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all" style="border:1.5px solid var(--border);background:var(--bg-card2);" id="wz-card-market">
+                                <input type="checkbox" class="wz-feature-check hidden" value="market" onchange="wzToggleCard('market')">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(59,130,246,0.12);">
+                                    <svg class="w-4 h-4" fill="none" stroke="#3b82f6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                                </div>
+                                <div>
+                                    <div style="color:var(--text-primary);" class="font-bold text-xs">ตลาดหุ้น &amp; การลงทุน</div>
+                                    <div style="color:var(--text-dim);" class="text-[10px] mt-0.5">Watchlist และราคาแบบ real-time</div>
+                                </div>
+                            </label>
+                            <!-- News -->
+                            <label class="wz-feature-card flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all" style="border:1.5px solid var(--border);background:var(--bg-card2);" id="wz-card-news">
+                                <input type="checkbox" class="wz-feature-check hidden" value="news" onchange="wzToggleCard('news')">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(245,158,11,0.12);">
+                                    <svg class="w-4 h-4" fill="none" stroke="#f59e0b" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
+                                </div>
+                                <div>
+                                    <div style="color:var(--text-primary);" class="font-bold text-xs">ข่าวตลาด</div>
+                                    <div style="color:var(--text-dim);" class="text-[10px] mt-0.5">ข่าวและสรุปจาก AI</div>
+                                </div>
+                            </label>
+                            <!-- AI -->
+                            <label class="wz-feature-card flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all" style="border:1.5px solid var(--border);background:var(--bg-card2);" id="wz-card-ai">
+                                <input type="checkbox" class="wz-feature-check hidden" value="ai" onchange="wzToggleCard('ai')">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(99,102,241,0.12);">
+                                    <svg class="w-4 h-4" fill="none" stroke="#6366f1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2"/></svg>
+                                </div>
+                                <div>
+                                    <div style="color:var(--text-primary);" class="font-bold text-xs">ผู้ช่วย AI</div>
+                                    <div style="color:var(--text-dim);" class="text-[10px] mt-0.5">วิเคราะห์และให้คำแนะนำ</div>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="flex justify-end">
+                            <button onclick="wzNext(1)" id="wz-btn-1" style="background:#3b82f6;color:#fff;opacity:0.4;pointer-events:none;" class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95">ถัดไป →</button>
+                        </div>
+                    </div>
+
+                    <!-- STEP 2: ตั้งชื่อ + API keys -->
+                    <div id="wz-step-2" class="hidden">
+                        <p style="color:var(--text-primary);" class="font-bold text-sm mb-1">ขั้นตอนที่ 2 — ตั้งค่าโปรไฟล์และเชื่อมต่อ API</p>
+                        <p style="color:var(--text-dim);" class="text-xs mb-4">ข้าม API ได้ถ้ายังไม่พร้อม สามารถกรอกในหน้าตั้งค่าภายหลัง</p>
+
+                        <!-- Profile name -->
+                        <div class="mb-4">
+                            <label style="color:var(--text-secondary);" class="text-xs font-bold block mb-1.5">ชื่อที่แสดง (ไม่บังคับ)</label>
+                            <input id="wz-profile-name" type="text" placeholder="เช่น PS, นาย ก, หรือชื่อเล่น" class="w-full text-sm px-3 py-2.5 rounded-xl outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);">
+                        </div>
+
+                        <!-- API keys — show only relevant ones -->
+                        <div id="wz-api-section" class="space-y-2.5 mb-6">
+                            <!-- OpenRouter — show if AI selected -->
+                            <div class="wz-api-row hidden" id="wz-api-openrouter">
+                                <label style="color:var(--text-secondary);" class="text-xs font-bold block mb-1">OpenRouter API Key <span style="color:var(--text-dim);" class="font-normal">(สำหรับ AI วิเคราะห์)</span></label>
+                                <div class="flex gap-2">
+                                    <input id="wz-or-key" type="password" placeholder="sk-or-v1-..." class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
+                                    <button onclick="wzToggleVis('wz-or-key')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                                </div>
+                            </div>
+                            <!-- Alpaca — show if market selected -->
+                            <div class="wz-api-row hidden" id="wz-api-alpaca">
+                                <label style="color:var(--text-secondary);" class="text-xs font-bold block mb-1">Alpaca API Key <span style="color:var(--text-dim);" class="font-normal">(ราคาหุ้น real-time)</span></label>
+                                <div class="flex gap-2 mb-1.5">
+                                    <input id="wz-alpaca-key" type="password" placeholder="Alpaca Key ID" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
+                                    <button onclick="wzToggleVis('wz-alpaca-key')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input id="wz-alpaca-secret" type="password" placeholder="Alpaca Secret" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
+                                    <button onclick="wzToggleVis('wz-alpaca-secret')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                                </div>
+                            </div>
+                            <!-- FMP — show if market/news selected -->
+                            <div class="wz-api-row hidden" id="wz-api-fmp">
+                                <label style="color:var(--text-secondary);" class="text-xs font-bold block mb-1">FMP API Key <span style="color:var(--text-dim);" class="font-normal">(ข้อมูลตลาดและข่าว)</span></label>
+                                <div class="flex gap-2">
+                                    <input id="wz-fmp-key" type="password" placeholder="FMP API Key..." class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
+                                    <button onclick="wzToggleVis('wz-fmp-key')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                                </div>
+                            </div>
+                            <!-- No API needed message -->
+                            <div id="wz-no-api-msg" class="hidden">
+                                <p style="color:var(--text-dim);" class="text-xs text-center py-3">ฟีเจอร์ที่เลือกไม่จำเป็นต้องใช้ API Key สามารถไปขั้นตอนถัดไปได้เลย</p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between">
+                            <button onclick="wzBack(2)" class="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest" style="background:var(--bg-card2);color:var(--text-secondary);border:1px solid var(--border);">← ย้อนกลับ</button>
+                            <button onclick="wzNext(2)" style="background:#3b82f6;color:#fff;" class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95">ถัดไป →</button>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: Sync Gist + เริ่มใช้งาน -->
+                    <div id="wz-step-3" class="hidden">
+                        <p style="color:var(--text-primary);" class="font-bold text-sm mb-1">ขั้นตอนที่ 3 — สำรองข้อมูลด้วย GitHub Gist</p>
+                        <p style="color:var(--text-dim);" class="text-xs mb-4">ข้อมูลทั้งหมดจะถูก sync ไว้ที่ Gist ส่วนตัว เข้าถึงได้จากทุกอุปกรณ์</p>
+
+                        <div class="mb-2">
+                            <label style="color:var(--text-secondary);" class="text-xs font-bold block mb-1.5">GitHub Personal Access Token <span style="color:var(--text-dim);" class="font-normal">(scope: gist)</span></label>
+                            <div class="flex gap-2">
+                                <input id="wz-gist-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
+                                <button onclick="wzToggleVis('wz-gist-token')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                            </div>
+                            <p style="color:var(--text-dim);" class="text-[10px] mt-1.5">GitHub → Settings → Developer settings → Personal access tokens (Classic) → scope: gist</p>
+                        </div>
+
+                        <!-- Import existing data option -->
+                        <div class="flex items-center gap-3 p-3 rounded-xl mt-3 mb-6" style="background:var(--bg-card2);border:1px solid var(--border);">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="var(--text-dim)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                            <p style="color:var(--text-secondary);" class="text-xs flex-1">มีไฟล์สำรองข้อมูลเดิมอยู่แล้ว?</p>
+                            <button onclick="document.getElementById('fileInput').click()" class="text-[10px] font-black px-3 py-1.5 rounded-lg" style="background:var(--bg-main);color:var(--text-secondary);border:1px solid var(--border);">นำเข้าข้อมูล</button>
+                        </div>
+
+                        <div class="flex justify-between">
+                            <button onclick="wzBack(3)" class="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest" style="background:var(--bg-card2);color:var(--text-secondary);border:1px solid var(--border);">← ย้อนกลับ</button>
+                            <button onclick="wzFinish()" style="background:#3b82f6;color:#fff;" class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95">เริ่มใช้งาน ✓</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
+
+            <script>
+            // ─── Setup Wizard ───────────────────────────────────────────
+            function wzToggleCard(id) {
+                const card = document.getElementById('wz-card-' + id);
+                const cb = card.querySelector('input[type=checkbox]');
+                const isOn = cb.checked;
+                card.style.borderColor = isOn ? '#3b82f6' : 'var(--border)';
+                card.style.background  = isOn ? 'rgba(59,130,246,0.07)' : 'var(--bg-card2)';
+                const anyChecked = [...document.querySelectorAll('.wz-feature-check')].some(c => c.checked);
+                const btn = document.getElementById('wz-btn-1');
+                btn.style.opacity = anyChecked ? '1' : '0.4';
+                btn.style.pointerEvents = anyChecked ? 'auto' : 'none';
+            }
+            function wzToggleVis(id) {
+                const el = document.getElementById(id);
+                el.type = el.type === 'password' ? 'text' : 'password';
+            }
+            function wzSetStep(n) {
+                [1,2,3].forEach(i => {
+                    document.getElementById('wz-step-' + i).classList.toggle('hidden', i !== n);
+                    const dot = document.getElementById('wz-dot-' + i);
+                    if (i < n) {
+                        dot.style.background = '#22c55e'; dot.style.color = '#fff'; dot.style.border = 'none';
+                        dot.textContent = '✓';
+                    } else if (i === n) {
+                        dot.style.background = '#3b82f6'; dot.style.color = '#fff'; dot.style.border = 'none';
+                        dot.textContent = i;
+                    } else {
+                        dot.style.background = 'var(--bg-card2)'; dot.style.color = 'var(--text-dim)'; dot.style.border = '1px solid var(--border)';
+                        dot.textContent = i;
+                    }
+                });
+            }
+            function wzNext(from) {
+                if (from === 1) {
+                    // Show relevant API fields
+                    const checked = [...document.querySelectorAll('.wz-feature-check')].filter(c => c.checked).map(c => c.value);
+                    const needAI  = checked.includes('ai');
+                    const needMkt = checked.includes('market');
+                    const needNews= checked.includes('news');
+                    document.getElementById('wz-api-openrouter').classList.toggle('hidden', !needAI);
+                    document.getElementById('wz-api-alpaca').classList.toggle('hidden', !needMkt);
+                    document.getElementById('wz-api-fmp').classList.toggle('hidden', !(needMkt || needNews));
+                    const anyApi = needAI || needMkt || needNews;
+                    document.getElementById('wz-no-api-msg').classList.toggle('hidden', anyApi);
+                }
+                wzSetStep(from + 1);
+            }
+            function wzBack(from) { wzSetStep(from - 1); }
+            function wzFinish() {
+                // Save profile name
+                const name = document.getElementById('wz-profile-name').value.trim();
+                if (name) localStorage.setItem('ps_profile_name', name);
+                // Save API keys to same localStorage keys used by settings
+                const orKey = document.getElementById('wz-or-key').value.trim();
+                const alpKey = document.getElementById('wz-alpaca-key').value.trim();
+                const alpSec = document.getElementById('wz-alpaca-secret').value.trim();
+                const fmpKey = document.getElementById('wz-fmp-key').value.trim();
+                const gistTok = document.getElementById('wz-gist-token').value.trim();
+                if (orKey)   localStorage.setItem('ps_openrouter_key', orKey);
+                if (alpKey)  localStorage.setItem('ps_alpaca_key', alpKey);
+                if (alpSec)  localStorage.setItem('ps_alpaca_secret', alpSec);
+                if (fmpKey)  localStorage.setItem('ps_fmp_key', fmpKey);
+                if (gistTok) localStorage.setItem('ps_gist_token', gistTok);
+                // Mark wizard complete
+                localStorage.setItem('ps_wizard_done', '1');
+                // Hide empty state and go to records
+                document.getElementById('empty-state').classList.add('hidden');
+                showTab('edit');
+                if (typeof loadDashboard === 'function') loadDashboard();
+                if (typeof initSettings === 'function') initSettings();
+            }
+            </script>
         </div>
 
         <!-- RECORDS TAB -->
@@ -3009,6 +3237,11 @@
             if (validRecords.length === 0) {
                 const emptyEl = document.getElementById('empty-state');
                 const contentEl = document.getElementById('dash-content');
+                if (localStorage.getItem('ps_wizard_done') === '1') {
+                    if (emptyEl) emptyEl.classList.add('hidden');
+                    showTab('edit');
+                    return;
+                }
                 if (emptyEl) emptyEl.classList.remove('hidden');
                 if (contentEl) contentEl.classList.add('hidden');
                 return;
