@@ -1984,7 +1984,7 @@
             /* 2. Main content padding */
             main {
                 padding-top: calc(52px + var(--sat)) !important;
-                padding-bottom: calc(56px + var(--sab-min) + 8px) !important;
+                padding-bottom: calc(56px + var(--sab-min) + 70px) !important;
                 padding-left: 12px !important;
                 padding-right: 12px !important;
             }
@@ -2466,7 +2466,7 @@
                 max-width: 100% !important;
             }
             #watchlist-rows {
-                padding-bottom: 120px !important;
+                padding-bottom: 20px !important;
             }
         }
 
@@ -4655,6 +4655,7 @@
             const applyToMemory = opts.applyToMemory !== false;
             if (!data || typeof data !== 'object') return;
             const now = Date.now();
+            const todayKey = currentEtDateKey();
             const cleaned = {};
             Object.keys(data).forEach(sym => {
                 const e = data[sym];
@@ -4673,7 +4674,18 @@
                 localStorage.setItem('ps_wl_spark_cache_v5', JSON.stringify({ ts: now, data: cleaned }));
             } catch(e) {}
             if (!applyToMemory) return;
-            Object.keys(cleaned).forEach(sym => { wlSparklineCache[sym] = cleaned[sym]; });
+            Object.keys(cleaned).forEach(sym => {
+                const entry = cleaned[sym];
+                // Fix 1 — Race condition guard: never overwrite a fresher in-memory entry
+                // (prevents syncFromGist completing late and clobbering freshly-fetched sparklines)
+                const existing = wlSparklineCache[sym];
+                if (existing && existing.ts && entry.ts && existing.ts > entry.ts) return;
+                // Fix 2 — Session guard: if market is open and this sparkline is from a
+                // different trading session (stale intraday path), skip to memory.
+                // It will be replaced by refreshSparklineForTopSymbols() momentarily.
+                if (isMarketOpen() && entry.session && entry.session !== todayKey) return;
+                wlSparklineCache[sym] = entry;
+            });
         }
         function saveSparklineCache() {
             try {
@@ -5157,9 +5169,11 @@
             await throttledAll(symbols, 3, async (symbol) => {
                 const ok = await refreshSparklineSymbol(symbol, true);
                 if (ok) return;
-                // Fallback: ถ้า Alpaca ใช้ไม่ได้ ลองสร้างจาก OHLC แทน
+                // Fix 3 — OHLC fallback always runs when Alpaca returns no usable data.
+                // Previously gated by !hasAlpacaSparkSource() which blocked the fallback
+                // when keys are configured but the API call fails at runtime.
                 const d = wlDataCache[symbol];
-                if (d && !hasAlpacaSparkSource()) seedSparklineFromOHLC(symbol, d, d?.c ?? d?.pc ?? null);
+                if (d) seedSparklineFromOHLC(symbol, d, d?.c ?? d?.pc ?? null);
             });
             scheduleSaveSparklineCache(true);
         }
