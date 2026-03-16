@@ -13,13 +13,14 @@
     <meta name="theme-color" content="#0a0f1e" media="(prefers-color-scheme: dark)">
     <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
 
-    <!-- Apple Touch Icon — PNG จริง 180x180 (iOS ไม่รองรับ SVG inline) -->
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <!-- Apple Touch Icon — PNG จริง, sizes ต้องระบุให้ iOS หยิบถูก -->
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
 
-    <!-- PWA Manifest (Android/Chrome install prompt + icon) -->
+    <!-- PWA Manifest (Android/Chrome) -->
     <link rel="manifest" href="manifest.json">
 
-    <!-- Service Worker — enables PWA install on Android -->
+    <!-- Service Worker -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
