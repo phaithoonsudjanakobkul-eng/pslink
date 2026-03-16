@@ -13,8 +13,18 @@
     <meta name="theme-color" content="#0a0f1e" media="(prefers-color-scheme: dark)">
     <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
 
-    <!-- Apple Touch Icon — orbit logo on dark pill, 180x180 for iPhone -->
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%230a0f1e'/><circle cx='90' cy='90' r='34' fill='none' stroke='%233b82f6' stroke-width='6' opacity='0.4'/><circle cx='90' cy='90' r='21' fill='%233b82f6'/><text x='90' y='97' text-anchor='middle' style='font-size:18px;font-weight:700;fill:%23fff;font-family:sans-serif;letter-spacing:-1px'>PS</text><path d='M90,22 A68,68 0 0,1 157.8,90' fill='none' stroke='%233b82f6' stroke-width='14' stroke-linecap='round'/><path d='M157.8,90 A68,68 0 0,1 90,158' fill='none' stroke='%233b82f6' stroke-width='14' stroke-linecap='round' opacity='0.6'/><path d='M90,158 A68,68 0 0,1 22.2,90' fill='none' stroke='%233b82f6' stroke-width='14' stroke-linecap='round' opacity='0.3'/><path d='M22.2,90 A68,68 0 0,1 90,22' fill='none' stroke='%233b82f6' stroke-width='14' stroke-linecap='round' opacity='0.75'/></svg>">
+    <!-- Apple Touch Icon — PNG จริง 180x180 (iOS ไม่รองรับ SVG inline) -->
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+    <!-- PWA Manifest (Android/Chrome install prompt + icon) -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Service Worker — enables PWA install on Android -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+      }
+    </script>
 
     <link id="ps-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='6' fill='none' stroke='%233b82f6' stroke-width='1.8' opacity='0.45'/><circle cx='16' cy='16' r='3.5' fill='%233b82f6'/><path d='M16,4 A12,12 0 0,1 27.8,16' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round'/><path d='M27.8,16 A12,12 0 0,1 16,28' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round' opacity='0.6'/><path d='M16,28 A12,12 0 0,1 4.2,16' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round' opacity='0.3'/><path d='M4.2,16 A12,12 0 0,1 16,4' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round' opacity='0.75'/></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
