@@ -1956,21 +1956,25 @@
             }
             #mobile-topbar { display: flex !important; z-index: 100 !important; }
 
-            /* ป้องกัน horizontal overflow ทั้งหน้า */
-            main { overflow-x: hidden !important; }
+            /* ป้องกัน horizontal overflow ทั้งหน้า
+               ใช้ clip แทน hidden เพื่อไม่ให้ main กลายเป็น sticky container บน iOS Safari
+               (overflow:hidden สร้าง BFC ทำให้ position:sticky อ้างอิง main แทน viewport) */
+            main { overflow-x: clip !important; }
             /* News sticky header must stick below the mobile topbar, not behind it */
             #news-sticky-header {
                 top: calc(52px + var(--sat)) !important;
             }
-            /* ใช้ clip-path แทน hidden สำหรับ tab containers เพื่อไม่ตัด table columns */
+            /* overflow-x: clip ป้องกัน horizontal scroll โดยไม่สร้าง BFC
+               (overflow:hidden สร้าง BFC → ทำให้ position:sticky ใน #tab-news อ้างอิง tab
+               แทน viewport → sticky header ห่างจาก topbar เท่ากับ main padding-top เพิ่มอีกชั้น) */
             #tab-edit, #tab-dashboard, #tab-news {
-                overflow-x: hidden !important;
+                overflow-x: clip !important;
                 max-width: 100% !important;
             }
             /* watchlist overflow handled in watchlist block below */
             #tab-watchlist {
                 max-width: 100% !important;
-                overflow-x: hidden !important;
+                overflow-x: clip !important;
             }
 
             /* Remove internal scroll — let watchlist flow to full height (page scrolls) */
@@ -2295,15 +2299,57 @@
             #tab-watchlist.space-y-3 > * { margin-top: 8px !important; }
             #tab-watchlist.space-y-3 > *:first-child { margin-top: 0 !important; }
 
-            /* ── FIX 5: Logo บน topbar — เพิ่ม dark pill ── */
-            #mobile-topbar svg:first-child {
-                background: #0a0f1e !important;
-                border-radius: 8px !important;
-                padding: 2px !important;
-            }
-
             /* ── FIX 6: CLOSED badge — เพิ่ม tooltip hint ── */
             #wl-market-status { cursor: default !important; }
+
+            /* ── Mobile Chart: OHLC stats row ──
+               บน desktop: price hero (ซ้าย) + stats grid (ขวา) อยู่แถวเดียวกัน
+               บน mobile: stats grid ขึ้นบรรทัดใหม่ใต้ราคา, แสดงแค่ 4 ค่าหลัก
+               (Open, Prev Close, Day Low, Day High) — ซ่อน Mkt Cap / P/E / Div */
+            #qc-row2 {
+                flex-wrap: wrap;
+            }
+            #qc-stats-grid {
+                border-left: none !important;
+                padding-left: 0 !important;
+                width: 100%;
+                border-top: 1px solid var(--border);
+                margin-top: 5px;
+                padding-top: 5px;
+                flex-shrink: 0;
+            }
+            /* ซ่อน Mkt Cap (5th), P/E (6th), Div (7th) */
+            #qc-stats-grid .qc-stat-cell:nth-child(n+5) {
+                display: none !important;
+            }
+            /* แจกพื้นที่ 4 เซลล์เท่า ๆ กัน + เส้นแบ่งแนวตั้ง */
+            #qc-stats-grid .qc-stat-cell {
+                flex: 1 1 0;
+                padding: 3px 6px !important;
+                border-right: 1px solid var(--border);
+            }
+            /* เซลล์ที่ 4 (Day High) ไม่มี border ขวา */
+            #qc-stats-grid .qc-stat-cell:nth-child(4) {
+                border-right: none !important;
+            }
+        }
+
+        /* ── iPad Mini 7 / wider phones (600 px – 768 px): extra breathing room ── */
+        @media (min-width: 600px) and (max-width: 768px) {
+            main {
+                padding-left: 16px !important;
+                padding-right: 16px !important;
+            }
+            /* Dashboard stat cards — comfortable 2×2 on wider phones */
+            .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
+                gap: 12px !important;
+            }
+            /* Records toolbar — allow row layout instead of full stack */
+            #records-toolbar {
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                align-items: center !important;
+            }
         }
 
         /* ── Mobile Watchlist: swipe-to-delete + long-press drag ── */
@@ -2316,12 +2362,368 @@
         }
         #watchlist-table .wl-swipe-bg svg { width: 22px; height: 22px; stroke: #fff; flex-shrink: 0; }
         #watchlist-table .wl-mob-card-inner { position: relative !important; z-index: 1 !important; background: var(--bg-card2, #111827) !important; will-change: transform; }
+        /* Tablet-only extra columns — hidden by default on all screen sizes */
+        #watchlist-table .wl-mob-signal { display: none; }
+        #watchlist-table .wl-mob-chgd   { display: none; }
+        #watchlist-table .wl-mob-ext    { display: none; }
+        #watchlist-table .wl-mob-vol    { display: none; }
+        /* Base styles for tablet-only elements (display controlled per breakpoint) */
+        #watchlist-table .wl-mob-ext-pct { font-variant-numeric: tabular-nums; }
         #watchlist-rows .wl-row.wl-drag-active { opacity: 0.35 !important; }
         #watchlist-rows .wl-row.wl-drag-over .wl-mobile-card { border-top: 2px solid var(--accent, #3b82f6) !important; }
         #wl-drag-clone {
             position: fixed !important; pointer-events: none !important; z-index: 9999 !important;
             box-shadow: 0 12px 40px rgba(0,0,0,.55) !important;
             transform: scale(1.025) !important; border-radius: 4px !important; overflow: hidden !important;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           iPad / Tablet layout  (769 px – 1024 px)
+           Targets: iPad 10th-gen (810), iPad Air (820), iPad Pro 11" (834)
+                    in portrait orientation.
+           iPad Mini 7 portrait (744 px) already falls in ≤768 px mobile.
+           All iPads in landscape (≥1025 px) fall through to desktop.
+           ══════════════════════════════════════════════════════════════ */
+        @media (min-width: 769px) and (max-width: 1024px) {
+
+            /* 1. Nav — hide desktop sidebar, show mobile top/bottom bars */
+            nav > div { display: none !important; }
+            #mobile-topbar { display: flex !important; z-index: 100 !important; }
+            #mobile-bottom-nav {
+                display: flex !important;
+                padding-bottom: var(--sab) !important;
+            }
+
+            /* 2. Main content — wider side padding than phone */
+            main {
+                padding-top: calc(52px + var(--sat)) !important;
+                padding-bottom: calc(56px + var(--sab-min) + 70px) !important;
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+                overflow-x: clip !important;
+            }
+            #tab-edit, #tab-dashboard, #tab-news, #tab-watchlist {
+                overflow-x: clip !important;
+                max-width: 100% !important;
+            }
+
+            /* 3. Bottom Tab Bar */
+            #mobile-bottom-nav {
+                display: flex !important;
+                padding-bottom: var(--sab) !important;
+            }
+
+            /* 4. Dashboard — 2×2 summary cards, stacked chart pair */
+            .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+            .grid.grid-cols-1.lg\:grid-cols-2 {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* 5. News sticky header — below topbar */
+            #news-sticky-header {
+                top: calc(52px + var(--sat)) !important;
+            }
+
+            /* 6. Records toolbar — horizontal row with wrap (not fully stacked) */
+            #records-toolbar {
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                padding: 12px 16px !important;
+                border-radius: 16px !important;
+            }
+            #records-toolbar > div {
+                flex-shrink: 0 !important;
+            }
+
+            /* 7. Financial bar — 2 columns */
+            #financial-bar {
+                grid-template-columns: 1fr 1fr !important;
+            }
+            #financial-bar > div {
+                border-bottom: none !important;
+                border-right: 1px solid var(--border) !important;
+            }
+            #financial-bar > div:nth-child(even) { border-right: none !important; }
+            #financial-bar > div:nth-last-child(-n+2) {
+                border-bottom: none !important;
+            }
+
+            /* 8. Watchlist — stack vertically */
+            #wl-split-wrap {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            #wl-split-wrap.chart-open #wl-table-panel {
+                width: 100% !important;
+                max-height: 50vh !important;
+            }
+            #wl-table-panel .glass-card,
+            #wl-table-panel .glass-card > div {
+                max-height: none !important;
+                overflow-y: visible !important;
+                overflow-x: visible !important;
+            }
+
+            /* ── Watchlist mobile-card: tablet-enhanced layout ──
+               5-column grid: Logo | Info | Signal | Sparkline | PriceBox
+               ~780 px usable on 810-834 px iPads (20 px side padding × 2).
+               Signal is a dedicated column (direct child of card-inner).
+               Volume shown inline in company name row.                    */
+
+            /* Card row — same height as phone */
+            #watchlist-table .wl-mobile-card { min-height: 0 !important; }
+            #watchlist-table .wl-mob-card-inner {
+                display: grid !important;
+                grid-template-columns: 44px minmax(0, 1fr) 82px 104px 116px !important;
+                gap: 0 12px !important;
+                padding: 8px 16px !important;
+                min-height: 0 !important;
+                align-items: center !important;
+            }
+
+            /* Info column: simple flex, sym big + name+vol small */
+            #watchlist-table .wl-mob-info {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                gap: 1px !important;
+                overflow: hidden !important;
+                min-width: 0 !important;
+            }
+            #watchlist-table .wl-mob-sym {
+                font-size: 15.5px !important;
+                font-weight: 800 !important;
+                letter-spacing: 0.015em !important;
+                line-height: 1.25 !important;
+                white-space: nowrap !important;
+            }
+            #watchlist-table .wl-mob-name {
+                font-size: 11px !important;
+                line-height: 1.25 !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                color: var(--text-dim) !important;
+            }
+            /* Inline volume — shown only on tablet */
+            #watchlist-table .wl-mob-vol {
+                display: inline !important;
+                font-size: 10px !important;
+                font-weight: 400 !important;
+                opacity: 0.65 !important;
+            }
+
+            /* Signal: dedicated column, centered pill with background */
+            #watchlist-table .wl-mob-signal {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+            #watchlist-table .wl-mob-signal .wl-signal-badge {
+                font-size: 9px !important;
+                font-weight: 800 !important;
+                padding: 4px 7px !important;
+                border-radius: 7px !important;
+                white-space: nowrap !important;
+                text-align: center !important;
+                line-height: 1.3 !important;
+            }
+            #watchlist-table .wl-mob-signal .wl-sig-sb,
+            #watchlist-table .wl-mob-signal .wl-sig-buy,
+            #watchlist-table .wl-mob-signal .wl-sig-lean-bull {
+                background: rgba(38,166,154,0.15) !important;
+            }
+            #watchlist-table .wl-mob-signal .wl-sig-ss,
+            #watchlist-table .wl-mob-signal .wl-sig-sell,
+            #watchlist-table .wl-mob-signal .wl-sig-lean-bear {
+                background: rgba(239,83,80,0.15) !important;
+            }
+            #watchlist-table .wl-mob-signal .wl-sig-neu {
+                background: rgba(100,116,139,0.12) !important;
+            }
+
+            /* Sparkline — slightly wider than phone */
+            #watchlist-table .wl-mob-spark {
+                width: 104px !important;
+                min-width: 104px !important;
+                height: 42px !important;
+            }
+
+            /* PriceBox: right-aligned — Price / $Chg / %pill / [Ext] */
+            #watchlist-table .wl-mob-pricebox {
+                min-width: 116px !important;
+                max-width: 116px !important;
+                gap: 1px !important;
+            }
+            #watchlist-table .wl-mob-price {
+                font-size: 15.5px !important;
+                line-height: 1.25 !important;
+            }
+            /* Dollar change — tablet only */
+            #watchlist-table .wl-mob-chgd {
+                display: block !important;
+                font-size: 10px !important;
+                font-weight: 600 !important;
+                font-variant-numeric: tabular-nums !important;
+                line-height: 1.2 !important;
+            }
+            /* Ext hours (Pre/AH) — inline at bottom of pricebox */
+            #watchlist-table .wl-mob-ext {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: flex-end !important;
+                gap: 3px !important;
+                margin-top: 1px !important;
+            }
+            #watchlist-table .wl-mob-ext-label {
+                font-size: 7px !important;
+                font-weight: 800 !important;
+                padding: 0 3px !important;
+                border-radius: 3px !important;
+                background: rgba(100,116,139,0.12) !important;
+                color: var(--text-dim) !important;
+                letter-spacing: 0.04em !important;
+                text-transform: uppercase !important;
+            }
+            #watchlist-table .wl-mob-ext-pct {
+                font-size: 9px !important;
+                font-weight: 700 !important;
+            }
+            #watchlist-table .wl-mob-ext-px { display: none !important; }
+
+            /* 9. Settings modal — fullscreen */
+            #settings-modal > div {
+                width: 100% !important;
+                height: 100% !important;
+                max-height: 100% !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+                padding-top: env(safe-area-inset-top) !important;
+            }
+
+            /* 10. Wizard card — full width */
+            #empty-state .dash-card {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+
+            /* 11. AI Analyst FAB — above bottom nav */
+            #ai-analyst-btn-wrap, [id*="ai-analyst"] {
+                bottom: calc(56px + var(--sab-min) + 12px) !important;
+            }
+            #ai-fab {
+                bottom: calc(56px + var(--sab-min) + 14px) !important;
+                right: 18px !important;
+            }
+
+            /* ── AI Analyst Bottom Sheet (tablet) ── */
+            #ai-sheet-backdrop {
+                display: block;
+                position: fixed; inset: 0;
+                background: rgba(0,0,0,0.52);
+                z-index: 299;
+                opacity: 0; pointer-events: none;
+                transition: opacity 0.28s ease;
+            }
+            #ai-sheet-backdrop.ai-bd-visible {
+                opacity: 1; pointer-events: auto;
+            }
+            #ai-popup {
+                position: fixed !important;
+                left: 0 !important; right: 0 !important;
+                bottom: 0 !important; top: auto !important;
+                width: 100% !important; max-width: 100% !important;
+                height: 82dvh !important;
+                border-radius: 20px 20px 0 0 !important;
+                transform: translateY(102%) !important;
+                transition: transform 0.32s cubic-bezier(0.32,0.72,0,1) !important;
+                z-index: 300 !important;
+                display: block !important;
+                visibility: hidden;
+            }
+            #ai-popup.ai-sheet-open {
+                transform: translateY(0) !important;
+                visibility: visible;
+            }
+            #ai-popup-panel {
+                height: 100% !important;
+                min-height: 0 !important;
+                border-radius: 20px 20px 0 0 !important;
+                border-left: none !important;
+                border-right: none !important;
+                border-bottom: none !important;
+            }
+            #ai-popup-panel::before {
+                content: '';
+                display: block;
+                width: 36px; height: 4px;
+                background: var(--border);
+                border-radius: 9px;
+                margin: 10px auto 0;
+                flex-shrink: 0;
+            }
+            #ai-popup-input-row {
+                padding-bottom: calc(0.625rem + var(--sab)) !important;
+            }
+            #ai-popup-header { cursor: default !important; }
+
+            /* 12. Watchlist table columns */
+            .wl-col-hide { display: none !important; }
+            #watchlist-table td:first-child svg { display: none !important; }
+            #watchlist-table .wl-idx { font-size: 9px !important; min-width: 10px !important; }
+            #watchlist-table thead { display: table-header-group !important; }
+            #watchlist-table thead th { font-size: 9px !important; white-space: nowrap !important; }
+
+            /* 13. Scanner — keep 2-col on tablet (phone uses 1-col) */
+            #market-scanner-card > div > div[style*="padding:20px"],
+            #market-scanner-card > div > div[style*="padding:22px"] {
+                padding: 14px 16px 12px !important;
+            }
+            #market-scanner-card span[style*="font-size:17px"] {
+                font-size: 14px !important;
+            }
+            #scanner-refresh-btn {
+                opacity: 0.85 !important;
+                min-width: 36px !important; min-height: 36px !important;
+                display: flex !important;
+                align-items: center !important; justify-content: center !important;
+                border-radius: 10px !important;
+                background: rgba(255,255,255,0.07) !important;
+                flex-shrink: 0 !important;
+            }
+            .scanner-tab-btn {
+                padding: 4px 10px !important;
+                font-size: 11px !important;
+                white-space: nowrap !important;
+            }
+            #scanner-key-prompt { display: none !important; }
+
+            /* 14. Watchlist header — hide inline FX / AI widgets, keep search */
+            #fx-widget,
+            #erapi-prompt,
+            #wl-search-wrap ~ div > .flex.items-center.gap-2.rounded-xl { display: none !important; }
+            #tab-watchlist .flex.items-center.gap-2.rounded-xl[style*="height:34px"] { display: none !important; }
+            #wl-search-wrap { width: 100% !important; flex: 1 !important; min-width: 0 !important; }
+            #tab-watchlist.space-y-3 > * { margin-top: 8px !important; }
+            #tab-watchlist.space-y-3 > *:first-child { margin-top: 0 !important; }
+
+            /* 15. Toast */
+            #wl-toast-wrap {
+                bottom: calc(56px + var(--sab-min) + 8px) !important;
+                top: auto !important;
+                right: 20px !important;
+                left: 20px !important;
+            }
+
+            /* 16. Touch feedback */
+            .wl-row:active { background: rgba(59,130,246,0.08) !important; }
+            button:active, [onclick]:active { opacity: 0.7 !important; }
+
+            /* 17. Dash value font */
+            .dash-value { font-size: 1.5rem !important; }
         }
 
         /* Watchlist Webull card layout — tablet + phone (≤1200px) */
@@ -2470,6 +2872,43 @@
             }
         }
 
+        /* ── Tablet watchlist card: grid override (must come AFTER ≤1200px flex block) ──
+           At 769-1024 px the ≤1200px block sets display:flex which overrides the tablet
+           grid defined earlier.  This block re-asserts display:grid for tablets.          */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            /* 5-col grid: Logo(44) | Info(flex) | Signal(82) | Spark(104) | Price(116) */
+            #watchlist-table .wl-mobile-card {
+                min-height: 0 !important;
+            }
+            #watchlist-table .wl-mob-card-inner {
+                display: grid !important;
+                grid-template-columns: 44px minmax(0, 1fr) 82px 104px 116px !important;
+                grid-template-rows: auto !important;
+                gap: 0 12px !important;
+                padding: 8px 16px !important;
+                min-height: 0 !important;
+                align-items: center !important;
+                flex-direction: unset !important;
+            }
+            /* Explicitly place each column */
+            #watchlist-table .wl-mob-logo   { grid-column: 1 !important; }
+            #watchlist-table .wl-mob-info   { grid-column: 2 !important; }
+            #watchlist-table .wl-mob-signal { grid-column: 3 !important; }
+            #watchlist-table .wl-mob-spark  {
+                grid-column: 4 !important;
+                flex-shrink: unset !important;
+                width: 104px !important;
+                min-width: 104px !important;
+                height: 42px !important;
+            }
+            #watchlist-table .wl-mob-pricebox {
+                grid-column: 5 !important;
+                flex-shrink: unset !important;
+                min-width: 116px !important;
+                max-width: 116px !important;
+            }
+        }
+
         /* iPhone / จอแคบ (≤450px) — 1 row แบบ Webull: Logo | Symbol+Name | Sparkline | Price */
         @media (max-width: 450px) {
             #tab-watchlist, #wl-table-panel, #wl-table-panel .glass-card,
@@ -2545,7 +2984,7 @@
     <div id="mobile-topbar" style="display:none;position:fixed;top:0;left:0;right:0;padding-top:var(--sat);height:calc(52px + var(--sat));padding-left:16px;padding-right:16px;align-items:center;justify-content:space-between;z-index:100;background:var(--bg-card);border-bottom:1px solid var(--border);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
         <!-- Left: logo + title -->
         <div style="display:flex;align-items:center;gap:8px;">
-            <div style="background:#0a0f1e;border-radius:10px;padding:4px;display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;">
+            <div style="background:var(--bg-card2);border-radius:10px;padding:4px;display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;">
                 <svg viewBox="0 0 28 28" width="24" height="24">
                     <circle cx="14" cy="14" r="5" fill="none" stroke="#3b82f6" stroke-width="1.4" opacity="0.4"/>
                     <circle cx="14" cy="14" r="3" fill="#3b82f6"/>
@@ -3399,7 +3838,7 @@
                     </div>
 
                     <!-- Row 2: Price hero (left) + stats inline (right) -->
-                    <div class="flex items-center gap-3 px-3 pb-1.5" style="border-top:1px solid color-mix(in srgb, var(--accent) 20%, var(--border));padding-top:6px">
+                    <div id="qc-row2" class="flex items-center gap-3 px-3 pb-1.5" style="border-top:1px solid color-mix(in srgb, var(--accent) 20%, var(--border));padding-top:6px">
                         <!-- Price block -->
                         <div class="flex items-baseline gap-2 flex-shrink-0">
                             <span id="qc-price-hero" class="text-3xl font-bold" style="color:var(--text-primary);font-variant-numeric:tabular-nums;letter-spacing:-0.03em;line-height:1"></span>
@@ -3703,6 +4142,12 @@
         let records = [];
         let db = { avatar: null }; // metadata stored alongside records in JSON
         let curMonth = new Date().toISOString().slice(0, 7);
+
+        // Sort records chronologically by id (YYYY-MM) — must be called after every external ingest
+        // so that MoM comparison, chart slices, and records[length-1] fallback are always correct
+        function _sortRecords() {
+            records.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+        }
         let isLoading = false;
         let compareChart, distChart;
 
@@ -3756,10 +4201,10 @@
             document.getElementById('tab-edit').classList.toggle('hidden', t !== 'edit');
             document.getElementById('tab-watchlist').classList.toggle('hidden', t !== 'watchlist');
             document.getElementById('tab-news').classList.toggle('hidden', t !== 'news');
-            // Reset scroll to top on mobile when switching tabs
-            if (window.innerWidth <= 768) { window.scrollTo({ top: 0, behavior: 'instant' }); }
-            // Hide AI FAB on news tab (mobile) — FAB is fixed and overlaps news content while scrolling
-            if (window.innerWidth <= 768) {
+            // Reset scroll to top on mobile/tablet when switching tabs
+            if (window.innerWidth <= 1024) { window.scrollTo({ top: 0, behavior: 'instant' }); }
+            // Hide AI FAB on news tab (mobile/tablet) — FAB is fixed and overlaps news content while scrolling
+            if (window.innerWidth <= 1024) {
                 const _fab = document.getElementById('ai-fab');
                 if (_fab) _fab.style.display = (t === 'news') ? 'none' : '';
             }
@@ -3947,7 +4392,7 @@
 
             // ── Persist to records ─────────────────────────────────────────────
             let rec = records.find(r => r.id === month);
-            if (!rec) { rec = { id: month, payday: 0, fixed: [], dynamic: [] }; records.push(rec); }
+            if (!rec) { rec = { id: month, payday: 0, fixed: [], dynamic: [] }; records.push(rec); _sortRecords(); }
             rec.payday  = payday;
             rec.fixed   = fixedItems;
             rec.dynamic = dynamicItems;
@@ -5400,7 +5845,7 @@
             const showQuickAdd = !!qq && /^[A-Z][A-Z0-9.-]{0,9}$/.test(qq) && !watchlist.includes(qq);
             if ((!results || !results.length) && !showQuickAdd) { dd.classList.add('hidden'); return; }
 
-            const isMob = window.innerWidth <= 768;
+            const isMob = window.innerWidth <= 1024;
 
             function _itemHtml(sym, desc, isQuickAdd) {
                 const alreadyIn = watchlist.includes(sym);
@@ -5806,18 +6251,25 @@
                     : renderSparklinePlaceholderSVG(88, 44, isUp);
             const chgLabel = extPrice !== null && extIsAH ? 'หลัง: ' : '';
             const chgVal = changePct !== null ? (isUp?'+':'')+changePct.toFixed(2)+'%' : '—';
+            // Tablet-only ext hours block (hidden on phone via CSS)
+            const extMob = extPrice !== null
+                ? `<div class="wl-mob-ext-label">${extIsAH ? 'AH' : 'Pre'}</div><div class="wl-mob-ext-pct" style="color:${extColor}">${extIsUp?'+':''}${extPct?.toFixed(2)??'—'}%</div><div class="wl-mob-ext-px">$${fmt(extPrice)}</div>`
+                : '';
             const mobileCard = `<td id="wl-mob-card-${symbol}" class="wl-mobile-card" colspan="22" style="padding:0;border-bottom:1px solid var(--border)">
                 <div class="wl-swipe-bg"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></div>
                 <div class="wl-mob-card-inner" onclick="_qcFromScanner=false;openQuickChart('${symbol}')">
                     <div class="wl-mob-logo">${logoLarge}</div>
                     <div class="wl-mob-info">
                         <div class="wl-mob-sym">${symbol}${type === 'ETF' ? `<span class="wl-mob-etf">ETF</span>` : ''}</div>
-                        <div class="wl-mob-name">${name || ''}</div>
+                        <div class="wl-mob-name">${name || ''}${(() => { const v = d?.vol ?? null; if (!v || v < 1000) return ''; const s = v >= 1e9 ? (v/1e9).toFixed(1)+'B' : v >= 1e6 ? (v/1e6).toFixed(1)+'M' : (v/1e3).toFixed(0)+'K'; return `<span class="wl-mob-vol"> · ${s}</span>`; })()}</div>
                     </div>
+                    <div class="wl-mob-signal">${d ? `<span id="wl-mob-sig-${symbol}" class="wl-signal-badge ${signal.cls}">${signal.label}</span>` : ''}</div>
                     <div id="wl-mob-spark-${symbol}" class="wl-mob-spark">${sparklineMobile}</div>
                     <div id="wl-mob-price-${symbol}" class="wl-mob-pricebox">
                         <div class="wl-mob-price">${price !== null ? '$'+fmt(price) : '—'}</div>
-                        <div id="wl-mob-chg-${symbol}" class="wl-mob-chg" style="background:${chgPillBg};color:${chgPillColor}">${chgLabel}${chgVal}</div>
+                        <div class="wl-mob-chgd">${change !== null ? (isUp?'+':'')+fmt(change) : ''}</div>
+                        <div id="wl-mob-chg-${symbol}" class="wl-mob-chg" style="background:${chgPillBg};color:${chgPillColor}">${chgVal}</div>
+                        <div id="wl-mob-ext-${symbol}" class="wl-mob-ext">${extMob}</div>
                     </div>
                 </div>
             </td>`;
@@ -5920,6 +6372,10 @@
                 if (!wlDataCache[symbol]) wlDataCache[symbol] = {};
                 wlDataCache[symbol]._tr    = _row;
                 wlDataCache[symbol]._cells = _row.querySelectorAll('td');
+                // Reset lazy-cached mobile element refs — re-render replaced innerHTML so old refs are detached
+                wlDataCache[symbol]._mobPriceEl = null;
+                wlDataCache[symbol]._mobChgEl   = null;
+                wlDataCache[symbol]._mobChgdEl  = null;
             }
             // Re-apply mobile column layout after new row inserted
             if (window.innerWidth <= 1200) {
@@ -6946,6 +7402,7 @@
             // Use after-hours if pre-market not available
             const extPrice   = prePrice ?? ahPrice ?? null;
             const extPct     = prePct   ?? ahPct   ?? null;
+            const extIsAH    = !prePrice && !!ahPrice; // true = showing after-hours, false = pre-market or none
             const week52H   = data?.week52High ?? null;
             const week52L   = data?.week52Low  ?? null;
             const marketCap = data?.marketCap  ?? null;
@@ -7038,16 +7495,37 @@
             if (mobPriceBox && mobChgEl) {
                 const priceInner = mobPriceBox.querySelector('.wl-mob-price');
                 if (priceInner) priceInner.textContent = price !== null ? '$' + fmt(price) : '—';
-                const chgLabel = extIsAH ? 'หลัง: ' : '';
                 const chgTxt = changePct !== null ? (isUp?'+':'')+changePct.toFixed(2)+'%' : '—';
-                mobChgEl.textContent = chgLabel + chgTxt;
+                mobChgEl.textContent = chgTxt;
                 mobChgEl.style.background = price === null ? 'rgba(255,255,255,0.06)' : isUp ? 'rgba(38,166,154,0.15)' : 'rgba(239,83,80,0.15)';
                 mobChgEl.style.color      = price === null ? 'var(--text-dim)'        : isUp ? 'var(--chart-up,#26a69a)' : 'var(--chart-dn,#ef5350)';
+                // Tablet: update dollar-change row
+                const chgdEl = mobPriceBox.querySelector('.wl-mob-chgd');
+                if (chgdEl) {
+                    const chgdTxt = change !== null ? (isUp?'+':'')+fmt(change) : '';
+                    if (chgdEl.textContent !== chgdTxt) chgdEl.textContent = chgdTxt;
+                    chgdEl.style.color = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
+                }
             }
+            // Tablet: update ext-hours block
+            const mobExtEl = document.getElementById('wl-mob-ext-' + symbol);
+            if (mobExtEl) {
+                const _ep = data?.preMarketPrice ?? data?.afterHoursPrice ?? null;
+                const _ePct = data?.preMarketChangePct ?? data?.afterHoursChangePct ?? null;
+                const _eIsAH = !data?.preMarketPrice && !!data?.afterHoursPrice;
+                const _eUp = _ePct !== null ? _ePct >= 0 : true;
+                const _eClr = _eUp ? 'var(--wl-up)' : 'var(--wl-dn)';
+                const newExtHtml = _ep !== null
+                    ? `<div class="wl-mob-ext-label">${_eIsAH?'AH':'Pre'}</div><div class="wl-mob-ext-pct" style="color:${_eClr}">${_eUp?'+':''}${_ePct?.toFixed(2)??'—'}%</div><div class="wl-mob-ext-px">$${fmt(_ep)}</div>`
+                    : '';
+                if (mobExtEl.innerHTML !== newExtHtml) mobExtEl.innerHTML = newExtHtml;
+            }
+            // Tablet: update signal badge in mobile card
+            const mobSigEl = document.getElementById('wl-mob-sig-' + symbol);
 
             const sigEl = document.getElementById('wl-signal-' + symbol);
             const rateEl = document.getElementById('wl-rating-' + symbol);
-            const sigNow = (sigEl || rateEl) ? getWatchlistSignal(symbol, data) : null;
+            const sigNow = (sigEl || rateEl || mobSigEl) ? getWatchlistSignal(symbol, data) : null;
             const analystNow = rateEl ? getAnalystRating(data) : null;
             if (sigEl) {
                 if (sigEl.textContent !== sigNow.label) sigEl.textContent = sigNow.label;
@@ -7062,6 +7540,11 @@
                 if (rateEl.className !== cls) rateEl.className = cls;
                 const tip = 'Analyst rating (API)';
                 if (rateEl.title !== tip) rateEl.title = tip;
+            }
+            if (mobSigEl && sigNow) {
+                if (mobSigEl.textContent !== sigNow.label) mobSigEl.textContent = sigNow.label;
+                const cls = `wl-signal-badge ${sigNow.cls}`;
+                if (mobSigEl.className !== cls) mobSigEl.className = cls;
             }
             // Seed Movement sparkline from OHLC once per symbol (แสดงทันทีแบบ Webull)
             const hasSpark = wlSparklineCache[symbol] && Array.isArray(wlSparklineCache[symbol].prices) && wlSparklineCache[symbol].prices.length >= 2;
@@ -7604,6 +8087,63 @@
                 tip.style.top  = Math.max(4, y) + 'px';
             };
             _lwcCont.addEventListener('mousemove', _lwcCont._mh, { passive: true });
+
+            // ── Mobile: touch crosshair ──
+            // LightweightCharts ไม่มี touch crosshair ในตัว — จำลองด้วย touchmove
+            // แยก vertical-swipe (scroll) ออกจาก horizontal-drag (crosshair)
+            // โดยเช็ค angle ใน 8px แรก แล้วค่อย lock direction
+            if (_lwcCont._th) {
+                _lwcCont.removeEventListener('touchstart', _lwcCont._th);
+                _lwcCont.removeEventListener('touchmove',  _lwcCont._tm);
+                _lwcCont.removeEventListener('touchend',   _lwcCont._te);
+            }
+            let _tchActive = false, _tchX0 = 0, _tchY0 = 0;
+            _lwcCont._th = e => {
+                if (e.touches.length !== 1) return;
+                _tchActive = false;
+                _tchX0 = e.touches[0].clientX;
+                _tchY0 = e.touches[0].clientY;
+            };
+            _lwcCont._tm = e => {
+                if (e.touches.length !== 1) return;
+                const cx = e.touches[0].clientX, cy = e.touches[0].clientY;
+                const dx = Math.abs(cx - _tchX0), dy = Math.abs(cy - _tchY0);
+                // ยังไม่ lock direction — ถ้า vertical มากกว่า horizontal ก็ปล่อยให้ scroll ตามปกติ
+                if (!_tchActive) {
+                    if (dy > dx && dy > 8) return;          // vertical scroll — ไม่ขัด
+                    if (dx < 4 && dy < 4) return;           // ยังไม่เคลื่อน
+                    _tchActive = true;                       // lock: horizontal → crosshair mode
+                }
+                e.preventDefault();                         // ป้องกัน page scroll ระหว่าง crosshair
+                const rc  = _lwcCont.getBoundingClientRect();
+                const lx  = cx - rc.left, ly = cy - rc.top;
+                const time = _lwcChart.timeScale().coordinateToTime(lx);
+                const activeSeries = window._lwcCandleSeries || _lwcCandleSeries;
+                if (time && activeSeries) {
+                    const price = activeSeries.coordinateToPrice(ly);
+                    if (price != null) _lwcChart.setCrosshairPosition(price, time, activeSeries);
+                }
+                // อัปเดต tooltip position ตาม touch
+                if (_tipVisible && tip) {
+                    const pw  = _lwcCont.clientWidth;
+                    const tx  = lx + 16 + (_tipW || 160) + 8 > pw ? lx - (_tipW || 160) - 16 : lx + 16;
+                    const ty  = ly - (_tipH || 80) - 12 < 8 ? ly + 16 : ly - (_tipH || 80) - 12;
+                    tip.style.left = Math.max(4, tx) + 'px';
+                    tip.style.top  = Math.max(4, ty) + 'px';
+                }
+            };
+            _lwcCont._te = e => {
+                if (!_tchActive) return;
+                _tchActive = false;
+                // หน่วงเล็กน้อยก่อนล้าง crosshair เพื่อให้อ่านค่าได้ทัน
+                setTimeout(() => {
+                    try { _lwcChart.clearCrosshairPosition(); } catch(_) {}
+                    if (tip) { tip.style.display = 'none'; _tipVisible = false; }
+                }, 1200);
+            };
+            _lwcCont.addEventListener('touchstart', _lwcCont._th, { passive: true });
+            _lwcCont.addEventListener('touchmove',  _lwcCont._tm, { passive: false });
+            _lwcCont.addEventListener('touchend',   _lwcCont._te, { passive: true });
 
             _lwcChart.subscribeCrosshairMove(param => {
                 if (!param?.point || param.point.x < 0 || !param.time) {
@@ -8289,6 +8829,75 @@ ${sourceText}`;
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navNewsModal(1);
             if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   navNewsModal(-1);
         });
+
+        // ── Mobile: swipe-right-to-dismiss news modal ─────────────────────────
+        // Standard iOS/Android gesture: right-swipe anywhere on pane dismisses it.
+        // Direction is locked after 5 px dead zone — preserves vertical scroll inside
+        // the content area. Fast flick (velocity > threshold) closes immediately even
+        // if distance is short.  TouchCancel (call, notification) also cleans up.
+        (function _attachNewsSwipeDismiss() {
+            const pane = document.getElementById('nm-pane');
+            const ov   = document.getElementById('nm-overlay');
+            if (!pane) return;
+
+            const DISMISS_RATIO = 0.35;  // swipe > 35% pane width  → commit close
+            const VELOCITY_MIN  = 0.45;  // px/ms — fast flick       → commit close
+
+            let _sx = 0, _sy = 0, _ex = 0, _t0 = 0, _locked = false;
+
+            function _start(e) {
+                if (e.touches.length !== 1) return;
+                _sx = _ex = e.touches[0].clientX;
+                _sy = e.touches[0].clientY;
+                _locked = false;
+                _t0 = e.timeStamp;
+            }
+
+            function _move(e) {
+                if (e.touches.length !== 1) return;
+                const cx = e.touches[0].clientX;
+                const cy = e.touches[0].clientY;
+                const dx = cx - _sx;
+                const dy = Math.abs(cy - _sy);
+
+                if (!_locked) {
+                    if (dx < 5 && dy < 5) return;                   // dead zone
+                    if (dy > Math.abs(dx) * 1.2 || dx <= 0) return; // vertical scroll or leftward — pass through
+                    _locked = true;
+                }
+
+                e.preventDefault(); // only fires after horizontal lock confirmed
+                _ex = cx;
+                const offset = Math.max(0, dx);
+                pane.style.transition = 'none';
+                pane.style.transform  = `translateX(${offset}px)`;
+                // Fade backdrop proportionally to drag distance
+                if (ov) ov.style.opacity = String(Math.max(0, 1 - offset / (pane.offsetWidth || 400)));
+            }
+
+            function _end(e) {
+                if (!_locked) return;
+                _locked = false;
+                const dx  = _ex - _sx;
+                const vel = dx / Math.max(e.timeStamp - _t0, 1); // px/ms
+                const pw  = pane.offsetWidth || 400;
+
+                if (dx > pw * DISMISS_RATIO || vel > VELOCITY_MIN) {
+                    // Committed — animate the rest of the way then close
+                    closeNewsModal();
+                } else {
+                    // Cancelled — spring back to open position
+                    pane.style.transition = 'transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+                    pane.style.transform  = 'translateX(0)';
+                    if (ov) { ov.style.transition = 'opacity 0.28s ease'; ov.style.opacity = '1'; }
+                }
+            }
+
+            pane.addEventListener('touchstart',  _start, { passive: true  });
+            pane.addEventListener('touchmove',   _move,  { passive: false }); // passive:false to allow preventDefault
+            pane.addEventListener('touchend',    _end,   { passive: true  });
+            pane.addEventListener('touchcancel', _end,   { passive: true  }); // cleanup on call/notification interrupt
+        })();
 
         // ── Market Scanner (FMP) — TradingView Style — r124 ──────────────────────
         let _scannerCache = null;
@@ -9308,7 +9917,17 @@ ${sourceText}`;
                 _stopSparklineAutoRefresh();
             } else {
                 startExtHoursPolling();
-                if (isMarketOpen()) _startSparklineAutoRefresh();
+                if (isMarketOpen()) {
+                    _startSparklineAutoRefresh();
+                    // Market may have opened while the page was hidden (e.g. app left overnight):
+                    // WS was never connected → reconnect now + refresh stale prices
+                    if (!fhWs && !alpWs && watchlist.length) {
+                        _wsBackgroundMode = document.getElementById('tab-watchlist')
+                            ?.classList.contains('hidden') ?? true;
+                        connectWs();
+                        refreshWatchlist().then(() => refreshSparklineForTopSymbols());
+                    }
+                }
             }
         });
 
@@ -9619,7 +10238,7 @@ ${sourceText}`;
         }
 
         // ── Chat Popup ──────────────────────────────────────────────────────────
-        function _isMobileSheet() { return window.innerWidth <= 768; }
+        function _isMobileSheet() { return window.innerWidth <= 1024; }
 
         function _aiSheetOpen() {
             const popup = document.getElementById('ai-popup');
@@ -9676,69 +10295,104 @@ ${sourceText}`;
         function closeAiPopup() { minimizeAiPopup(); }
 
         // Swipe-down to dismiss bottom sheet
+        // CSS uses !important on transform+transition → must use setProperty(...,'important')
+        // so inline style wins over the stylesheet rule during the drag gesture.
         function _initAiSheetSwipe() {
-            const panel  = document.getElementById('ai-popup-panel');
-            const popup  = document.getElementById('ai-popup');
-            const msgs   = document.getElementById('ai-popup-messages');
+            const panel = document.getElementById('ai-popup-panel');
+            const popup = document.getElementById('ai-popup');
+            const msgs  = document.getElementById('ai-popup-messages');
             if (!panel || popup._sheetSwipeInited) return;
             popup._sheetSwipeInited = true;
 
-            let _sy = 0, _mode = 'idle'; // idle | dismiss | scroll
+            const DISMISS_RATIO = 0.32;  // >32% of sheet height  → commit close
+            const VELOCITY_MIN  = 0.45;  // px/ms — fast flick    → commit close
+
+            // Helpers — inline !important beats CSS !important
+            const _setTf  = v => popup.style.setProperty('transform',  v, 'important');
+            const _setTr  = v => popup.style.setProperty('transition', v, 'important');
+            const _clrInline = () => { popup.style.removeProperty('transform'); popup.style.removeProperty('transition'); };
+            const _bd     = () => document.getElementById('ai-sheet-backdrop');
+            const _setBd  = v => { const b = _bd(); if (b) b.style.opacity = String(v); };
+
+            let _sy = 0, _ey = 0, _t0 = 0, _locked = false;
 
             panel.addEventListener('touchstart', function(e) {
                 if (e.touches.length !== 1) return;
-                _sy = e.touches[0].clientY;
-                _mode = 'idle';
-                popup.style.transition = 'none';
+                _sy = _ey = e.touches[0].clientY;
+                _locked = false;
+                _t0 = e.timeStamp;
+                _setTr('none'); // freeze CSS transition so drag is instant
             }, { passive: true });
 
             panel.addEventListener('touchmove', function(e) {
                 if (e.touches.length !== 1) return;
-                const dy = e.touches[0].clientY - _sy;
+                const cy = e.touches[0].clientY;
+                const dy = cy - _sy;
 
-                if (_mode === 'idle') {
-                    if (Math.abs(dy) < 8) return; // wait for clear intent
-                    const panelTop = panel.getBoundingClientRect().top;
-                    const headerBot = panelTop + 70; // pill + header zone ≈ 70px
-                    const touchY = e.touches[0].clientY;
-                    const msgScrolledToTop = !msgs || msgs.scrollTop <= 0;
+                if (!_locked) {
+                    if (Math.abs(dy) < 8) return; // dead zone
 
-                    if (dy > 0 && (touchY < headerBot || msgScrolledToTop)) {
-                        _mode = 'dismiss';
-                    } else {
-                        _mode = 'scroll';
-                    }
+                    const msgAtTop    = !msgs || msgs.scrollTop <= 0;
+                    const panelTop    = panel.getBoundingClientRect().top;
+                    const inHeader    = cy < panelTop + 64; // drag-pill + header zone
+
+                    // Only lock into dismiss when swiping DOWN from header OR content at top
+                    if (dy <= 0 || (!inHeader && !msgAtTop)) { _clrInline(); return; }
+                    _locked = true;
                 }
 
-                if (_mode !== 'dismiss') return;
                 e.preventDefault();
-                const clampedDy = Math.max(0, dy);
-                popup.style.transform = 'translateY(' + clampedDy + 'px)';
-                const bd = document.getElementById('ai-sheet-backdrop');
-                if (bd) bd.style.opacity = Math.max(0, 0.52 - clampedDy / 400) + '';
+                _ey = cy;
+                const offset = Math.max(0, dy);
+                _setTf(`translateY(${offset}px)`);
+                // Fade backdrop proportionally — 0.52 → 0 over full sheet height
+                const sh = popup.offsetHeight || window.innerHeight * 0.88;
+                _setBd(Math.max(0, 0.52 * (1 - offset / sh)));
             }, { passive: false });
 
-            panel.addEventListener('touchend', function(e) {
-                popup.style.transition = '';
-                if (_mode !== 'dismiss') { _mode = 'idle'; return; }
-                _mode = 'idle';
-                const dy = e.changedTouches[0].clientY - _sy;
-                if (dy > 80) {
-                    popup.style.transform = '';
-                    minimizeAiPopup();
-                } else {
-                    popup.style.transform = '';
-                    const bd = document.getElementById('ai-sheet-backdrop');
-                    if (bd) bd.style.opacity = '';
-                }
-            });
+            function _finish(e) {
+                if (!_locked) { _clrInline(); return; }
+                _locked = false;
 
+                const dy  = _ey - _sy;
+                const vel = dy / Math.max(e.timeStamp - _t0, 1); // px/ms
+                const sh  = popup.offsetHeight || window.innerHeight * 0.88;
+
+                if (dy > sh * DISMISS_RATIO || vel > VELOCITY_MIN) {
+                    // ── Commit close: fly off-screen, then clean up ──────────────
+                    _setTr('transform 0.28s cubic-bezier(0.4,0,1,1)');
+                    _setTf('translateY(105%)');
+                    const b = _bd();
+                    if (b) { b.style.transition = 'opacity 0.28s ease'; b.style.opacity = '0'; }
+                    setTimeout(() => {
+                        _clrInline();
+                        if (b) { b.style.transition = ''; b.style.opacity = ''; }
+                        // Remove open class + restore FAB (same as minimizeAiPopup)
+                        popup.classList.remove('ai-sheet-open');
+                        if (b) { b.classList.remove('ai-bd-visible'); setTimeout(() => { b.style.display = ''; }, 50); }
+                        const fab = document.getElementById('ai-fab');
+                        if (fab) setTimeout(() => fab.classList.remove('hidden'), 50);
+                    }, 280);
+                } else {
+                    // ── Spring back: animate to open position ───────────────────
+                    _setTr('transform 0.32s cubic-bezier(0.32,0.72,0,1)');
+                    _setTf('translateY(0)');
+                    const b = _bd();
+                    if (b) { b.style.transition = 'opacity 0.32s ease'; b.style.opacity = '0.52'; }
+                    setTimeout(() => {
+                        _clrInline(); // hand control back to CSS class rule
+                        if (b) { b.style.transition = ''; b.style.opacity = ''; }
+                    }, 320);
+                }
+            }
+
+            panel.addEventListener('touchend',    _finish, { passive: true });
             panel.addEventListener('touchcancel', function() {
-                popup.style.transition = ''; popup.style.transform = '';
-                const bd = document.getElementById('ai-sheet-backdrop');
-                if (bd) bd.style.opacity = '';
-                _mode = 'idle';
-            });
+                // Interrupted (call, notification) — restore silently
+                _locked = false;
+                _clrInline();
+                _setBd(0.52);
+            }, { passive: true });
         }
 
         // ── AI FAB Draggable (mobile) ──────────────────────────────────────────
@@ -11632,6 +12286,7 @@ ${_clip(contextSections, 2600)}`;
             if (!d._mobPriceEl) {
                 const pb = document.getElementById('wl-mob-price-' + sym);
                 d._mobPriceEl = pb ? pb.firstElementChild : null; // .wl-mob-price div
+                d._mobChgdEl  = pb ? pb.querySelector('.wl-mob-chgd') : null; // tablet $-chg
             }
             if (!d._mobChgEl) d._mobChgEl = document.getElementById('wl-mob-chg-' + sym);
             if (d._mobPriceEl && d._mobPriceEl.data !== p2) {
@@ -11645,6 +12300,12 @@ ${_clip(contextSections, 2600)}`;
                 d._mobChgEl.textContent = (isUp ? '+' : '') + pctStr + '%';
                 d._mobChgEl.style.background = isUp ? 'rgba(38,166,154,0.15)' : 'rgba(239,83,80,0.15)';
                 d._mobChgEl.style.color      = isUp ? 'var(--chart-up,#26a69a)' : 'var(--chart-dn,#ef5350)';
+            }
+            // Tablet: update dollar-change element (hidden on phone, shown on tablet)
+            if (d._mobChgdEl && d._mobChgdEl.data !== chgTxt) {
+                d._mobChgdEl.data = chgTxt;
+                d._mobChgdEl.textContent = chgTxt;
+                d._mobChgdEl.style.color = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
             }
 
             // Stream latest tick into Movement sparkline buffer (ต่อจากเส้น OHLC เดิม)
@@ -12436,6 +13097,8 @@ ${_clip(contextSections, 2600)}`;
                     }
                 }
 
+                // Ensure chronological order before any computation or persistence
+                _sortRecords();
                 // Persist everything to localStorage
                 _lsSave('ps_records',   JSON.stringify(records));
                 _lsSave('ps_watchlist', JSON.stringify(watchlist));
@@ -12598,6 +13261,8 @@ ${_clip(contextSections, 2600)}`;
                         alert('ไฟล์ไม่ถูกต้อง'); return;
                     }
 
+                    // Ensure chronological order before any computation or persistence
+                    _sortRecords();
                     // Save records and watchlist
                     _lsSave('ps_records',   JSON.stringify(records));
                     _lsSave('ps_watchlist', JSON.stringify(watchlist));
@@ -12959,7 +13624,7 @@ ${_clip(contextSections, 2600)}`;
 
             try {
                 const saved = localStorage.getItem('ps_records');
-                if (saved) records = JSON.parse(saved);
+                if (saved) { records = JSON.parse(saved); _sortRecords(); }
                 const savedAvatar = localStorage.getItem('ps_avatar');
                 if (savedAvatar) { db.avatar = savedAvatar; setAvatarImage(savedAvatar); }
                 const savedName = localStorage.getItem('ps_dbname');
@@ -13024,14 +13689,34 @@ ${_clip(contextSections, 2600)}`;
                 }
             }
 
-            // Market status + timestamp — update every 60s regardless of WS state
+            // Market status — poll every 60s; detect open↔close transitions for WS lifecycle
+            // _prevMarketOpen: snapshot at startup to detect edge (closed→open or open→closed)
+            let _prevMarketOpen = isMarketOpen();
             setInterval(() => {
+                const nowOpen = isMarketOpen();
                 updateMarketStatus();
-                // Auto-disconnect WS when market closes
-                if (!isMarketOpen()) {
-                    if (fhWs  && fhWs.readyState  <= 1) { fhWs.close();  fhWs  = null; }
-                    if (alpWs && alpWs.readyState <= 1) { alpWs.close(); alpWs = null; _wsAuthenticated = false; }
+
+                if (nowOpen !== _prevMarketOpen) {
+                    if (!nowOpen) {
+                        // ── Market just CLOSED ──────────────────────────────────────────────
+                        // Disconnect WS + stop sparkline auto-refresh
+                        if (fhWs  && fhWs.readyState  <= 1) { fhWs.close();  fhWs  = null; }
+                        if (alpWs && alpWs.readyState <= 1) { alpWs.close(); alpWs = null; _wsAuthenticated = false; }
+                        _stopSparklineAutoRefresh();
+                    } else if (!document.hidden && watchlist.length) {
+                        // ── Market just OPENED (page is visible) ────────────────────────────
+                        // Prices shown are yesterday's close — refresh + start streaming
+                        _wsBackgroundMode = document.getElementById('tab-watchlist')
+                            ?.classList.contains('hidden') ?? true;
+                        connectWs();
+                        refreshWatchlist().then(() => {
+                            refreshSparklineForTopSymbols();
+                            _startSparklineAutoRefresh();
+                        });
+                    }
+                    // If document.hidden when market opens: visibilitychange will handle on return
                 }
+                _prevMarketOpen = nowOpen;
             }, 60000);
 
             // FX rate: refresh every 30s (API updates ~every 60s, 30s keeps it feeling live)
