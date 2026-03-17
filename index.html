@@ -76,7 +76,10 @@
             }
         }
         @media screen and (orientation: portrait), screen and (min-width: 1025px) {
-            #pslink-rotate-msg { display: none !important; }
+            #pslink-rotate-msg {
+                display: none !important;
+                pointer-events: none !important;
+            }
         }
             --font-main: 'Inter', 'IBM Plex Sans Thai', system-ui, sans-serif;
             --font-mono: 'Roboto Mono', 'Consolas', monospace;
@@ -10855,6 +10858,8 @@ ${sourceText}`;
 
             header.addEventListener('pointerdown', e => {
                 if (e.pointerType === 'mouse' && e.button !== 0) return;
+                // ── Don't block clicks on buttons inside header ──
+                if (e.target.closest('button, a, select, input')) return;
                 dragging = true;
                 startX = e.clientX;
                 startY = e.clientY;
@@ -15143,16 +15148,30 @@ ${_clip(contextSections, 2600)}`;
             </div>
 
             <div id="ai-glossary-panel" class="hidden px-3.5 py-3">
-                <div class="text-[11px] font-black uppercase tracking-wider mb-2.5" style="color:var(--text-secondary)">Keyword Guide (คำง่ายๆ)</div>
+                <div class="text-[11px] font-black uppercase tracking-wider mb-2.5" style="color:var(--text-secondary)">PSLink AI Analyst — คู่มือการใช้งาน</div>
                 <div class="grid grid-cols-1 gap-2">
-                    <div class="flex items-start gap-2"><span class="kw">Confluence</span><span class="desc">คะแนนรวมความมั่นใจของแผน (0-100) ยิ่งสูงยิ่งพร้อม แต่ต้องดูจุดยกเลิกแผนด้วย</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">High-Conviction</span><span class="desc">แผนนี้มั่นใจสูงกว่าปกติ เงื่อนไขหลายอย่างเห็นไปทางเดียวกัน</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">Selective</span><span class="desc">พอใช้ได้ แต่ต้องเลือกจังหวะและรอแท่งยืนยันให้ชัดก่อน</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">Tactical</span><span class="desc">เล่นสั้นระวังความเสี่ยง เน้นวินัยจุดเข้า-ออก ไม่ถือยาวแบบมั่นใจสูง</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">Potential Reversal</span><span class="desc">เริ่มมีโอกาสกลับตัวจากลงเป็นขึ้น แต่ยังต้องรอราคา reclaim แนวรับก่อน</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">Watch for Long</span><span class="desc">เตรียมเฝ้าจังหวะซื้อ ยังไม่ใช่สัญญาณซื้อทันทีจนกว่าจะมีการยืนยัน</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">Invalidated</span><span class="desc">แผนเดิมพังแล้ว (เช่น หลุดแนวรับหลัก) ควรรอแผนใหม่ ไม่ฝืนเทรด</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">[strict]</span><span class="desc">ค่าที่คำนวณจากข้อมูลแน่นพอ/ตรวจสอบได้ ไม่ใช่เดาแบบ heuristic</span></div>
+
+                    <div class="text-[10px] font-black uppercase tracking-wider mt-1 mb-0.5" style="color:var(--text-dim)">🎯 สิ่งที่ถาม AI ได้</div>
+                    <div class="flex items-start gap-2"><span class="kw">วิเคราะห์หุ้น</span><span class="desc">ถามว่า "วิเคราะห์ NVDA" → AI ให้สถานะซื้อ/ขาย/รอ, จุดเข้า, เป้าหมาย, จุด Stop Loss และ R:R ratio</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">วิเคราะห์ข่าว</span><span class="desc">วางหัวข่าวแล้วถามผลกระทบต่อหุ้น → AI อธิบายทั้งระยะสั้นและระยะกลาง</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">เปรียบเทียบหุ้น</span><span class="desc">ถาม "เทียบ AAPL กับ MSFT" → AI เทียบ Technical + Fundamental + Momentum แล้วแนะนำตัวที่ดีกว่า</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">สร้างแผนเทรด</span><span class="desc">ถาม "วางแผน TSLA" → AI สร้าง scenario "ถ้าขึ้นเหนือ X / ถ้าหลุด Y ทำอย่างไร"</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">อธิบายศัพท์</span><span class="desc">ถาม "RSI คืออะไร" หรือ "ทำไม NVDA ตก" → AI อธิบายให้เข้าใจตามโหมดที่ตั้งไว้</span></div>
+
+                    <div class="text-[10px] font-black uppercase tracking-wider mt-2 mb-0.5" style="color:var(--text-dim)">📋 คำในผลวิเคราะห์</div>
+                    <div class="flex items-start gap-2"><span class="kw">Invalidation Point</span><span class="desc">จุดที่แผนพัง — ถ้าราคาหลุดจุดนี้ให้ยกเลิกทันที ทุกคำแนะนำซื้อ/ขายจะมีจุดนี้เสมอ</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">R:R Ratio</span><span class="desc">อัตราส่วนกำไร:ขาดทุน เช่น 2:1 = เสี่ยง 1 บาทเพื่อกำไร 2 บาท — ถ้า R:R < 1.5 AI จะเตือนว่าไม่คุ้มเสี่ยง</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">Confluence</span><span class="desc">คะแนนรวมความเชื่อมั่น — หลายสัญญาณชี้ทางเดียวกัน ยิ่งสูงยิ่งน่าเชื่อถือ แต่ต้องดู Invalidation ด้วย</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">MTF / MTF Confluence</span><span class="desc">Multi-Timeframe — ดูกราฟหลาย timeframe พร้อมกัน เช่น D1 vs 1H ถ้าชี้ไปทางเดียวกัน = สัญญาณแน่นขึ้น</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">ความเชื่อมั่น สูง/กลาง/ต่ำ</span><span class="desc">AI ระบุระดับความมั่นใจของการวิเคราะห์ทุกครั้ง พร้อมเหตุผล</span></div>
+
+                    <div class="text-[10px] font-black uppercase tracking-wider mt-2 mb-0.5" style="color:var(--text-dim)">⚙️ โหมดการแสดงผล</div>
+                    <div class="flex items-start gap-2"><span class="kw">มือใหม่ 🟢</span><span class="desc">AI ใช้ภาษาง่าย อธิบายศัพท์ทุกตัว สรุปบรรทัดแรกว่าควรทำอะไร ตั้งที่ Settings → Display Mode</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">เทรดเดอร์ 🔵</span><span class="desc">AI แสดง Technical ครบ RSI, MACD, BB, Volume, Divergence พร้อมตารางแผนเข้า-ออกเต็มรูปแบบ</span></div>
+
+                    <div class="text-[10px] font-black uppercase tracking-wider mt-2 mb-0.5" style="color:var(--text-dim)">⚠️ ข้อจำกัด</div>
+                    <div class="flex items-start gap-2"><span class="kw">ราคาจาก LIVE DATA</span><span class="desc">AI ใช้ราคาจาก Watchlist ปัจจุบันเท่านั้น ถ้าหุ้นไม่อยู่ใน Watchlist AI จะตอบว่าไม่มีข้อมูลราคา</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">RSI > 75</span><span class="desc">AI จะไม่แนะนำซื้อตามถ้า RSI สูงเกิน 75 (overbought) เพื่อป้องกันการ chase ราคา</span></div>
                 </div>
             </div>
 
