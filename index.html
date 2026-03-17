@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.6.10 — AI chat: sheet height 50→45dvh; blur input after send to dismiss iOS keyboard -->
+    <!-- v1.6.11 — Watchlist swipe: reveal-then-confirm delete (tap button to delete, tap elsewhere to cancel) -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2863,13 +2863,18 @@
             }
         }
 
-        /* ── Mobile Watchlist: swipe-to-delete + long-press drag ── */
+        /* ── Mobile Watchlist: swipe-to-reveal-delete + long-press drag ── */
         #watchlist-table .wl-mobile-card { position: relative !important; overflow: hidden !important; }
         #watchlist-table .wl-swipe-bg {
-            position: absolute; inset: 0;
+            position: absolute; top: 0; right: 0; bottom: 0;
+            width: 80px;
             background: #dc2626;
-            display: flex; align-items: center; justify-content: flex-end;
-            padding-right: 22px; opacity: 0; z-index: 0; pointer-events: none;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; z-index: 0; pointer-events: none;
+            transition: opacity 0.15s;
+        }
+        #watchlist-table .wl-swipe-bg.wl-swipe-revealed {
+            opacity: 1; pointer-events: auto;
         }
         #watchlist-table .wl-swipe-bg svg { width: 22px; height: 22px; stroke: #fff; flex-shrink: 0; }
         #watchlist-table .wl-mob-card-inner { position: relative !important; z-index: 1 !important; background: var(--bg-card2, #111827) !important; will-change: transform; }
@@ -7052,7 +7057,7 @@
                 ? `<div class="wl-mob-ext-label">${extIsAH ? 'AH' : 'Pre'}</div><div class="wl-mob-ext-pct" style="color:${extColor}">${extIsUp?'+':''}${extPct?.toFixed(2)??'—'}%</div><div class="wl-mob-ext-px">$${fmt(extPrice)}</div>`
                 : '';
             const mobileCard = `<td id="wl-mob-card-${symbol}" class="wl-mobile-card" colspan="23" style="padding:0;border-bottom:1px solid var(--border)">
-                <div class="wl-swipe-bg"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></div>
+                <div class="wl-swipe-bg" onclick="_confirmSwipeDelete('${symbol}')"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></div>
                 <div class="wl-mob-card-inner" onclick="_qcFromScanner=false;openQuickChart('${symbol}')">
                     <div class="wl-mob-logo">${logoLarge}</div>
                     <div class="wl-mob-info">
@@ -7240,10 +7245,25 @@
         // ── Mobile Watchlist Touch: Long-press drag-to-reorder + Swipe-left-to-delete ──
         (function() {
             const LONG_PRESS_MS = 450;
-            const SWIPE_TRIGGER = 72;  // px to confirm delete
+            const SWIPE_TRIGGER = 72;  // px to reveal delete button
+            const SWIPE_SNAP    = 80;  // px — snapped open position
             const MOVE_CANCEL   = 8;   // px movement cancels long-press
 
-            let _state = 'idle'; // 'idle'|'pending'|'dragging'|'swiping'
+            let _state = 'idle'; // 'idle'|'pending'|'dragging'|'swiping'|'revealed'
+            let _revealedEl  = null; // currently revealed card inner
+            let _revealedBg  = null; // currently revealed bg
+            let _revealedSym = null; // currently revealed symbol
+
+            // Close any currently revealed card
+            function _closeRevealed() {
+                if (_revealedEl) {
+                    _revealedEl.style.transition = 'transform .22s ease';
+                    _revealedEl.style.transform  = '';
+                    setTimeout(function() { if (_revealedEl) _revealedEl.style.transition = ''; }, 230);
+                }
+                if (_revealedBg) { _revealedBg.classList.remove('wl-swipe-revealed'); }
+                _revealedEl = null; _revealedBg = null; _revealedSym = null;
+            }
             let _sx = 0, _sy = 0, _timer = null;
             let _dragSym = null, _swipeSym = null;
             let _swipeEl = null, _dragClone = null;
@@ -7294,6 +7314,13 @@
             document.addEventListener('touchstart', function(e) {
                 if (window.innerWidth > 1200) return;
                 const inner = _inner(e.target);
+
+                // Tap outside revealed card → close it
+                if (_revealedEl && inner !== _revealedEl) {
+                    _closeRevealed();
+                    return;
+                }
+
                 if (!inner) return;
                 const sym = _sym(inner);
                 if (!sym) return;
@@ -7325,7 +7352,11 @@
                 if (_state === 'pending') {
                     if (adx > MOVE_CANCEL || ady > MOVE_CANCEL) {
                         clearTimeout(_timer); _timer = null;
-                        if (adx > ady && adx > 10) { _state = 'swiping'; e.preventDefault(); }
+                        if (adx > ady && adx > 10) {
+                            // Close any previously revealed card before starting new swipe
+                            if (_revealedEl && _revealedEl !== _swipeEl) _closeRevealed();
+                            _state = 'swiping'; e.preventDefault();
+                        }
                         else { _reset(); }
                     }
                     return;
@@ -7355,17 +7386,30 @@
 
                 if (_state === 'swiping') {
                     if (Math.abs(_swipeDx) >= SWIPE_TRIGGER && _swipeSym) {
-                        if (_swipeEl) { _swipeEl.style.transition = 'transform .18s ease'; _swipeEl.style.transform = 'translateX(-110%)'; }
-                        const sym = _swipeSym;
-                        setTimeout(function() { removeTicker(sym); }, 190);
+                        // Snap to reveal position — show delete button, don't delete yet
+                        const bg = _swipeEl && _swipeEl.previousElementSibling;
+                        if (_swipeEl) {
+                            _swipeEl.style.transition = 'transform .2s ease';
+                            _swipeEl.style.transform  = 'translateX(-' + SWIPE_SNAP + 'px)';
+                        }
+                        if (bg && bg.classList.contains('wl-swipe-bg')) {
+                            bg.classList.add('wl-swipe-revealed');
+                        }
+                        // Store revealed state
+                        _revealedEl  = _swipeEl;
+                        _revealedBg  = bg || null;
+                        _revealedSym = _swipeSym;
                     } else {
+                        // Snap back
                         if (_swipeEl) {
                             _swipeEl.style.transition = 'transform .22s ease';
                             _swipeEl.style.transform  = '';
                             setTimeout(function() { if (_swipeEl) _swipeEl.style.transition = ''; }, 230);
                         }
                         const bg = _swipeEl && _swipeEl.previousElementSibling;
-                        if (bg && bg.classList.contains('wl-swipe-bg')) { bg.style.transition = 'opacity .22s'; bg.style.opacity = '0'; setTimeout(function() { if(bg) bg.style.transition = ''; }, 230); }
+                        if (bg && bg.classList.contains('wl-swipe-bg')) {
+                            bg.classList.remove('wl-swipe-revealed');
+                        }
                     }
                 } else if (_state === 'dragging') {
                     _clearOver();
@@ -7377,6 +7421,18 @@
                 }
                 _reset();
             });
+
+            // Confirm delete from revealed swipe button
+            window._confirmSwipeDelete = function(sym) {
+                if (_revealedEl) {
+                    _revealedEl.style.transition = 'transform .18s ease';
+                    _revealedEl.style.transform  = 'translateX(-110%)';
+                }
+                setTimeout(function() {
+                    _closeRevealed();
+                    removeTicker(sym);
+                }, 190);
+            };
 
             document.addEventListener('touchcancel', function() {
                 clearTimeout(_timer); _timer = null; _clearOver();
