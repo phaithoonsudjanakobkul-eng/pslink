@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.2.8 — Add validateGistToken() console helper; switch Authorization to Bearer scheme (token scheme deprecated by GitHub) -->
+    <!-- v1.2.9 — Fix syncFromGist: raw_url (gist.githubusercontent.com) must NOT send Authorization header — causes CORS preflight failure -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14195,8 +14195,10 @@ ${_clip(contextSections, 2600)}`;
                 // Always fetch raw_url for latest content — don't trust fileObj.content
                 // which can be stale/truncated, especially for large files with avatars
                 if (fileObj.raw_url) {
+                    // raw_url points to gist.githubusercontent.com — different CORS policy from api.github.com
+                    // Do NOT send Authorization header here — it triggers CORS preflight which fails
+                    // The raw_url is pre-authenticated by GitHub for the token owner
                     const rawRes = await fetch(fileObj.raw_url + '?_=' + Date.now(), {
-                        headers: { 'Authorization': `Bearer ${token}` },
                         cache: 'no-store'
                     });
                     if (!rawRes.ok) { showGistStatus(`RAW ERR ${rawRes.status} ✗`, 'text-rose-500'); return; }
