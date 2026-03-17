@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.6.8 — Fix iOS keyboard push: visualViewport listener shifts AI sheet bottom on keyboard open/close -->
+    <!-- v1.6.9 — Fix AI chat sheet height: 88dvh→50dvh on mobile so sheet fits above iOS keyboard -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2600,7 +2600,7 @@
                 left: 0 !important; right: 0 !important;
                 bottom: 0 !important; top: auto !important;
                 width: 100% !important; max-width: 100% !important;
-                height: 88dvh !important;
+                height: 50dvh !important;
                 border-radius: 20px 20px 0 0 !important;
                 transform: translateY(102%) !important;
                 transition: transform 0.32s cubic-bezier(0.32,0.72,0,1), bottom 0.12s ease-out !important;
