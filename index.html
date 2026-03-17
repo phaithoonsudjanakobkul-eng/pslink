@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.2.6 — Fix: importJSON now auto-calls syncFromGist() after import so device always gets latest Gist data immediately -->
+    <!-- v1.2.7 — Better error diagnostic: Network Error shows token hint + GIST_ID in console; importJSON auto-syncs after restore -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14113,7 +14113,15 @@ ${_clip(contextSections, 2600)}`;
                 }
             } catch(e) {
                 console.error('[Gist] syncToGist error:', e);
-                showGistStatus('OFFLINE — saved locally', 'text-amber-400');
+                const msg2 = e?.message || '';
+                if (msg2.includes('Failed to fetch') || msg2.includes('NetworkError') || msg2.includes('Load failed')) {
+                    const tok2 = getGistToken();
+                    showGistStatus(tok2 ? 'Network Error — ตรวจ Token ✗' : 'ไม่มี Token ✗', 'text-rose-500');
+                    console.warn('[Gist] Upload failed. Token:', tok2 ? tok2.slice(0,8)+'...' : 'MISSING');
+                    console.warn('[Gist] GIST_ID:', GIST_ID);
+                } else {
+                    showGistStatus('OFFLINE — saved locally', 'text-amber-400');
+                }
             }
         }
 
@@ -14284,7 +14292,23 @@ ${_clip(contextSections, 2600)}`;
                 showGistStatus('SYNCED ✓', 'text-emerald-500');
             } catch(e) {
                 console.error('[Gist] syncFromGist error:', e);
-                showGistStatus('ERR: ' + (e.message || 'unknown').slice(0, 22), 'text-rose-500');
+                // Diagnose common causes
+                const msg = e?.message || '';
+                if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
+                    // Could be: token expired, CORS, network down, or GitHub API blocked
+                    // Test token validity with a lightweight call
+                    const tok = getGistToken();
+                    if (!tok) {
+                        showGistStatus('ไม่มี Gist Token ✗', 'text-rose-500');
+                    } else {
+                        showGistStatus('Network Error — ตรวจ Token/Network ✗', 'text-rose-500');
+                        console.warn('[Gist] Token present but fetch failed. Token starts with:', tok.slice(0,8) + '...');
+                        console.warn('[Gist] GIST_ID:', GIST_ID);
+                        console.warn('[Gist] Tip: token อาจหมดอายุ หรือไม่มีสิทธิ์ gist — ไปที่ github.com/settings/tokens');
+                    }
+                } else {
+                    showGistStatus('ERR: ' + msg.slice(0, 30), 'text-rose-500');
+                }
             } finally {
                 _isSyncing = false;
                 // Flush any save that was queued while syncing
