@@ -14,6 +14,7 @@
       }
     </script>
     <title>PSLink</title>
+    <!-- v1.1.9 — Separate WL Alerts + Profile Card into 2 independent dash-cards in dash-row1 grid; mobile stacks vertically -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -912,9 +913,11 @@
         #ai-popup-messages hr{border:none;border-top:1px solid var(--border);margin:10px 0}
         .ai-typing .dots { animation: blink 1.2s infinite; }
         .ai-cursor { display:inline-block; animation: blink 0.7s infinite; color:#4285f4; font-weight:bold; margin-left:1px; }
-        #ai-glossary-panel { border-bottom:1px solid var(--border); background:color-mix(in srgb, var(--bg-card2) 90%, transparent); }
-        #ai-glossary-panel .kw { font-size:11px; padding:3px 9px; border-radius:999px; font-weight:800; border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); white-space:nowrap; letter-spacing:0.01em; }
-        #ai-glossary-panel .desc { font-size:12px; line-height:1.52; color:var(--text-primary); opacity:0.92; }
+        #ai-glossary-panel { border-bottom:1px solid var(--border); background:color-mix(in srgb, var(--bg-card2) 90%, transparent); overflow-y:auto; max-height:260px; }
+        #ai-glossary-panel .kw { font-size:10px; padding:2px 7px; border-radius:999px; font-weight:800; border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); white-space:nowrap; letter-spacing:0.01em; flex-shrink:0; }
+        #ai-glossary-panel .desc { font-size:11px; line-height:1.45; color:var(--text-primary); opacity:0.88; }
+        #ai-glossary-panel .gl-section { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-dim); margin-top:8px; margin-bottom:3px; }
+        #ai-glossary-panel .gl-section:first-child { margin-top:0; }
         #nm-ai-result {
             font-size: 13.5px;
             line-height: 1.74;
@@ -1771,6 +1774,60 @@
             position: relative;
             overflow: hidden;
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        /* Profile pill style */
+        .profile-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--bg-card2);
+            color: var(--text-secondary);
+            white-space: nowrap;
+            letter-spacing: 0.01em;
+        }
+        .profile-pill.pill-green { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+        .profile-pill.pill-blue  { color: #3b82f6; border-color: rgba(59,130,246,0.25); background: rgba(59,130,246,0.07); }
+        .profile-pill.pill-gold  { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 8%, transparent); }
+        /* Mobile: stack vertically */
+        /* Desktop: photo fills profile-card-main height */
+        #profile-photo-wrap { height: 100%; min-height: 0; }
+        /* Desktop: WL Alerts card matches profile card height */
+        #profile-wl-console { align-self: stretch; }
+
+        @media (max-width: 640px) {
+            /* Mobile: stack Row 1 cards vertically */
+            #dash-row1 {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+            }
+            /* WL Alerts card: show on mobile, compact height */
+            #profile-wl-console {
+                min-height: 120px !important;
+                max-height: 180px !important;
+            }
+            /* Profile card: auto height, stack info above photo */
+            #profile-card-main {
+                flex-direction: column !important;
+                height: auto !important;
+            }
+            #profile-photo-wrap {
+                width: 100% !important;
+                height: auto !important;
+                aspect-ratio: 3 / 4 !important;
+                flex-shrink: 0 !important;
+            }
+            #profilePhotoImg {
+                object-fit: cover !important;
+                object-position: center top !important;
+                width: 100% !important;
+                height: 100% !important;
+                position: absolute !important;
+                inset: 0 !important;
+            }
         }
 
         .dash-card::before {
@@ -1806,6 +1863,13 @@
 
         .dash-divider {
             border-color: #d0dce8;
+        }
+
+        /* Trend + Distribution grid: always 2-col on desktop regardless of Tailwind lg breakpoint */
+        @media (min-width: 1025px) {
+            #dash-content .grid.grid-cols-1.lg\:grid-cols-2 {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
         }
 
         .dash-chart-card {
@@ -2019,12 +2083,18 @@
         /* ── Watchlist data color classes — TradingView palette ───── */
         #watchlist-table td.wl-up,
         #watchlist-table td.wl-up span,
-        #watchlist-table span.wl-up      { color: var(--wl-up) !important; }
+        #watchlist-table span.wl-up,
+        #watchlist-table td.price-cell.wl-up,
+        #watchlist-table td.num-cell.wl-up  { color: var(--wl-up) !important; }
         #watchlist-table td.wl-dn,
         #watchlist-table td.wl-dn span,
-        #watchlist-table span.wl-dn      { color: var(--wl-dn) !important; }
+        #watchlist-table span.wl-dn,
+        #watchlist-table td.price-cell.wl-dn,
+        #watchlist-table td.num-cell.wl-dn  { color: var(--wl-dn) !important; }
         #watchlist-table td.wl-neutral,
-        #watchlist-table span.wl-neutral { color: var(--wl-text-dim) !important; }
+        #watchlist-table td.price-cell.wl-neutral,
+        #watchlist-table td.num-cell.wl-neutral,
+        #watchlist-table span.wl-neutral    { color: var(--wl-text-dim) !important; }
         </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
     <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
@@ -3309,7 +3379,67 @@
         <div id="tab-dashboard" class="space-y-5">
             <div id="dash-content" class="hidden space-y-5">
 
-                <!-- 4 Summary Cards -->
+                <!-- Row 1: 2 separate cards side-by-side — WL Alerts (left) + Profile Card (right) -->
+                <div id="dash-row1" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--row1-gap,16px);align-items:stretch;">
+
+                    <!-- CARD A: Watchlist LOW Alert Console -->
+                    <div id="profile-wl-console" class="dash-card" style="display:flex;flex-direction:column;padding:18px 22px;overflow:hidden;min-height:180px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-shrink:0;">
+                            <div style="font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)">📉 Watchlist Alerts</div>
+                            <div id="wl-console-ts" style="font-family:var(--font-mono);font-size:8px;color:var(--text-dim);opacity:0.6"></div>
+                        </div>
+                        <div id="wl-console-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:5px;">
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);opacity:0.5;margin:auto;text-align:center;">กำลังโหลด...</div>
+                        </div>
+                    </div>
+
+                    <!-- CARD B: Profile Card -->
+                    <div id="profile-card-main" class="dash-card p-0 overflow-hidden" style="display:flex;height:calc(256px + 80px);" data-desktop-height="calc(256px + 80px)">
+                        <!-- Info panel -->
+                        <div style="display:flex;flex-direction:column;position:relative;flex:1;min-width:0;overflow:hidden;">
+                            <div id="profile-view" style="height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:20px 22px;">
+                                <div>
+                                    <div id="profile-display-name" class="font-black leading-tight mb-2" style="font-size:clamp(15px,1.6vw,24px);color:var(--text-primary);word-break:break-word">—</div>
+                                    <div id="profile-display-nickname" class="font-semibold mb-1" style="font-size:clamp(11px,1vw,14px);color:var(--text-secondary);display:none"></div>
+                                    <div id="profile-display-email" class="font-mono" style="font-size:clamp(9px,0.8vw,12px);color:var(--text-dim);display:none;word-break:break-all;margin-bottom:12px"></div>
+                                    <div id="profile-pills" class="flex flex-wrap gap-2" style="margin-top:10px"></div>
+                                </div>
+                                <button onclick="openProfileEdit()" class="self-start text-[9px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-md transition-all" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim)">✏️ Edit</button>
+                            </div>
+                            <div id="profile-edit" style="display:none;flex-direction:column;height:100%;padding:18px 22px;gap:9px;">
+                                <div class="text-[9px] font-black uppercase tracking-widest" style="color:var(--text-dim)">แก้ไขโปรไฟล์</div>
+                                <input id="profile-input-name" type="text" placeholder="ชื่อ-นามสกุล" maxlength="60"
+                                    class="w-full text-xs px-2.5 py-1.5 rounded-md outline-none"
+                                    style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-main)">
+                                <input id="profile-input-nickname" type="text" placeholder="ชื่อเล่น (optional)" maxlength="30"
+                                    class="w-full text-xs px-2.5 py-1.5 rounded-md outline-none"
+                                    style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-main)">
+                                <input id="profile-input-email" type="email" placeholder="อีเมล (optional)" maxlength="80"
+                                    class="w-full text-xs px-2.5 py-1.5 rounded-md outline-none"
+                                    style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
+                                <div class="flex gap-2 mt-auto">
+                                    <button onclick="saveProfileEdit()" class="flex-1 text-[10px] font-bold py-1.5 rounded-md text-white" style="background:var(--accent)">บันทึก</button>
+                                    <button onclick="cancelProfileEdit()" class="text-[10px] font-bold px-3 py-1.5 rounded-md" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim)">ยกเลิก</button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Divider info → photo -->
+                        <div class="flex-shrink-0" style="width:1px;background:linear-gradient(to bottom,transparent,var(--border),transparent);"></div>
+                        <!-- Photo: 252px fixed -->
+                        <div id="profile-photo-wrap" class="relative flex-shrink-0 cursor-pointer overflow-hidden" style="width:252px;background:var(--bg-card2);"
+                             onclick="document.getElementById('profilePhotoInput').click()" title="คลิกเพื่อเปลี่ยนรูป">
+                            <img id="profilePhotoImg" src="" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:none;position:absolute;inset:0">
+                            <div id="profilePhotoPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2" style="color:var(--text-dim)">
+                                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                <span style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase">อัปโหลดรูป</span>
+                            </div>
+                        </div>
+                        <input type="file" id="profilePhotoInput" accept="image/*" style="display:none" onchange="handleProfilePhoto(event)">
+                    </div>
+
+                </div>
+
+                <!-- Row 2: 4 Summary Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                     <!-- Current Balance -->
                     <div id="surplus-card-main" class="dash-card p-5">
@@ -3341,7 +3471,7 @@
                     </div>
                 </div>
 
-                <!-- Charts -->
+                <!-- Row 3: Charts -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div class="dash-chart-card p-5">
                         <div class="flex justify-between items-center mb-5">
@@ -4245,7 +4375,7 @@
 
     <script>
         let records = [];
-        let db = { avatar: null }; // metadata stored alongside records in JSON
+        let db = { avatar: null, profilePhoto: null }; // metadata stored alongside records in JSON
         let curMonth = new Date().toISOString().slice(0, 7);
 
         // Sort records chronologically by id (YYYY-MM) — must be called after every external ingest
@@ -4308,10 +4438,15 @@
             document.getElementById('tab-news').classList.toggle('hidden', t !== 'news');
             // Reset scroll to top on mobile/tablet when switching tabs
             if (window.innerWidth <= 1024) { window.scrollTo({ top: 0, behavior: 'instant' }); }
-            // Hide AI FAB on news tab (mobile/tablet) — FAB is fixed and overlaps news content while scrolling
-            if (window.innerWidth <= 1024) {
-                const _fab = document.getElementById('ai-fab');
-                if (_fab) _fab.style.display = (t === 'news') ? 'none' : '';
+            // Hide AI FAB + popup on all tabs except watchlist (mobile + desktop)
+            const _fab = document.getElementById('ai-fab');
+            const _popup = document.getElementById('ai-popup');
+            const _bd = document.getElementById('ai-sheet-backdrop');
+            const _showAi = (t === 'watchlist');
+            if (_fab) _fab.style.display = _showAi ? '' : 'none';
+            if (!_showAi) {
+                // Close popup if open when leaving watchlist
+                if (_popup && !_popup.classList.contains('hidden')) minimizeAiPopup();
             }
             document.getElementById('btn-dash').className = t === 'dashboard' ? 'px-4 py-1.5 rounded-md text-xs font-bold tab-active transition-all uppercase' : 'px-4 py-1.5 rounded-md text-xs font-bold text-gray-400 transition-all uppercase';
             document.getElementById('btn-edit').className = t === 'edit' ? 'px-4 py-1.5 rounded-md text-xs font-bold tab-active transition-all uppercase' : 'px-4 py-1.5 rounded-md text-xs font-bold text-gray-400 transition-all uppercase';
@@ -4635,6 +4770,7 @@
         }
 
         function updateDashboard() {
+            _loadProfileCard();
             const validRecords = records.filter(r => r.payday > 0 || (r.fixed && r.fixed.length > 0) || (r.dynamic && r.dynamic.length > 0));
 
             if (validRecords.length === 0) {
@@ -6467,18 +6603,18 @@
                                 ? '<span class="wl-spark-skeleton"></span>'
                                 : (d ? '<span class="wl-sparkline-placeholder" style="font-size:9px;color:var(--text-dim)">…</span>' : (sk(70) ?? ''))
                     }</div></td>
-                    <td class="price-cell ${priceColor}" style="text-align:right">${sk(52) ?? (price !== null ? '$' + fmt(price) : '—')}</td>
-                    <td class="num-cell ${changeColor}" style="text-align:right;font-size:11px">${sk(40) ?? (change !== null ? (isUp ? '+' : '') + fmt(change) : '—')}</td>
+                    <td class="price-cell ${priceColor}" style="text-align:right;color:${price===null?'var(--wl-text-dim)':isUp?'var(--wl-up)':'var(--wl-dn)'}">${sk(52) ?? (price !== null ? '$' + fmt(price) : '—')}</td>
+                    <td class="num-cell ${changeColor}" style="text-align:right;font-size:11px;color:${change===null?'var(--wl-text-dim)':isUp?'var(--wl-up)':'var(--wl-dn)'}">${sk(40) ?? (change !== null ? (isUp ? '+' : '') + fmt(change) : '—')}</td>
                     <td class="px-3 py-2 text-right">${sk(56) ??
                         (changePct !== null
-                            ? `<span class="${isUp ? 'wl-badge-up' : 'wl-badge-dn'}">${arrow} ${isUp?'+':''}${changePct.toFixed(2)}%</span>`
-                            : '<span class="wl-badge-neu">—</span>')
+                            ? `<span class="${isUp ? 'wl-badge-up' : 'wl-badge-dn'}" style="color:${isUp?'var(--wl-up)':'var(--wl-dn)'};background:${isUp?'rgba(8,153,129,0.12)':'rgba(242,54,69,0.12)'}">${arrow} ${isUp?'+':''}${changePct.toFixed(2)}%</span>`
+                            : '<span class="wl-badge-neu" style="color:var(--wl-text-dim)">—</span>')
                     }</td>
                     <td class="td-stack wl-col-hide" style="text-align:right">${preMktHtml}</td>
                     <td class="wl-col-hide ${openColor}" style="text-align:right;font-size:11px">${sk(48) ?? (open ? '$' + fmt(open) : '—')}</td>
                     <td class="wl-col-hide" style="text-align:right;font-size:11px;color:var(--wl-text-secondary)">${sk(48) ?? (prevClose ? '$' + fmt(prevClose) : '—')}</td>
-                    <td class="wl-col-hide wl-up" style="text-align:right;font-size:11px">${sk(48) ?? (high !== null ? '$' + fmt(high) : '—')}</td>
-                    <td class="wl-col-hide wl-dn" style="text-align:right;font-size:11px">${sk(48) ?? (low  !== null ? '$' + fmt(low)  : '—')}</td>
+                    <td class="wl-col-hide wl-up" style="text-align:right;font-size:11px;color:var(--wl-up)">${sk(48) ?? (high !== null ? '$' + fmt(high) : '—')}</td>
+                    <td class="wl-col-hide wl-dn" style="text-align:right;font-size:11px;color:var(--wl-dn)">${sk(48) ?? (low  !== null ? '$' + fmt(low)  : '—')}</td>
                     <td class="wl-col-hide" style="text-align:right;font-size:11px;color:var(--wl-text-secondary)">${sk(52) ?? (d?.week52High != null ? '$' + fmt(d.week52High) : '—')}</td>
                     <td class="wl-col-hide" style="text-align:right;font-size:11px;color:var(--wl-text-secondary)">${sk(52) ?? (d?.week52Low  != null ? '$' + fmt(d.week52Low)  : '—')}</td>
                     <td class="wl-col-hide" style="text-align:right;font-size:11px;color:var(--wl-text-secondary)">${sk(44) ?? (d?.marketCap  != null ? fmtCap(d.marketCap)     : '—')}</td>
@@ -6866,6 +7002,47 @@
             return null;
         }
 
+        function _renderWlConsole() {
+            const list = document.getElementById('wl-console-list');
+            const ts   = document.getElementById('wl-console-ts');
+            if (!list) return;
+
+            // Collect all symbols with LOW alerts from cache
+            const alerts = [];
+            const syms = [...watchlist];
+            for (const sym of syms) {
+                const d = wlDataCache[sym];
+                const price = isMarketOpen() ? (d?.c ?? null) : (d?._dailyC ?? d?.pc ?? d?.c ?? null);
+                const info = getLowBadgeInfo(sym, price);
+                if (info) alerts.push({ sym, price, info });
+            }
+
+            if (alerts.length === 0) {
+                list.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);opacity:0.4;margin:auto;text-align:center;">ไม่มี Low Alert ในขณะนี้</div>';
+            } else {
+                // Sort: both > 7d > 30d
+                const order = { 'wl-low-both': 0, 'wl-low-7d': 1, 'wl-low-30d': 2 };
+                alerts.sort((a, b) => (order[a.info.cls] ?? 9) - (order[b.info.cls] ?? 9));
+
+                const colorMap = { 'wl-low-7d': 'var(--wl-dn)', 'wl-low-30d': 'var(--warning)', 'wl-low-both': '#a855f7' };
+                list.innerHTML = alerts.map(({ sym, price, info }) => {
+                    const col = colorMap[info.cls] || 'var(--text-dim)';
+                    const priceStr = price != null ? ' · $' + price.toFixed(2) : '';
+                    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);flex-shrink:0;">
+                        <span style="font-family:var(--font-mono);font-size:11px;font-weight:800;color:var(--text-primary);min-width:56px">${sym}</span>
+                        <span style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:${col};background:${col}18;padding:1px 7px;border-radius:4px;">${info.label}</span>
+                        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim)">${priceStr}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            if (ts) {
+                const now = new Date();
+                ts.textContent = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            }
+        }
+
+        let _wlConsoleDebounce = null;
         function _applyLowBadge(symbol, currentPrice) {
             const info = getLowBadgeInfo(symbol, currentPrice);
             // Desktop column badge
@@ -6899,6 +7076,9 @@
                 showWatchlistToast(`📉 ${symbol}${price} — LOW ${info.label.replace('▼ ', '')}`, 'warn');
             }
             if (!info) delete _lowToastSent[symbol];
+            // Debounced console refresh
+            if (_wlConsoleDebounce) clearTimeout(_wlConsoleDebounce);
+            _wlConsoleDebounce = setTimeout(_renderWlConsole, 400);
         }
 
         const _lowToastSent = {};
@@ -6913,6 +7093,8 @@
                 if (price != null) _applyLowBadge(syms[i], price);
                 if (i < syms.length - 1) await new Promise(r => setTimeout(r, 300));
             }
+            // Re-render console after full refresh
+            _renderWlConsole();
         }
 
         let _lowRefreshTimer = null;
@@ -7799,11 +7981,13 @@
             }
 
             setClass(cells[7], `px-3 py-2 text-right price-cell text-sm ${priceColor}`);
+            cells[7].style.color = price === null ? 'var(--wl-text-dim)' : isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
             setText(cells[7], newPriceText);
 
             // cells[8] = CHG ($)
             if (cells[8]) {
                 setClass(cells[8], `px-3 py-2 text-right num-cell text-sm ${changeColor}`);
+                cells[8].style.color = change === null ? 'var(--wl-text-dim)' : isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
                 setText(cells[8], change !== null ? (isUp ? '+' : '') + fmt(change) : '\u2014');
             }
             // cells[9] = CHG%
@@ -7811,7 +7995,9 @@
                 setClass(cells[9], 'px-3 py-2 text-right');
                 const pctTxt = changePct !== null ? `${arrow} ${isUp?'+':''}${changePct.toFixed(2)}%` : '\u2014';
                 const badgeCls = changePct === null ? 'wl-badge-neu' : isUp ? 'wl-badge-up' : 'wl-badge-dn';
-                cells[9].innerHTML = `<span class="${badgeCls}">${pctTxt}</span>`;
+                const pctColor = changePct === null ? 'var(--wl-text-dim)' : isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
+                const pctBg    = changePct === null ? 'transparent' : isUp ? 'rgba(8,153,129,0.12)' : 'rgba(242,54,69,0.12)';
+                cells[9].innerHTML = `<span class="${badgeCls}" style="color:${pctColor};background:${pctBg}">${pctTxt}</span>`;
             }
 
             // Update pre-market cell (col index 10)
@@ -7842,8 +8028,8 @@
                 setText(cells[12], prevClose ? '$' + fmt(prevClose) : '—');
             }
             // cells[13] = HIGH, cells[14] = LOW
-            if (cells[13]) { setClass(cells[13], 'wl-col-hide wl-up'); setText(cells[13], high !== null ? '$' + fmt(high) : '—'); }
-            if (cells[14]) { setClass(cells[14], 'wl-col-hide wl-dn'); setText(cells[14], low  !== null ? '$' + fmt(low)  : '—'); }
+            if (cells[13]) { setClass(cells[13], 'wl-col-hide wl-up'); cells[13].style.color = 'var(--wl-up)'; setText(cells[13], high !== null ? '$' + fmt(high) : '—'); }
+            if (cells[14]) { setClass(cells[14], 'wl-col-hide wl-dn'); cells[14].style.color = 'var(--wl-dn)'; setText(cells[14], low  !== null ? '$' + fmt(low)  : '—'); }
 
             // Update mobile card price/chg (visible on ≤1200px)
             const mobPriceBox = document.getElementById('wl-mob-price-' + symbol);
@@ -9897,6 +10083,25 @@ ${sourceText}`;
         }
 
         window.addEventListener('DOMContentLoaded', function() {
+            // Fix: apply mobile height before any updateDashboard/loadProfileCard calls
+            _applyProfilePhotoMobileHeight();
+            // Migration v1.1.5: run once — mark ps_avatar/ps_profile_photo as split
+            // Never destructively clear ps_avatar again (caused save regression)
+            (function _migrateAvatarSplit() {
+                try {
+                    if (localStorage.getItem('ps_avatar_split_done') === '1') return;
+                    // First run only: if both keys hold identical data from unified era,
+                    // clear ps_avatar so nav shows placeholder until user sets one.
+                    // User's freshly-cropped avatar is always safe after this flag is set.
+                    const av = localStorage.getItem('ps_avatar');
+                    const pp = localStorage.getItem('ps_profile_photo');
+                    if (av && pp && av === pp) {
+                        localStorage.removeItem('ps_avatar');
+                        db.avatar = null;
+                    }
+                    localStorage.setItem('ps_avatar_split_done', '1');
+                } catch(e) {}
+            })();
             _loadScannerCacheLocal();
             // Initial load after 1.5s (wait for localStorage keys)
             setTimeout(function() {
@@ -13411,24 +13616,387 @@ ${_clip(contextSections, 2600)}`;
 
         // ── Avatar ────────────────────────────────────────────────────────────
         function setAvatarImage(src) {
-            const img = document.getElementById('avatarImg');
-            const ph  = document.getElementById('avatarPlaceholder');
-            if (!img) return;
-            img.src = src;
-            img.style.display = 'block';
-            if (ph) ph.style.display = 'none';
+            // Remove preload <style> that uses CSS content:url() — it overrides img.src
+            const preload = document.getElementById('avatar-preload');
+            if (preload) preload.remove();
+            const navImg = document.getElementById('avatarImg');
+            const navPh  = document.getElementById('avatarPlaceholder');
+            if (navImg) { navImg.src = src; navImg.style.display = 'block'; }
+            if (navPh)  navPh.style.display = 'none';
         }
 
+        function setProfilePhoto(src) {
+            // Profile card photo only — independent from nav avatar
+            const cardImg = document.getElementById('profilePhotoImg');
+            const cardPh  = document.getElementById('profilePhotoPlaceholder');
+            if (cardImg) { cardImg.src = src; cardImg.style.display = 'block'; }
+            if (cardPh)  cardPh.style.display = 'none';
+        }
+
+        // ── Profile Card ──────────────────────────────────────────────────────
+        function _applyProfilePhotoMobileHeight() {
+            const card = document.getElementById('profile-card-main');
+            if (!card) return;
+            if (window.innerWidth <= 640) {
+                // Mobile: clear inline height — CSS grid + aspect-ratio handle sizing
+                card.style.height = 'auto';
+            } else {
+                // Desktop: restore fixed height
+                card.style.height = card.dataset.desktopHeight || 'calc(256px + 80px)';
+            }
+        }
+
+        function _loadProfileCard() {
+            _applyProfilePhotoMobileHeight();
+            const name     = localStorage.getItem('ps_profile_name') || '';
+            const nickname = localStorage.getItem('ps_profile_nickname') || '';
+            const email    = localStorage.getItem('ps_profile_email') || '';
+            // Profile card photo — independent key from nav avatar
+            const photo = db.profilePhoto || localStorage.getItem('ps_profile_photo') || '';
+            if (photo) setProfilePhoto(photo);
+            // Name
+            const nameEl = document.getElementById('profile-display-name');
+            if (nameEl) nameEl.textContent = name || '—';
+            // Nickname
+            const nnEl = document.getElementById('profile-display-nickname');
+            if (nnEl) { nnEl.textContent = nickname; nnEl.style.display = nickname ? '' : 'none'; }
+            // Email
+            const emEl = document.getElementById('profile-display-email');
+            if (emEl) { emEl.textContent = email; emEl.style.display = email ? '' : 'none'; }
+            // Stats Pills
+            _renderProfilePills();
+        }
+
+        function _renderProfilePills() {
+            const el = document.getElementById('profile-pills');
+            if (!el) return;
+            const pills = [];
+            // Health status from dashboard
+            const statusText = document.getElementById('status-text')?.textContent?.trim();
+            if (statusText && statusText !== '—') {
+                const isHealthy = statusText === 'HEALTHY';
+                pills.push(`<span class="profile-pill ${isHealthy ? 'pill-green' : 'pill-gold'}">● ${statusText}</span>`);
+            }
+            // Savings rate
+            const srEl = document.getElementById('ytd-savings-rate');
+            const sr = srEl?.textContent?.trim();
+            if (sr && sr !== '0%') {
+                pills.push(`<span class="profile-pill pill-blue">💰 Savings ${sr}</span>`);
+            }
+            // Months tracked
+            const validMonths = (records || []).filter(r => r.payday > 0 || (r.fixed?.length > 0) || (r.dynamic?.length > 0)).length;
+            if (validMonths > 0) {
+                pills.push(`<span class="profile-pill">📅 ${validMonths} เดือน</span>`);
+            }
+            // Current FY
+            const fyEl = document.getElementById('ytd-year-income');
+            const fy = fyEl?.textContent?.trim();
+            if (fy && fy !== '—') {
+                pills.push(`<span class="profile-pill">${fy}</span>`);
+            }
+            el.innerHTML = pills.join('');
+        }
+
+        // ── Profile Photo Crop ────────────────────────────────────────────────
+        const _crop = {
+            img: null, scale: 1, minScale: 1,
+            offsetX: 0, offsetY: 0,
+            dragging: false, lastX: 0, lastY: 0,
+            RATIO: 3/4,          // default 3:4 for profile; 1:1 for avatar
+            target: 'profile',   // 'profile' | 'avatar'
+            frameW: 0, frameH: 0, canvasW: 0, canvasH: 0,
+            frameX: 0, frameY: 0,
+        };
+
+        function handleProfilePhoto(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            e.target.value = '';
+            _crop.target = 'profile';
+            _crop.RATIO  = 3/4;
+            const reader = new FileReader();
+            reader.onload = (ev) => { openCropModal(ev.target.result); };
+            reader.readAsDataURL(file);
+        }
+
+        function openCropModal(src) {
+            const modal = document.getElementById('crop-modal');
+            const canvas = document.getElementById('crop-canvas');
+            const frame  = document.getElementById('crop-frame');
+            if (!modal || !canvas) return;
+            // Update title by target
+            const titleEl = document.getElementById('crop-modal-title');
+            if (titleEl) titleEl.textContent = _crop.target === 'avatar' ? 'ปรับรูป Avatar (1:1)' : 'ปรับรูปโปรไฟล์ (3:4)';
+            // Round frame for avatar crop
+            if (frame) frame.style.borderRadius = _crop.target === 'avatar' ? '50%' : '4px';
+
+            const img = new Image();
+            img.onload = () => {
+                _crop.img = img;
+                const maxW = Math.min(420, window.innerWidth * 0.92);
+                const maxH = Math.min(340, window.innerHeight * 0.45);
+                const margin = 24;
+                let fH = maxH - margin * 2;
+                let fW = fH * _crop.RATIO;
+                if (fW > maxW - margin * 2) { fW = maxW - margin * 2; fH = fW / _crop.RATIO; }
+                _crop.frameW = fW;
+                _crop.frameH = fH;
+                _crop.canvasW = maxW;
+                _crop.canvasH = maxH;
+                _crop.frameX = (maxW - fW) / 2;
+                _crop.frameY = (maxH - fH) / 2;
+
+                canvas.width  = maxW; canvas.height = maxH;
+                canvas.style.width = maxW + 'px'; canvas.style.height = maxH + 'px';
+
+                frame.style.width  = fW + 'px';
+                frame.style.height = fH + 'px';
+                frame.style.left   = _crop.frameX + 'px';
+                frame.style.top    = _crop.frameY + 'px';
+
+                // Scale image to FILL frame completely
+                const scaleX = fW / img.width;
+                const scaleY = fH / img.height;
+                _crop.minScale = Math.max(scaleX, scaleY);
+                _crop.scale = _crop.minScale;
+
+                // Center image so frame is fully covered
+                _crop.offsetX = _crop.frameX - (img.width  * _crop.scale - fW) / 2;
+                _crop.offsetY = _crop.frameY - (img.height * _crop.scale - fH) / 2;
+
+                document.getElementById('crop-zoom').value = 100;
+                document.getElementById('crop-zoom-label').textContent = '1×';
+
+                modal.classList.remove('hidden'); modal.classList.add('flex');
+                // Bug1 fix: double-rAF ensures browser has fully laid out + painted modal
+                // before we draw. Single rAF fires before the paint frame; double rAF
+                // fires AFTER the first paint so canvas dimensions are non-zero.
+                // Also: bind events BEFORE draw so canvas clone (inside _cropBindEvents)
+                // is the target that _cropDraw will query via getElementById.
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        // Pass canvas directly — no clone, so ref stays valid
+                        _cropBindEvents(canvas);
+                        _cropDraw();
+                    });
+                });
+            };
+            img.onerror = () => console.error('Crop: failed to load image');
+            img.src = src;  // Bug1 fix: was assigned twice — removed duplicate
+        }
+
+        function _cropDraw() {
+            const canvas = document.getElementById('crop-canvas');
+            if (!canvas || !_crop.img) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, _crop.canvasW, _crop.canvasH);
+            ctx.drawImage(_crop.img,
+                _crop.offsetX, _crop.offsetY,
+                _crop.img.width * _crop.scale,
+                _crop.img.height * _crop.scale);
+        }
+
+        function _cropClampOffset() {
+            const fx = _crop.frameX, fy = _crop.frameY;
+            const imgW = _crop.img.width  * _crop.scale;
+            const imgH = _crop.img.height * _crop.scale;
+            _crop.offsetX = Math.min(fx, Math.max(fx + _crop.frameW - imgW, _crop.offsetX));
+            _crop.offsetY = Math.min(fy, Math.max(fy + _crop.frameH - imgH, _crop.offsetY));
+        }
+
+        function cropZoomInput() {
+            const slider = document.getElementById('crop-zoom');
+            const zoomPct = Number(slider.value);
+            const newScale = _crop.minScale * (zoomPct / 100);
+            const cx = _crop.frameX + _crop.frameW / 2;
+            const cy = _crop.frameY + _crop.frameH / 2;
+            const ratio = newScale / _crop.scale;
+            _crop.offsetX = cx - (cx - _crop.offsetX) * ratio;
+            _crop.offsetY = cy - (cy - _crop.offsetY) * ratio;
+            _crop.scale = newScale;
+            _cropClampOffset(); _cropDraw();
+            document.getElementById('crop-zoom-label').textContent = (zoomPct / 100).toFixed(1) + '×';
+        }
+
+        function _cropBindEvents(canvas) {
+            // Root-cause fix: NEVER clone canvas — cloneNode wipes width/height/pixels.
+            // Use AbortController to cleanly remove all previous listeners instead.
+            if (_crop._abort) _crop._abort.abort();
+            _crop._abort = new AbortController();
+            const sig = { signal: _crop._abort.signal };
+            const c = canvas; // work on the real canvas directly
+
+            // Mouse drag
+            c.addEventListener('mousedown', e => {
+                _crop.dragging = true; _crop.lastX = e.clientX; _crop.lastY = e.clientY;
+                c.style.cursor = 'grabbing'; e.preventDefault();
+            }, sig);
+            window.addEventListener('mousemove', e => {
+                if (!_crop.dragging) return;
+                _crop.offsetX += e.clientX - _crop.lastX;
+                _crop.offsetY += e.clientY - _crop.lastY;
+                _crop.lastX = e.clientX; _crop.lastY = e.clientY;
+                _cropClampOffset(); _cropDraw();
+            }, sig);
+            window.addEventListener('mouseup', () => {
+                _crop.dragging = false; c.style.cursor = 'grab';
+            }, sig);
+
+            // Touch drag — note: passive:false needed for preventDefault, cannot use sig alone
+            // but we store refs to remove manually via abort
+            let lastTouch = null, lastDist = null;
+            const _onTouchStart = e => {
+                if (e.touches.length === 1) {
+                    lastTouch = e.touches[0]; lastDist = null;
+                } else if (e.touches.length === 2) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    lastDist = Math.sqrt(dx*dx + dy*dy);
+                }
+                e.preventDefault();
+            };
+            const _onTouchMove = e => {
+                if (e.touches.length === 1 && lastTouch) {
+                    _crop.offsetX += e.touches[0].clientX - lastTouch.clientX;
+                    _crop.offsetY += e.touches[0].clientY - lastTouch.clientY;
+                    lastTouch = e.touches[0];
+                    _cropClampOffset(); _cropDraw();
+                } else if (e.touches.length === 2 && lastDist) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const ratio = dist / lastDist;
+                    const cx = _crop.frameX + _crop.frameW / 2;
+                    const cy = _crop.frameY + _crop.frameH / 2;
+                    const newScale = Math.max(_crop.minScale, Math.min(_crop.minScale * 3, _crop.scale * ratio));
+                    _crop.offsetX = cx - (cx - _crop.offsetX) * (newScale / _crop.scale);
+                    _crop.offsetY = cy - (cy - _crop.offsetY) * (newScale / _crop.scale);
+                    _crop.scale = newScale;
+                    lastDist = dist;
+                    _cropClampOffset(); _cropDraw();
+                }
+                e.preventDefault();
+            };
+            const _onWheel = e => {
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                _crop.scale = Math.max(_crop.minScale, Math.min(_crop.minScale * 3, _crop.scale * delta));
+                _cropClampOffset(); _cropDraw();
+                e.preventDefault();
+            };
+            // Remove previous touch/wheel listeners if any
+            if (_crop._tsHandler) c.removeEventListener('touchstart', _crop._tsHandler, { passive: false });
+            if (_crop._tmHandler) c.removeEventListener('touchmove',  _crop._tmHandler, { passive: false });
+            if (_crop._twHandler) c.removeEventListener('wheel',      _crop._twHandler, { passive: false });
+            _crop._tsHandler = _onTouchStart;
+            _crop._tmHandler = _onTouchMove;
+            _crop._twHandler = _onWheel;
+            c.addEventListener('touchstart', _onTouchStart, { passive: false });
+            c.addEventListener('touchmove',  _onTouchMove,  { passive: false });
+            c.addEventListener('wheel',      _onWheel,      { passive: false });
+        }
+
+        function applyCrop() {
+            if (!_crop.img) return;
+            // Source rect in original image coords
+            const srcW = _crop.frameW / _crop.scale;
+            const srcH = _crop.frameH / _crop.scale;
+            const srcX = (_crop.frameX - _crop.offsetX) / _crop.scale;
+            const srcY = (_crop.frameY - _crop.offsetY) / _crop.scale;
+
+            // Output resolution by target:
+            //   avatar  → 600×600 square (nav circle, ~200KB)
+            //   profile → 900×1200 3:4   (profile card,  ~500KB)
+            const isAvatar = _crop.target === 'avatar';
+            const OUT_W = isAvatar ? 600 : 900;
+            const OUT_H = isAvatar ? 600 : 1200;
+
+            const out = document.createElement('canvas');
+            out.width = OUT_W; out.height = OUT_H;
+            const ctx = out.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(_crop.img, srcX, srcY, srcW, srcH, 0, 0, OUT_W, OUT_H);
+            const result = out.toDataURL('image/jpeg', 0.95);
+
+            if (isAvatar) {
+                // Nav avatar — save with timestamp so syncFromGist won't overwrite newer local data
+                db.avatar = result;
+                try {
+                    localStorage.setItem('ps_avatar', result);
+                    localStorage.setItem('ps_avatar_ts', String(Date.now()));
+                } catch(err) {}
+                setAvatarImage(result);
+            } else {
+                // Profile card photo — same pattern
+                db.profilePhoto = result;
+                try {
+                    localStorage.setItem('ps_profile_photo', result);
+                    localStorage.setItem('ps_profile_photo_ts', String(Date.now()));
+                } catch(err) {}
+                setProfilePhoto(result);
+            }
+            scheduleAutoSave(true);
+            closeCropModal();
+        }
+
+        function closeCropModal() {
+            const modal = document.getElementById('crop-modal');
+            if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+            _crop.img = null;
+            _crop.dragging = false;
+            // Abort all mouse listeners via AbortController
+            if (_crop._abort) { _crop._abort.abort(); _crop._abort = null; }
+            // Remove touch/wheel listeners (passive:false — cannot use AbortController signal)
+            const c = document.getElementById('crop-canvas');
+            if (c) {
+                if (_crop._tsHandler) c.removeEventListener('touchstart', _crop._tsHandler, { passive: false });
+                if (_crop._tmHandler) c.removeEventListener('touchmove',  _crop._tmHandler, { passive: false });
+                if (_crop._twHandler) c.removeEventListener('wheel',      _crop._twHandler, { passive: false });
+            }
+            _crop._tsHandler = _crop._tmHandler = _crop._twHandler = null;
+        }
+
+        function openProfileEdit() {
+            const view = document.getElementById('profile-view');
+            const edit = document.getElementById('profile-edit');
+            if (!view || !edit) return;
+            document.getElementById('profile-input-name').value     = localStorage.getItem('ps_profile_name')     || '';
+            document.getElementById('profile-input-nickname').value = localStorage.getItem('ps_profile_nickname') || '';
+            document.getElementById('profile-input-email').value    = localStorage.getItem('ps_profile_email')    || '';
+            view.style.display = 'none';
+            edit.style.display = 'flex';
+        }
+
+        function saveProfileEdit() {
+            const name     = document.getElementById('profile-input-name').value.trim();
+            const nickname = document.getElementById('profile-input-nickname').value.trim();
+            const email    = document.getElementById('profile-input-email').value.trim();
+            localStorage.setItem('ps_profile_name',     name);
+            localStorage.setItem('ps_profile_nickname', nickname);
+            localStorage.setItem('ps_profile_email',    email);
+            // Also sync to existing db-name-display in nav
+            const dbEl = document.getElementById('db-name-display');
+            if (dbEl && name) dbEl.innerText = name;
+            _loadProfileCard();
+            cancelProfileEdit();
+            scheduleAutoSave(true);
+        }
+
+        function cancelProfileEdit() {
+            const view = document.getElementById('profile-view');
+            const edit = document.getElementById('profile-edit');
+            if (!view || !edit) return;
+            edit.style.display = 'none';
+            view.style.display = 'flex';
+        }
         function handleAvatar(e) {
             const file = e.target.files[0];
             if (!file) return;
+            e.target.value = '';
+            _crop.target = 'avatar';
+            _crop.RATIO  = 1/1;   // 1:1 square for circular nav avatar
             const reader = new FileReader();
-            reader.onload = (ev) => {
-                db.avatar = ev.target.result;
-                setAvatarImage(db.avatar);
-                try { localStorage.setItem('ps_avatar', db.avatar); } catch(e) {}
-                scheduleAutoSave(true); // immediate — avatar upload is a one-shot action
-            };
+            reader.onload = (ev) => { openCropModal(ev.target.result); };
             reader.readAsDataURL(file);
         }
 
@@ -13473,7 +14041,7 @@ ${_clip(contextSections, 2600)}`;
             _lsSave(SIGNAL_LOG_KEY, JSON.stringify(signalLog));
             try {
                 const exportData = {
-                    meta: { avatar: db.avatar, dark: document.documentElement.classList.contains('dark'), theme: _activeTheme },
+                    meta: { avatar: db.avatar, avatarTs: parseInt(localStorage.getItem('ps_avatar_ts')||'0',10), profilePhoto: db.profilePhoto, profilePhotoTs: parseInt(localStorage.getItem('ps_profile_photo_ts')||'0',10), dark: document.documentElement.classList.contains('dark'), theme: _activeTheme },
                     chartPrefs: (() => { try { return JSON.parse(localStorage.getItem('ps_lwc_prefs')||'{}'); } catch(e){return{};} })(),
                     records,
                     watchlist,
@@ -13559,10 +14127,24 @@ ${_clip(contextSections, 2600)}`;
                     if (data.symbolLogoCache?.items && typeof data.symbolLogoCache.items === 'object') {
                         _applySymbolLogoCacheData(data.symbolLogoCache, { persistLocal: true });
                     }
+                    // Avatar: only restore from Gist if no newer local version exists
                     if (data.meta?.avatar) {
-                        db.avatar = data.meta.avatar;
-                        setAvatarImage(db.avatar);
-                        try { localStorage.setItem('ps_avatar', db.avatar); } catch(e) {}
+                        const localTs = parseInt(localStorage.getItem('ps_avatar_ts') || '0', 10);
+                        const gistTs  = data.meta?.avatarTs || 0;
+                        if (!db.avatar || gistTs >= localTs) {
+                            db.avatar = data.meta.avatar;
+                            setAvatarImage(db.avatar);
+                            try { localStorage.setItem('ps_avatar', db.avatar); } catch(e) {}
+                        }
+                    }
+                    if (data.meta?.profilePhoto) {
+                        const localTs = parseInt(localStorage.getItem('ps_profile_photo_ts') || '0', 10);
+                        const gistTs  = data.meta?.profilePhotoTs || 0;
+                        if (!db.profilePhoto || gistTs >= localTs) {
+                            db.profilePhoto = data.meta.profilePhoto;
+                            setProfilePhoto(db.profilePhoto);
+                            try { localStorage.setItem('ps_profile_photo', db.profilePhoto); } catch(e) {}
+                        }
                     }
                     // Theme precedence: local user preference always wins.
                     // Gist theme is used only as a first-time fallback on this browser/profile.
@@ -13664,6 +14246,9 @@ ${_clip(contextSections, 2600)}`;
                 exportedAt: new Date().toISOString(),
                 meta: {
                     avatar: db.avatar,
+                    avatarTs: parseInt(localStorage.getItem('ps_avatar_ts')||'0',10),
+                    profilePhoto: db.profilePhoto,
+                    profilePhotoTs: parseInt(localStorage.getItem('ps_profile_photo_ts')||'0',10),
                     dark: document.documentElement.classList.contains('dark')
                 },
                 settings,   // ← API keys + all settings
@@ -13711,8 +14296,22 @@ ${_clip(contextSections, 2600)}`;
 
                         // Restore avatar
                         if (data.meta?.avatar) {
-                            db.avatar = data.meta.avatar;
-                            setAvatarImage(db.avatar);
+                            const localTs = parseInt(localStorage.getItem('ps_avatar_ts') || '0', 10);
+                            const gistTs  = data.meta?.avatarTs || 0;
+                            if (!db.avatar || gistTs >= localTs) {
+                                db.avatar = data.meta.avatar;
+                                setAvatarImage(db.avatar);
+                                try { localStorage.setItem('ps_avatar', db.avatar); } catch(e) {}
+                            }
+                        }
+                        if (data.meta?.profilePhoto) {
+                            const localTs = parseInt(localStorage.getItem('ps_profile_photo_ts') || '0', 10);
+                            const gistTs  = data.meta?.profilePhotoTs || 0;
+                            if (!db.profilePhoto || gistTs >= localTs) {
+                                db.profilePhoto = data.meta.profilePhoto;
+                                setProfilePhoto(db.profilePhoto);
+                                try { localStorage.setItem('ps_profile_photo', db.profilePhoto); } catch(e) {}
+                            }
                         }
                         // Restore dark mode
                         if (data.chartPrefs) {
@@ -14086,7 +14685,10 @@ ${_clip(contextSections, 2600)}`;
             }
             // FAB drag — always init so user can reposition it on any viewport
             initFabDrag();
+            // Bug3 fix: set profile photo wrap height on load (not just on resize)
+            _applyProfilePhotoMobileHeight();
             window.addEventListener('resize', () => {
+                _applyProfilePhotoMobileHeight();
                 if (window.innerWidth <= 1200) {
                     applyMobileWatchlistCols();
                 } else {
@@ -14122,6 +14724,8 @@ ${_clip(contextSections, 2600)}`;
                 if (saved) { records = JSON.parse(saved); _sortRecords(); }
                 const savedAvatar = localStorage.getItem('ps_avatar');
                 if (savedAvatar) { db.avatar = savedAvatar; setAvatarImage(savedAvatar); }
+                const savedProfilePhoto = localStorage.getItem('ps_profile_photo');
+                if (savedProfilePhoto) { db.profilePhoto = savedProfilePhoto; setProfilePhoto(savedProfilePhoto); }
                 const savedName = localStorage.getItem('ps_dbname');
                 if (savedName) document.getElementById('db-name-display').innerText = savedName;
                 const savedWl = localStorage.getItem('ps_watchlist');
@@ -14347,7 +14951,7 @@ ${_clip(contextSections, 2600)}`;
         // ── Shared export-data builder (single source of truth) ──────────────
         function _buildExportData() {
             return {
-                meta: { avatar: db.avatar, dark: document.documentElement.classList.contains('dark'), theme: _activeTheme },
+                meta: { avatar: db.avatar, avatarTs: parseInt(localStorage.getItem('ps_avatar_ts')||'0',10), profilePhoto: db.profilePhoto, profilePhotoTs: parseInt(localStorage.getItem('ps_profile_photo_ts')||'0',10), dark: document.documentElement.classList.contains('dark'), theme: _activeTheme },
                 chartPrefs: (() => { try { return JSON.parse(localStorage.getItem('ps_lwc_prefs')||'{}'); } catch(e){return{};} })(),
                 records,
                 watchlist,
@@ -15147,31 +15751,27 @@ ${_clip(contextSections, 2600)}`;
                 </div>
             </div>
 
-            <div id="ai-glossary-panel" class="hidden px-3.5 py-3">
-                <div class="text-[11px] font-black uppercase tracking-wider mb-2.5" style="color:var(--text-secondary)">PSLink AI Analyst — คู่มือการใช้งาน</div>
-                <div class="grid grid-cols-1 gap-2">
+            <div id="ai-glossary-panel" class="hidden px-3 py-2.5">
+                <div class="grid grid-cols-1 gap-1">
 
-                    <div class="text-[10px] font-black uppercase tracking-wider mt-1 mb-0.5" style="color:var(--text-dim)">🎯 สิ่งที่ถาม AI ได้</div>
-                    <div class="flex items-start gap-2"><span class="kw">วิเคราะห์หุ้น</span><span class="desc">ถามว่า "วิเคราะห์ NVDA" → AI ให้สถานะซื้อ/ขาย/รอ, จุดเข้า, เป้าหมาย, จุด Stop Loss และ R:R ratio</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">วิเคราะห์ข่าว</span><span class="desc">วางหัวข่าวแล้วถามผลกระทบต่อหุ้น → AI อธิบายทั้งระยะสั้นและระยะกลาง</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">เปรียบเทียบหุ้น</span><span class="desc">ถาม "เทียบ AAPL กับ MSFT" → AI เทียบ Technical + Fundamental + Momentum แล้วแนะนำตัวที่ดีกว่า</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">สร้างแผนเทรด</span><span class="desc">ถาม "วางแผน TSLA" → AI สร้าง scenario "ถ้าขึ้นเหนือ X / ถ้าหลุด Y ทำอย่างไร"</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">อธิบายศัพท์</span><span class="desc">ถาม "RSI คืออะไร" หรือ "ทำไม NVDA ตก" → AI อธิบายให้เข้าใจตามโหมดที่ตั้งไว้</span></div>
+                    <div class="gl-section">🎯 สิ่งที่ถาม AI ได้</div>
+                    <div class="flex items-start gap-2"><span class="kw">วิเคราะห์หุ้น</span><span class="desc">ถามว่า "วิเคราะห์ NVDA" → สถานะซื้อ/ขาย/รอ, จุดเข้า, เป้าหมาย, Stop Loss, R:R</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">วิเคราะห์ข่าว</span><span class="desc">วางหัวข่าวแล้วถาม → AI อธิบายผลกระทบระยะสั้นและระยะกลาง</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">เปรียบเทียบหุ้น</span><span class="desc">"เทียบ AAPL กับ MSFT" → AI เทียบ Technical + Fundamental + Momentum</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">สร้างแผนเทรด</span><span class="desc">"วางแผน TSLA" → AI สร้าง scenario ถ้าขึ้นเหนือ X / ถ้าหลุด Y</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">อธิบายศัพท์</span><span class="desc">"RSI คืออะไร" หรือ "ทำไม NVDA ตก" → อธิบายตามโหมดที่ตั้งไว้</span></div>
 
-                    <div class="text-[10px] font-black uppercase tracking-wider mt-2 mb-0.5" style="color:var(--text-dim)">📋 คำในผลวิเคราะห์</div>
-                    <div class="flex items-start gap-2"><span class="kw">Invalidation Point</span><span class="desc">จุดที่แผนพัง — ถ้าราคาหลุดจุดนี้ให้ยกเลิกทันที ทุกคำแนะนำซื้อ/ขายจะมีจุดนี้เสมอ</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">R:R Ratio</span><span class="desc">อัตราส่วนกำไร:ขาดทุน เช่น 2:1 = เสี่ยง 1 บาทเพื่อกำไร 2 บาท — ถ้า R:R < 1.5 AI จะเตือนว่าไม่คุ้มเสี่ยง</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">Confluence</span><span class="desc">คะแนนรวมความเชื่อมั่น — หลายสัญญาณชี้ทางเดียวกัน ยิ่งสูงยิ่งน่าเชื่อถือ แต่ต้องดู Invalidation ด้วย</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">MTF / MTF Confluence</span><span class="desc">Multi-Timeframe — ดูกราฟหลาย timeframe พร้อมกัน เช่น D1 vs 1H ถ้าชี้ไปทางเดียวกัน = สัญญาณแน่นขึ้น</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">ความเชื่อมั่น สูง/กลาง/ต่ำ</span><span class="desc">AI ระบุระดับความมั่นใจของการวิเคราะห์ทุกครั้ง พร้อมเหตุผล</span></div>
+                    <div class="gl-section">📋 คำในผลวิเคราะห์</div>
+                    <div class="flex items-start gap-2"><span class="kw">Invalidation Point</span><span class="desc">จุดที่แผนพัง — ราคาหลุดจุดนี้ให้ยกเลิกทันที มีทุกคำแนะนำ</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">R:R Ratio</span><span class="desc">อัตราส่วนกำไร:ขาดทุน — ถ้า R:R &lt; 1.5 AI เตือนว่าไม่คุ้มเสี่ยง</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">Confluence</span><span class="desc">คะแนนรวมความเชื่อมั่น — หลายสัญญาณชี้ทางเดียวกัน ยิ่งสูงยิ่งน่าเชื่อถือ</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">MTF Confluence</span><span class="desc">Multi-Timeframe — ดู D1 vs 1H ถ้าชี้ทางเดียวกัน สัญญาณแน่นขึ้น</span></div>
 
-                    <div class="text-[10px] font-black uppercase tracking-wider mt-2 mb-0.5" style="color:var(--text-dim)">⚙️ โหมดการแสดงผล</div>
-                    <div class="flex items-start gap-2"><span class="kw">มือใหม่ 🟢</span><span class="desc">AI ใช้ภาษาง่าย อธิบายศัพท์ทุกตัว สรุปบรรทัดแรกว่าควรทำอะไร ตั้งที่ Settings → Display Mode</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">เทรดเดอร์ 🔵</span><span class="desc">AI แสดง Technical ครบ RSI, MACD, BB, Volume, Divergence พร้อมตารางแผนเข้า-ออกเต็มรูปแบบ</span></div>
-
-                    <div class="text-[10px] font-black uppercase tracking-wider mt-2 mb-0.5" style="color:var(--text-dim)">⚠️ ข้อจำกัด</div>
-                    <div class="flex items-start gap-2"><span class="kw">ราคาจาก LIVE DATA</span><span class="desc">AI ใช้ราคาจาก Watchlist ปัจจุบันเท่านั้น ถ้าหุ้นไม่อยู่ใน Watchlist AI จะตอบว่าไม่มีข้อมูลราคา</span></div>
-                    <div class="flex items-start gap-2"><span class="kw">RSI > 75</span><span class="desc">AI จะไม่แนะนำซื้อตามถ้า RSI สูงเกิน 75 (overbought) เพื่อป้องกันการ chase ราคา</span></div>
+                    <div class="gl-section">⚙️ โหมด &amp; ข้อจำกัด</div>
+                    <div class="flex items-start gap-2"><span class="kw">มือใหม่ 🟢</span><span class="desc">ภาษาง่าย อธิบายศัพท์ทุกตัว สรุปบรรทัดแรกว่าควรทำอะไร</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">เทรดเดอร์ 🔵</span><span class="desc">Technical ครบ RSI/MACD/BB/Volume พร้อมตารางแผนเข้า-ออก</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">LIVE DATA only</span><span class="desc">AI ใช้ราคาจาก Watchlist เท่านั้น — หุ้นที่ไม่อยู่ใน Watchlist จะไม่มีราคา</span></div>
+                    <div class="flex items-start gap-2"><span class="kw">RSI &gt; 75</span><span class="desc">AI จะไม่แนะนำซื้อตาม overbought เพื่อป้องกันการ chase ราคา</span></div>
                 </div>
             </div>
 
@@ -15404,6 +16004,33 @@ ${_clip(contextSections, 2600)}`;
             </div>
         </div>
     </div>
+    <!-- ── Profile Photo Crop Modal ─────────────────────────────────────── -->
+    <div id="crop-modal" class="fixed inset-0 z-[9000] hidden flex items-center justify-center" style="background:rgba(0,0,0,0.85)">
+        <div class="flex flex-col rounded-xl overflow-hidden shadow-2xl" style="background:#1e2530;border:1px solid rgba(255,255,255,0.12);width:min(420px,96vw)">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-4 py-3 flex-shrink-0" style="border-bottom:1px solid rgba(255,255,255,0.1)">
+                <span id="crop-modal-title" class="text-xs font-black uppercase tracking-wider" style="color:#f0f4f8">ปรับรูปโปรไฟล์</span>
+                <span class="text-[10px]" style="color:#8899aa">ลากเพื่อเลื่อน · Scroll เพื่อซูม</span>
+            </div>
+            <!-- Canvas area -->
+            <div class="relative flex items-center justify-center" style="background:#0a0d12;height:320px">
+                <canvas id="crop-canvas" style="cursor:grab;touch-action:none;max-width:100%;max-height:100%"></canvas>
+                <div id="crop-frame" class="absolute pointer-events-none" style="border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 0 9999px rgba(0,0,0,0.55)"></div>
+            </div>
+            <!-- Zoom slider -->
+            <div class="flex items-center gap-3 px-4 py-2 flex-shrink-0" style="border-top:1px solid rgba(255,255,255,0.08)">
+                <span class="text-[10px] font-bold" style="color:#8899aa">ซูม</span>
+                <input id="crop-zoom" type="range" min="100" max="300" value="100" step="1" class="flex-1" style="accent-color:#3b82f6" oninput="cropZoomInput()">
+                <span id="crop-zoom-label" class="text-[10px] font-mono w-8 text-right" style="color:#8899aa">1×</span>
+            </div>
+            <!-- Buttons -->
+            <div class="flex gap-2 px-4 py-3 flex-shrink-0" style="border-top:1px solid rgba(255,255,255,0.08)">
+                <button onclick="closeCropModal()" class="flex-1 text-[11px] font-bold py-2 rounded-lg" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#ccd6e0">ยกเลิก</button>
+                <button onclick="applyCrop()" class="flex-1 text-[11px] font-bold py-2 rounded-lg text-white" style="background:#3b82f6">ใช้รูปนี้</button>
+            </div>
+        </div>
+    </div>
+
     <div id="wl-toast-wrap" aria-live="polite" aria-atomic="true"></div>
     <!-- Landscape lock overlay (mobile/tablet only) -->
     <div id="pslink-rotate-msg" style="display:none">
