@@ -5269,11 +5269,31 @@
                 const raw = localStorage.getItem('ps_wl_spark_cache_v5');
                 if (!raw) return;
                 const payload = JSON.parse(raw);
-                _applySparklineCacheData(payload?.data || {}, { applyToMemory: true });
+                const todayKey = currentEtDateKey();
+                const data = payload?.data || {};
+
+                // ── Session guard: only restore bars from today's ET session ──
+                // If cache is from a previous day, skip applying to memory entirely.
+                // Skeleton will show instead → refreshSparklineForTopSymbols fills in fresh bars.
+                // This prevents the "old chart → new chart flicker" on first load.
+                const filteredData = {};
+                Object.keys(data).forEach(sym => {
+                    const e = data[sym];
+                    if (!e) return;
+                    // Keep if session matches today OR if market is closed and cache is recent (<8h)
+                    const sessionOk = e.session && e.session === todayKey;
+                    const recentEnough = e.ts && (Date.now() - e.ts) < 8 * 60 * 60 * 1000;
+                    if (sessionOk || (!mktOpen && recentEnough)) {
+                        filteredData[sym] = e;
+                    }
+                });
+
+                _applySparklineCacheData(filteredData, { applyToMemory: true });
             } catch(e) {}
         }
         function ensureSparklinePlaceholders() {
             if (!watchlist || !watchlist.length) return;
+            const useSkele = hasAlpacaSparkSource();
             watchlist.forEach(sym => {
                 const el = document.getElementById('wl-sparkline-' + sym);
                 if (!el) return;
@@ -5281,7 +5301,9 @@
                 const d = wlDataCache[sym] || {};
                 const base = entry?.base ?? d?.pc ?? entry?.prices?.[0] ?? null;
                 if (!entry?.prices?.length || !sparklineQuality(entry.prices, base)) {
-                    el.innerHTML = '<span class="wl-sparkline-placeholder" style="font-size:9px;color:var(--text-dim)">…</span>';
+                    el.innerHTML = useSkele
+                        ? '<span class="wl-spark-skeleton"></span>'
+                        : '<span class="wl-sparkline-placeholder" style="font-size:9px;color:var(--text-dim)">…</span>';
                     requestSparklineRefresh(sym, false);
                 } else {
                     updateSparklineCell(sym);
@@ -13524,7 +13546,7 @@ ${_clip(contextSections, 2600)}`;
                     if (Array.isArray(data.watchlist)) watchlist = data.watchlist;
                     if (Array.isArray(data.signalLog)) signalLog = data.signalLog;
                     if (data.movementCache?.data && typeof data.movementCache.data === 'object') {
-                        _applySparklineCacheData(data.movementCache.data, { applyToMemory: !isMarketOpen() });
+                        _applySparklineCacheData(data.movementCache.data, { applyToMemory: false });
                     }
                     if (data.logoDataCache?.items && typeof data.logoDataCache.items === 'object') {
                         _applyLogoDataCacheData(data.logoDataCache, { persistLocal: true });
@@ -13673,7 +13695,7 @@ ${_clip(contextSections, 2600)}`;
                         if (data.watchlist) watchlist = data.watchlist;
                         if (Array.isArray(data.signalLog)) signalLog = data.signalLog;
                         if (data.movementCache?.data && typeof data.movementCache.data === 'object') {
-                            _applySparklineCacheData(data.movementCache.data, { applyToMemory: !isMarketOpen() });
+                            _applySparklineCacheData(data.movementCache.data, { applyToMemory: false });
                         }
                         if (data.logoDataCache?.items && typeof data.logoDataCache.items === 'object') {
                             _applyLogoDataCacheData(data.logoDataCache, { persistLocal: true });
@@ -14103,7 +14125,9 @@ ${_clip(contextSections, 2600)}`;
                 _loadLogoDataCacheLocal(); // keep logo cache across F5 before rendering NEWS
                 loadWlCache(); // restore price/profile cache for instant display
                 prewarmWatchlistLogos(80); // warm visible symbols ASAP after refresh
-                loadSparklineCache({ allowDuringOpen: false }); // open market redraws, closed market restores cache
+                // ── Sparkline: always start fresh → skeleton → real bars from batch fetch ──
+                // Never preload old bars into memory — prevents "old chart → new chart" flicker
+                // loadSparklineCache only reads from localStorage for reference, not applied to memory
                 _loadLowCache(); // restore 7D/30D low cache from localStorage
                 setTimeout(() => { refreshAllLowData(); scheduleLowRefresh(); }, 5000);
                 // If market already closed when app loads → fetch official EOD close
@@ -14164,35 +14188,55 @@ ${_clip(contextSections, 2600)}`;
             // Market status — poll every 60s; detect open↔close transitions for WS lifecycle
             // _prevMarketOpen: snapshot at startup to detect edge (closed→open or open→closed)
             let _prevMarketOpen = isMarketOpen();
-            setInterval(() => {
-                const nowOpen = isMarketOpen();
-                updateMarketStatus();
 
-                if (nowOpen !== _prevMarketOpen) {
-                    if (!nowOpen) {
-                        // ── Market just CLOSED ──────────────────────────────────────────────
-                        // Disconnect WS + stop sparkline auto-refresh
-                        if (fhWs  && fhWs.readyState  <= 1) { fhWs.close();  fhWs  = null; }
-                        if (alpWs && alpWs.readyState <= 1) { alpWs.close(); alpWs = null; _wsAuthenticated = false; }
-                        _stopSparklineAutoRefresh();
-                        // ── Fetch official EOD close prices (Alpaca dailyBar.c) ─────────────
-                        // Delay 90s to let exchange finalize closing prints
-                        setTimeout(() => refreshEodPrices(), 90 * 1000);
-                    } else if (!document.hidden && watchlist.length) {
-                        // ── Market just OPENED (page is visible) ────────────────────────────
-                        // Prices shown are yesterday's close — refresh + start streaming
-                        _wsBackgroundMode = document.getElementById('tab-watchlist')
-                            ?.classList.contains('hidden') ?? true;
-                        connectWs();
-                        refreshWatchlist().then(() => {
-                            refreshSparklineForTopSymbols();
-                            _startSparklineAutoRefresh();
-                        });
+            // ── Smart poll: 5s near open/close edges, 60s otherwise ──────────
+            // Avoids up to 60s delay when user is watching at 20:30 Thai time
+            function _isNearMarketEdge() {
+                const now = new Date();
+                const utcMin = now.getUTCHours() * 60 + now.getUTCMinutes();
+                const dst = isUSDST(now);
+                const openUTC  = dst ? (13*60+30) : (14*60+30); // 09:30 ET in UTC
+                const closeUTC = dst ? (20*60)    : (21*60);    // 16:00 ET in UTC
+                const day = now.getUTCDay();
+                if (day === 0 || day === 6) return false; // weekend
+                // 2 min before → 1 min after open (connectWs fires, then exits immediately)
+                // 2 min before → 1 min after close (disconnectWs fires, then exits)
+                const nearOpen  = utcMin >= (openUTC - 2)  && utcMin <= (openUTC + 1);
+                const nearClose = utcMin >= (closeUTC - 2) && utcMin <= (closeUTC + 1);
+                return nearOpen || nearClose;
+            }
+
+            let _mktPollTimer = null;
+            function _scheduleMktPoll() {
+                if (_mktPollTimer) clearTimeout(_mktPollTimer);
+                const delay = _isNearMarketEdge() ? 1000 : 60000;
+                _mktPollTimer = setTimeout(() => {
+                    const nowOpen = isMarketOpen();
+                    updateMarketStatus();
+
+                    if (nowOpen !== _prevMarketOpen) {
+                        if (!nowOpen) {
+                            // ── Market just CLOSED ──────────────────────────────────────────────
+                            if (fhWs  && fhWs.readyState  <= 1) { fhWs.close();  fhWs  = null; }
+                            if (alpWs && alpWs.readyState <= 1) { alpWs.close(); alpWs = null; _wsAuthenticated = false; }
+                            _stopSparklineAutoRefresh();
+                            setTimeout(() => refreshEodPrices(), 90 * 1000);
+                        } else if (!document.hidden && watchlist.length) {
+                            // ── Market just OPENED ──────────────────────────────────────────────
+                            _wsBackgroundMode = document.getElementById('tab-watchlist')
+                                ?.classList.contains('hidden') ?? true;
+                            connectWs();
+                            refreshWatchlist().then(() => {
+                                refreshSparklineForTopSymbols();
+                                _startSparklineAutoRefresh();
+                            });
+                        }
+                        _prevMarketOpen = nowOpen;
                     }
-                    // If document.hidden when market opens: visibilitychange will handle on return
-                }
-                _prevMarketOpen = nowOpen;
-            }, 60000);
+                    _scheduleMktPoll(); // reschedule with adaptive delay
+                }, delay);
+            }
+            _scheduleMktPoll(); // kick off
 
             // FX rate: refresh every 30s (API updates ~every 60s, 30s keeps it feeling live)
             setInterval(() => {
