@@ -3,6 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+    <!-- Lock to portrait — prevents layout issues on rotate -->
+    <meta name="screen-orientation" content="portrait">
+    <meta name="x5-orientation" content="portrait">
+    <script>
+      // Screen Orientation API (Android Chrome, some iOS PWA)
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('portrait').catch(() => {});
+      }
+    </script>
     <title>PSLink</title>
 
     <!-- PWA: iOS / Safari Home Screen -->
@@ -51,6 +61,22 @@
             --sal: env(safe-area-inset-left, 0px);
             /* --sab-min: guaranteed floor so iPhone home gesture bar never covers bottom nav */
             --sab-min: max(env(safe-area-inset-bottom, 0px), 20px);
+        }
+        /* Force portrait — hide content in landscape, show rotate prompt */
+        @media screen and (orientation: landscape) and (max-width: 1024px) {
+            body > *:not(#pslink-rotate-msg) { display: none !important; }
+            #pslink-rotate-msg {
+                display: flex !important;
+                position: fixed; inset: 0; z-index: 99999;
+                background: #0d0d0d;
+                flex-direction: column;
+                align-items: center; justify-content: center;
+                gap: 16px; color: #d1d4dc;
+                font-family: var(--font-main, system-ui);
+            }
+        }
+        @media screen and (orientation: portrait), screen and (min-width: 1025px) {
+            #pslink-rotate-msg { display: none !important; }
         }
             --font-main: 'Inter', 'IBM Plex Sans Thai', system-ui, sans-serif;
             --font-mono: 'Roboto Mono', 'Consolas', monospace;
@@ -717,12 +743,14 @@
         #wl-split-wrap.chart-open #watchlist-table thead th:nth-child(5),
         #wl-split-wrap.chart-open #watchlist-table tbody td:nth-child(5),
         #wl-split-wrap.chart-open #watchlist-table thead th:nth-child(6),
-        #wl-split-wrap.chart-open #watchlist-table tbody td:nth-child(6) {
+        #wl-split-wrap.chart-open #watchlist-table tbody td:nth-child(6),
+        #wl-split-wrap.chart-open #watchlist-table thead th:nth-child(7),
+        #wl-split-wrap.chart-open #watchlist-table tbody td:nth-child(7) {
             display: none !important;
         }
-        /* แต่ให้คอลัมน์ CHG$ (index 8) และเซลล์ .num-cell ยังแสดงอยู่ */
-        #wl-split-wrap.chart-open #watchlist-table thead th:nth-child(8),
-        #wl-split-wrap.chart-open #watchlist-table tbody td:nth-child(8),
+        /* แต่ให้คอลัมน์ CHG$ (index 9) และเซลล์ .num-cell ยังแสดงอยู่ */
+        #wl-split-wrap.chart-open #watchlist-table thead th:nth-child(9),
+        #wl-split-wrap.chart-open #watchlist-table tbody td:nth-child(9),
         #wl-split-wrap.chart-open #watchlist-table td.num-cell {
             display: table-cell !important;
         }
@@ -1394,16 +1422,18 @@
         #watchlist-table th:nth-child(1),
         #watchlist-table th:nth-child(2),
         #watchlist-table th:nth-child(3) { text-align: left; }
-        /* Center-align SIGNAL + RATING + Movement columns */
+        /* Center-align LOW ALERT + SIGNAL + RATING + Movement columns */
         #watchlist-table th:nth-child(4),
         #watchlist-table td:nth-child(4),
         #watchlist-table th:nth-child(5),
         #watchlist-table td:nth-child(5),
         #watchlist-table th:nth-child(6),
-        #watchlist-table td:nth-child(6) { text-align: center; }
+        #watchlist-table td:nth-child(6),
+        #watchlist-table th:nth-child(7),
+        #watchlist-table td:nth-child(7) { text-align: center; }
         /* CHG%: keep numeric alignment to the right like other value columns */
-        #watchlist-table th:nth-child(9),
-        #watchlist-table td:nth-child(9) {
+        #watchlist-table th:nth-child(10),
+        #watchlist-table td:nth-child(10) {
             text-align: right !important;
         }
         /* ALL td: right-aligned by default */
@@ -1516,32 +1546,65 @@
         html.dark #watchlist-table .wl-sig-lean-bull { color: var(--wl-up); opacity: 0.7; }
         #watchlist-table .wl-sig-lean-bear { color: var(--wl-dn); opacity: 0.65; }
         html.dark #watchlist-table .wl-sig-lean-bear { color: var(--wl-dn); opacity: 0.7; }
+
+        /* ── LOW ALERT column (desktop) ── */
+        .wl-low-badge {
+            display: none;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        .wl-low-7d   { color: var(--wl-dn); }
+        .wl-low-30d  { color: var(--warning); }
+        .wl-low-both { color: #a855f7; font-weight: 800; }
+        /* ── LOW ALERT blinking dot (mobile) ── */
+        @keyframes wlLowBlink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: 0.3; transform: scale(0.7); }
+        }
+        .wl-mob-low-dot {
+            display: none;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-left: 5px;
+            margin-right: -11px;
+            vertical-align: middle;
+            animation: wlLowBlink 1.4s ease-in-out infinite;
+        }
+        .wl-mob-low-dot.dot-7d   { background: var(--wl-dn);  display: inline-block; }
+        .wl-mob-low-dot.dot-30d  { background: var(--warning); display: inline-block; }
+        .wl-mob-low-dot.dot-both { background: #a855f7;        display: inline-block; }
         /* EXT (pre/after hours) cell flash animation */
         @keyframes extFlashUp { 0%{background:rgba(8,153,129,0.25)} 100%{background:transparent} }
         @keyframes extFlashDn { 0%{background:rgba(242,54,69,0.2)} 100%{background:transparent} }
         /* Fixed widths per column — col 7 = PRE-MKT (88px fixed) */
         #watchlist-table col:nth-child(1)  { width: 30px;  } /* # */
         #watchlist-table col:nth-child(2)  { width: 74px;  } /* SYMBOL */
-        #watchlist-table col:nth-child(3)  { width: 126px; } /* NAME */
-        #watchlist-table col:nth-child(4)  { width: 110px; } /* SIGNAL */
-        #watchlist-table col:nth-child(5)  { width: 122px; } /* ANALYST RATING */
-        #watchlist-table col:nth-child(6)  { width: 96px;  } /* Movement */
-        #watchlist-table col:nth-child(7)  { width: 82px;  } /* LAST */
-        #watchlist-table col:nth-child(8)  { width: 70px;  } /* CHG */
-        #watchlist-table col:nth-child(9)  { width: 82px;  } /* CHG% */
-        #watchlist-table col:nth-child(10) { width: 88px;  } /* PRE-MKT ← fixed */
-        #watchlist-table col:nth-child(11) { width: 78px;  } /* OPEN */
-        #watchlist-table col:nth-child(12) { width: 78px;  } /* P.CLOSE */
-        #watchlist-table col:nth-child(13) { width: 75px;  } /* HIGH */
-        #watchlist-table col:nth-child(14) { width: 75px;  } /* LOW */
-        #watchlist-table col:nth-child(15) { width: 72px;  } /* 52W H */
-        #watchlist-table col:nth-child(16) { width: 72px;  } /* 52W L */
-        #watchlist-table col:nth-child(17) { width: 72px;  } /* MCAP */
-        #watchlist-table col:nth-child(18) { width: 68px;  } /* VOL 10D */
-        #watchlist-table col:nth-child(19) { width: 46px;  } /* BETA */
-        #watchlist-table col:nth-child(20) { width: 52px;  } /* P/E */
-        #watchlist-table col:nth-child(21) { width: 52px;  } /* DIV% */
-        #watchlist-table col:nth-child(22) { width: 42px;  } /* delete */
+        #watchlist-table col:nth-child(3)  { width: 110px; } /* NAME */
+        #watchlist-table col:nth-child(4)  { width: 72px;  } /* LOW ALERT ← new */
+        #watchlist-table col:nth-child(5)  { width: 96px;  } /* SIGNAL */
+        #watchlist-table col:nth-child(6)  { width: 110px; } /* ANALYST RATING */
+        #watchlist-table col:nth-child(7)  { width: 96px;  } /* Movement */
+        #watchlist-table col:nth-child(8)  { width: 82px;  } /* LAST */
+        #watchlist-table col:nth-child(9)  { width: 70px;  } /* CHG */
+        #watchlist-table col:nth-child(10) { width: 82px;  } /* CHG% */
+        #watchlist-table col:nth-child(11) { width: 88px;  } /* PRE-MKT ← fixed */
+        #watchlist-table col:nth-child(12) { width: 78px;  } /* OPEN */
+        #watchlist-table col:nth-child(13) { width: 78px;  } /* P.CLOSE */
+        #watchlist-table col:nth-child(14) { width: 75px;  } /* HIGH */
+        #watchlist-table col:nth-child(15) { width: 75px;  } /* LOW */
+        #watchlist-table col:nth-child(16) { width: 72px;  } /* 52W H */
+        #watchlist-table col:nth-child(17) { width: 72px;  } /* 52W L */
+        #watchlist-table col:nth-child(18) { width: 72px;  } /* MCAP */
+        #watchlist-table col:nth-child(19) { width: 68px;  } /* VOL 10D */
+        #watchlist-table col:nth-child(20) { width: 46px;  } /* BETA */
+        #watchlist-table col:nth-child(21) { width: 52px;  } /* P/E */
+        #watchlist-table col:nth-child(22) { width: 52px;  } /* DIV% */
+        #watchlist-table col:nth-child(23) { width: 42px;  } /* delete */
         #watchlist-table td:last-child { text-align: center; overflow: visible; }
         #watchlist-table .wl-delete-btn {
             width: 22px;
@@ -1655,12 +1718,13 @@
             #watchlist-table col:nth-child(1)  { width: 28px;  }
             #watchlist-table col:nth-child(2)  { width: 100px; }
             #watchlist-table col:nth-child(3)  { width: 100px; }
-            #watchlist-table col:nth-child(4)  { width: 88px;  }
-            #watchlist-table col:nth-child(5)  { width: 100px; }
-            #watchlist-table col:nth-child(6)  { width: 76px;  }
+            #watchlist-table col:nth-child(4)  { width: 60px;  } /* LOW ALERT */
+            #watchlist-table col:nth-child(5)  { width: 88px;  }
+            #watchlist-table col:nth-child(6)  { width: 100px; }
             #watchlist-table col:nth-child(7)  { width: 76px;  }
-            #watchlist-table col:nth-child(8)  { width: 56px;  }
-            #watchlist-table col:nth-child(9)  { width: 76px;  }
+            #watchlist-table col:nth-child(8)  { width: 76px;  }
+            #watchlist-table col:nth-child(9)  { width: 56px;  }
+            #watchlist-table col:nth-child(10) { width: 76px;  }
             #wl-th-analyst .wl-th-desktop { display: none; }
             #wl-th-analyst .wl-th-mobile  { display: inline; }
             #watchlist-table thead th { white-space: nowrap; }
@@ -3758,8 +3822,8 @@
                 <div style="overflow-x:auto;overflow-y:auto;scrollbar-gutter:auto;max-height:inherit">
                 <table id="watchlist-table" class="w-full min-w-[800px]">
                     <colgroup>
-                        <col style="width:30px"> <col style="width:74px"> <col style="width:126px"> <col style="width:110px">
-                        <col style="width:122px"><col style="width:96px"> <col style="width:82px"> <col style="width:70px">
+                        <col style="width:30px"> <col style="width:74px"> <col style="width:110px"> <col style="width:72px"> <col style="width:96px">
+                        <col style="width:110px"><col style="width:96px"> <col style="width:82px"> <col style="width:70px">
                         <col style="width:82px"> <col style="width:88px"> <col style="width:78px"> <col style="width:78px">
                         <col style="width:75px"> <col style="width:75px"> <col style="width:72px"> <col style="width:72px">
                         <col style="width:72px"> <col style="width:68px"> <col style="width:46px"> <col style="width:52px">
@@ -3772,6 +3836,7 @@
                                 <button class="wl-sort-btn" onclick="sortWatchlist('symbol')" id="wl-sort-symbol">SYMBOL<span class="wl-sort-icon"></span></button>
                             </th>
                             <th id="wl-th-name" class="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)">NAME</th>
+                            <th id="wl-th-low" class="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)">LOW</th>
                             <th class="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)">SIGNAL</th>
                             <th id="wl-th-analyst" class="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)"><span class="wl-th-desktop">ANALYST RATING</span><span class="wl-th-mobile">RATING</span></th>
                             <th class="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-widest" style="color:var(--text-dim)">Movement</th>
@@ -6274,12 +6339,12 @@
             const extMob = extPrice !== null
                 ? `<div class="wl-mob-ext-label">${extIsAH ? 'AH' : 'Pre'}</div><div class="wl-mob-ext-pct" style="color:${extColor}">${extIsUp?'+':''}${extPct?.toFixed(2)??'—'}%</div><div class="wl-mob-ext-px">$${fmt(extPrice)}</div>`
                 : '';
-            const mobileCard = `<td id="wl-mob-card-${symbol}" class="wl-mobile-card" colspan="22" style="padding:0;border-bottom:1px solid var(--border)">
+            const mobileCard = `<td id="wl-mob-card-${symbol}" class="wl-mobile-card" colspan="23" style="padding:0;border-bottom:1px solid var(--border)">
                 <div class="wl-swipe-bg"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></div>
                 <div class="wl-mob-card-inner" onclick="_qcFromScanner=false;openQuickChart('${symbol}')">
                     <div class="wl-mob-logo">${logoLarge}</div>
                     <div class="wl-mob-info">
-                        <div class="wl-mob-sym">${symbol}${type === 'ETF' ? `<span class="wl-mob-etf">ETF</span>` : ''}</div>
+                        <div class="wl-mob-sym">${symbol}${type === 'ETF' ? `<span class="wl-mob-etf">ETF</span>` : ''}<span id="wl-mob-low-${symbol}" class="wl-mob-low-dot"></span></div>
                         <div class="wl-mob-name">${name || ''}${(() => { const v = d?.vol ?? null; if (!v || v < 1000) return ''; const s = v >= 1e9 ? (v/1e9).toFixed(1)+'B' : v >= 1e6 ? (v/1e6).toFixed(1)+'M' : (v/1e3).toFixed(0)+'K'; return `<span class="wl-mob-vol"> · ${s}</span>`; })()}</div>
                     </div>
                     <div class="wl-mob-signal">${d ? `<span id="wl-mob-sig-${symbol}" class="wl-signal-badge ${signal.cls}">${signal.label}</span>` : ''}</div>
@@ -6326,6 +6391,7 @@
                         </div>
                     </td>
                     <td class="wl-col-hide" style="text-align:left;font-size:11px;color:var(--wl-text-dim);overflow:hidden;text-overflow:ellipsis">${sk(80) ?? name}</td>
+                    <td style="text-align:center;vertical-align:middle"><span id="wl-low-${symbol}" class="wl-low-badge" style="display:none"></span></td>
                     <td style="text-align:center">${d ? `<span id="wl-signal-${symbol}" class="wl-signal-badge ${signal.cls}" title="Confidence ${signal.confidence}%">${signal.label}</span>` : (sk(44) ?? '')}</td>
                     <td style="text-align:center">${d ? `<span id="wl-rating-${symbol}" class="wl-signal-badge ${analyst.cls}" title="Analyst rating (API)">${analyst.label}</span>` : (sk(50) ?? '')}</td>
                     <td class="wl-movement-cell" style="text-align:center;vertical-align:middle"><div id="wl-sparkline-${symbol}" class="wl-sparkline-wrap">${(d && wlSparklineCache[symbol]?.prices && sparklineQuality(wlSparklineCache[symbol].prices, (wlSparklineCache[symbol]?.base ?? d?.pc ?? wlSparklineCache[symbol]?.prices?.[0]))) ? renderSparklineSVG(wlSparklineCache[symbol].prices, isUp, 72, 16, (wlSparklineCache[symbol]?.base ?? d?.pc ?? wlSparklineCache[symbol]?.prices?.[0])) : (d ? '<span class="wl-sparkline-placeholder" style="font-size:9px;color:var(--text-dim)">…</span>' : (sk(70) ?? ''))}</div></td>
@@ -6371,7 +6437,7 @@
                         const oldCells = existing.querySelectorAll('td');
                         const newCells = newRow.querySelectorAll('td');
                         newCells.forEach(function(nc, i) {
-                            if (i === 9) return; // PRE-MKT owned by Alpaca
+                            if (i === 10) return; // PRE-MKT owned by Alpaca
                             if (!oldCells[i]) return;
                             // Update class and content only — preserve the DOM node itself
                             if (oldCells[i].className !== nc.className) oldCells[i].className = nc.className;
@@ -6395,11 +6461,24 @@
                 wlDataCache[symbol]._mobPriceEl = null;
                 wlDataCache[symbol]._mobChgEl   = null;
                 wlDataCache[symbol]._mobChgdEl  = null;
+                // Reset signal/rating cached refs and throttle state
+                wlDataCache[symbol]._sigEl       = null;
+                wlDataCache[symbol]._rateEl      = null;
+                wlDataCache[symbol]._mobSigEl    = null;
+                wlDataCache[symbol]._sigLastPrice = null;
+                wlDataCache[symbol]._sigTickCount = 0;
+                wlDataCache[symbol]._flashState   = null;
             }
             // Re-apply mobile column layout after new row inserted
             if (window.innerWidth <= 1200) {
                 requestAnimationFrame(applyMobileWatchlistCols);
             }
+            // Re-apply low badge after DOM render (mobile dot may not exist yet at time of first fetch)
+            requestAnimationFrame(() => {
+                const d2 = wlDataCache[symbol];
+                const price2 = isMarketOpen() ? (d2?.c ?? null) : (d2?._dailyC ?? d2?.pc ?? d2?.c ?? null);
+                if (price2 != null && typeof _applyLowBadge === 'function') _applyLowBadge(symbol, price2);
+            });
         }
         let dragSrc = null;
 
@@ -6653,19 +6732,205 @@
         let _extLastBatchTs = 0;
         function getFmpKey() { return localStorage.getItem('ps_fmp_key') || ''; } // kept for Settings UI compat
 
+        // ── 7D/30D Low Alert ──────────────────────────────────────────────
+        const _lowCache = {};
+        const LOW_CACHE_TTL = 30 * 60 * 1000;
+        const LOW_LS_KEY = 'ps_low_cache_v1';
+
+        function _saveLowCache() {
+            try { localStorage.setItem(LOW_LS_KEY, JSON.stringify(_lowCache)); } catch(e) {}
+        }
+        function _loadLowCache() {
+            try {
+                const raw = localStorage.getItem(LOW_LS_KEY);
+                if (raw) Object.assign(_lowCache, JSON.parse(raw));
+            } catch(e) {}
+        }
+
+        async function fetchLowData(symbol) {
+            const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
+            if (!aKey || !aSecret) return null;
+            const now = Date.now();
+            const cached = _lowCache[symbol];
+            if (cached && (now - cached.ts) < LOW_CACHE_TTL) return cached;
+            try {
+                const end   = new Date();
+                const start = new Date(end.getTime() - 32 * 24 * 60 * 60 * 1000);
+                const u = new URL(`https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars`);
+                u.searchParams.set('timeframe', '1Day');
+                u.searchParams.set('start', start.toISOString().split('T')[0]);
+                u.searchParams.set('end',   end.toISOString().split('T')[0]);
+                u.searchParams.set('limit', '35');
+                u.searchParams.set('feed', 'iex');
+                u.searchParams.set('adjustment', 'split');
+                const res = await fetch(u.toString(), {
+                    headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret },
+                    signal: AbortSignal.timeout(8000),
+                });
+                if (!res.ok) return null;
+                const json = await res.json();
+                const bars = (json?.bars || []).filter(b => b?.l != null);
+                if (bars.length < 2) return null;
+                const historical = bars.slice(0, -1);
+                const last7  = historical.slice(-7);
+                const last30 = historical.slice(-30);
+                const low7  = last7.length  ? Math.min(...last7.map(b => b.l))  : null;
+                const low30 = last30.length ? Math.min(...last30.map(b => b.l)) : null;
+                const entry = { low7, low30, ts: now };
+                _lowCache[symbol] = entry;
+                _saveLowCache();
+                return entry;
+            } catch(e) { return null; }
+        }
+
+        function getLowBadgeInfo(symbol, currentPrice) {
+            const e = _lowCache[symbol];
+            if (!e || currentPrice == null) return null;
+            const hit7  = e.low7  != null && currentPrice <= e.low7;
+            const hit30 = e.low30 != null && currentPrice <= e.low30;
+            if (hit7 && hit30) return { label: '▼ 7D·30D', cls: 'wl-low-both', dotCls: 'dot-both' };
+            if (hit7)          return { label: '▼ 7D',     cls: 'wl-low-7d',   dotCls: 'dot-7d'   };
+            if (hit30)         return { label: '▼ 30D',    cls: 'wl-low-30d',  dotCls: 'dot-30d'  };
+            return null;
+        }
+
+        function _applyLowBadge(symbol, currentPrice) {
+            const info = getLowBadgeInfo(symbol, currentPrice);
+            // Desktop column badge
+            const el = document.getElementById('wl-low-' + symbol);
+            if (el) {
+                if (info) {
+                    if (el.textContent !== info.label) el.textContent = info.label;
+                    const cls = 'wl-low-badge ' + info.cls;
+                    if (el.className !== cls) el.className = cls;
+                    if (el.style.display !== 'inline-block') el.style.display = 'inline-block';
+                } else {
+                    if (el.style.display !== 'none') el.style.display = 'none';
+                }
+            }
+            // Mobile blinking dot
+            const dot = document.getElementById('wl-mob-low-' + symbol);
+            if (dot) {
+                if (info) {
+                    const cls = 'wl-mob-low-dot ' + info.dotCls;
+                    if (dot.className !== cls) dot.className = cls;
+                    dot.style.display = ''; // ลบ inline style ออก ให้ CSS class ควบคุม
+                } else {
+                    dot.style.display = 'none';
+                    dot.className = 'wl-mob-low-dot';
+                }
+            }
+            // Toast — fire once per symbol per session
+            if (info && !_lowToastSent[symbol]) {
+                _lowToastSent[symbol] = true;
+                const price = currentPrice != null ? ` $${currentPrice.toFixed(2)}` : '';
+                showWatchlistToast(`📉 ${symbol}${price} — LOW ${info.label.replace('▼ ', '')}`, 'warn');
+            }
+            if (!info) delete _lowToastSent[symbol];
+        }
+
+        const _lowToastSent = {};
+
+        async function refreshAllLowData() {
+            if (!getAlpacaKey() || !getAlpacaSecret()) return;
+            const syms = [...watchlist];
+            for (let i = 0; i < syms.length; i++) {
+                await fetchLowData(syms[i]);
+                const d = wlDataCache[syms[i]];
+                const price = isMarketOpen() ? (d?.c ?? null) : (d?._dailyC ?? d?.pc ?? d?.c ?? null);
+                if (price != null) _applyLowBadge(syms[i], price);
+                if (i < syms.length - 1) await new Promise(r => setTimeout(r, 300));
+            }
+        }
+
+        let _lowRefreshTimer = null;
+        function scheduleLowRefresh() {
+            if (_lowRefreshTimer) clearTimeout(_lowRefreshTimer);
+            _lowRefreshTimer = setTimeout(() => {
+                refreshAllLowData();
+                scheduleLowRefresh();
+            }, LOW_CACHE_TTL);
+        }
+
+        // ── EOD Official Close Price Refresh ─────────────────────────────────
+        // Called once ~90s after market closes — uses Alpaca dailyBar.c (official close)
+        // SAFE: never runs while market is open, never touches sparklineCache or .c (intraday)
+        let _eodRefreshed = false; // reset each trading day
+        let _eodRefreshDate = '';
+
+        async function refreshEodPrices() {
+            if (isMarketOpen()) return; // safety guard — never run during market hours
+            if (watchlist.length === 0) return;
+            const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
+            if (!aKey || !aSecret) {
+                // Fallback: trigger Finnhub refreshWatchlist for best available close
+                if (getFinnhubKey()) refreshWatchlist();
+                return;
+            }
+            // Deduplicate — only refresh once per calendar day
+            const todayKey = new Date().toISOString().slice(0, 10);
+            if (_eodRefreshed && _eodRefreshDate === todayKey) return;
+
+            try {
+                const url = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
+                url.searchParams.set('symbols', watchlist.join(','));
+                url.searchParams.set('feed', 'iex');
+                const res = await fetch(url.toString(), {
+                    headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret },
+                    signal: AbortSignal.timeout(10000),
+                });
+                if (!res.ok) return;
+                const snap = await res.json();
+
+                watchlist.forEach(sym => {
+                    const sn = snap[sym];
+                    if (!sn) return;
+                    const officialClose = sn.dailyBar?.c ?? null;
+                    const prevClose     = sn.prevDailyBar?.c ?? null;
+                    if (!officialClose) return;
+
+                    const existing = wlDataCache[sym] || {};
+                    // Merge ONLY _dailyC + _prevDailyC — never overwrite .c (WS intraday) or sparkline
+                    wlDataCache[sym] = Object.assign({}, existing, {
+                        _dailyC:     officialClose,
+                        _prevDailyC: prevClose ?? existing._prevDailyC ?? existing.pc ?? null,
+                    });
+                    // Re-render price cells with official close
+                    updateWatchlistPriceCells(sym, wlDataCache[sym]);
+                });
+
+                _eodRefreshed    = true;
+                _eodRefreshDate  = todayKey;
+
+                // Reset flag at midnight ET so next day gets fresh fetch
+                const msToMidnightEt = (() => {
+                    const now = new Date();
+                    const etOffset = (isUSDST(now) ? 4 : 5) * 60 * 60 * 1000;
+                    const etNow = new Date(now.getTime() - etOffset);
+                    const etMidnight = new Date(etNow);
+                    etMidnight.setUTCHours(24, 0, 0, 0);
+                    return etMidnight.getTime() - etNow.getTime();
+                })();
+                setTimeout(() => { _eodRefreshed = false; _eodRefreshDate = ''; }, msToMidnightEt);
+
+            } catch(e) {
+                // Silent fail — prices stay as-is, no crash
+            }
+        }
+
         // ── updatePreMktCell: write price+pct directly into PRE-MKT column ───────
         function updatePreMktCell(sym, extPrice, extPct, isAH) {
             const row = document.getElementById('wl-row-' + sym);
             if (!row) return;
             const cells = row.querySelectorAll('td');
-            // Table indexes after RATING column insert:
-            // 8 = CHG%, 9 = PRE-MKT
-            if (!cells[9]) return;
+            // Table indexes after LOW ALERT column insert:
+            // 9 = CHG%, 10 = PRE-MKT
+            if (!cells[10]) return;
             const isUp  = extPct >= 0;
             const color = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
             const sign  = isUp ? '+' : '';
             const label = isAH ? 'AH' : 'PM';
-            cells[9].innerHTML =
+            cells[10].innerHTML =
                 '<div style="text-align:right;line-height:1.4">'
               + '<span style="display:block;font-size:10px;font-weight:700;color:' + color + ';font-variant-numeric:tabular-nums">'
               + sign + extPct.toFixed(2) + '%</span>'
@@ -7398,7 +7663,7 @@
             const row = document.getElementById('wl-row-' + symbol);
             if (!row) return;
             const cells = row.querySelectorAll('td');
-            if (cells.length < 14) return;
+            if (cells.length < 15) return;
 
             // ใช้ prevClose เป็น base เดียวกันทั้ง CHG / CHG%
             const _mktOpen  = isMarketOpen();
@@ -7445,10 +7710,10 @@
             const fmt = v => v !== null ? v.toFixed(2) : '—';
 
             // ── Flash FIRST before any DOM writes ────────────────────────────
-            // idx:0=#, 1=symbol, 2=name, 3=SIGNAL, 4=RATING, 5=Movement, 6=price, 7=change, 8=%change
-            // 9=preMkt, 10=open, 11=prev, 12=high, 13=low, ...
-            const tr = cells[6].closest('tr');
-            const prevPriceText = cells[6].innerText;
+            // idx:0=#, 1=symbol, 2=name, 3=LOW ALERT, 4=SIGNAL, 5=RATING, 6=Movement, 7=price, 8=change, 9=%change
+            // 10=preMkt, 11=open, 12=prev, 13=high, 14=low, ...
+            const tr = cells[7].closest('tr');
+            const prevPriceText = cells[7].innerText;
             const newPriceText  = price !== null ? '$' + fmt(price) : '—';
             if (tr && prevPriceText && prevPriceText !== '—' && prevPriceText !== newPriceText) {
                 tr.classList.remove('flash-up', 'flash-down');
@@ -7461,24 +7726,24 @@
                 }, 470);
             }
 
-            setClass(cells[6], `px-3 py-2 text-right price-cell text-sm ${priceColor}`);
-            setText(cells[6], newPriceText);
+            setClass(cells[7], `px-3 py-2 text-right price-cell text-sm ${priceColor}`);
+            setText(cells[7], newPriceText);
 
-            // cells[7] = CHG ($)
-            if (cells[7]) {
-                setClass(cells[7], `px-3 py-2 text-right num-cell text-sm ${changeColor}`);
-                setText(cells[7], change !== null ? (isUp ? '+' : '') + fmt(change) : '\u2014');
-            }
-            // cells[8] = CHG%
+            // cells[8] = CHG ($)
             if (cells[8]) {
-                setClass(cells[8], 'px-3 py-2 text-right');
+                setClass(cells[8], `px-3 py-2 text-right num-cell text-sm ${changeColor}`);
+                setText(cells[8], change !== null ? (isUp ? '+' : '') + fmt(change) : '\u2014');
+            }
+            // cells[9] = CHG%
+            if (cells[9]) {
+                setClass(cells[9], 'px-3 py-2 text-right');
                 const pctTxt = changePct !== null ? `${arrow} ${isUp?'+':''}${changePct.toFixed(2)}%` : '\u2014';
                 const badgeCls = changePct === null ? 'wl-badge-neu' : isUp ? 'wl-badge-up' : 'wl-badge-dn';
-                cells[8].innerHTML = `<span class="${badgeCls}">${pctTxt}</span>`;
+                cells[9].innerHTML = `<span class="${badgeCls}">${pctTxt}</span>`;
             }
 
-            // Update pre-market cell (col index 9)
-            if (cells[9]) {
+            // Update pre-market cell (col index 10)
+            if (cells[10]) {
                 const cached     = wlDataCache[symbol] || {};
                 const livePreP   = cached.preMarketPrice   ?? cached.afterHoursPrice   ?? extPrice ?? null;
                 const livePrePct = cached.preMarketChangePct ?? cached.afterHoursChangePct ?? extPct ?? null;
@@ -7487,26 +7752,26 @@
                     const isAHCell = !cached.preMarketPrice && !!cached.afterHoursPrice;
                     const c = liveIsUp ? 'var(--wl-up)' : 'var(--wl-dn)';
                     const label = isAHCell ? '<span style="font-size:7px;margin-left:2px;opacity:0.6">AH</span>' : '<span style="font-size:7px;margin-left:2px;opacity:0.6">PM</span>';
-                    cells[9].innerHTML =
+                    cells[10].innerHTML =
                         `<span style="display:block;text-align:right;font-size:10px;font-weight:600;color:${c};font-variant-numeric:tabular-nums;line-height:1.25">${liveIsUp?'+':''}${livePrePct.toFixed(2)}%</span>`
                         + `<span style="display:block;text-align:right;font-size:9px;color:var(--text-dim);font-variant-numeric:tabular-nums;line-height:1.25">$${livePreP.toFixed(2)}${label}</span>`;
                 }
             }
 
-            // cells[10] = OPEN
-            if (cells[10]) {
-                setClass(cells[10], `wl-col-hide ${openColor}`);
-                setText(cells[10], open ? '$' + fmt(open) : '—');
-            }
-            // cells[11] = PREV CLOSE
+            // cells[11] = OPEN
             if (cells[11]) {
-                setClass(cells[11], 'wl-col-hide');
-                cells[11].style.color = 'var(--wl-text-secondary)';
-                setText(cells[11], prevClose ? '$' + fmt(prevClose) : '—');
+                setClass(cells[11], `wl-col-hide ${openColor}`);
+                setText(cells[11], open ? '$' + fmt(open) : '—');
             }
-            // cells[12] = HIGH, cells[13] = LOW
-            if (cells[12]) { setClass(cells[12], 'wl-col-hide wl-up'); setText(cells[12], high !== null ? '$' + fmt(high) : '—'); }
-            if (cells[13]) { setClass(cells[13], 'wl-col-hide wl-dn'); setText(cells[13], low  !== null ? '$' + fmt(low)  : '—'); }
+            // cells[12] = PREV CLOSE
+            if (cells[12]) {
+                setClass(cells[12], 'wl-col-hide');
+                cells[12].style.color = 'var(--wl-text-secondary)';
+                setText(cells[12], prevClose ? '$' + fmt(prevClose) : '—');
+            }
+            // cells[13] = HIGH, cells[14] = LOW
+            if (cells[13]) { setClass(cells[13], 'wl-col-hide wl-up'); setText(cells[13], high !== null ? '$' + fmt(high) : '—'); }
+            if (cells[14]) { setClass(cells[14], 'wl-col-hide wl-dn'); setText(cells[14], low  !== null ? '$' + fmt(low)  : '—'); }
 
             // Update mobile card price/chg (visible on ≤1200px)
             const mobPriceBox = document.getElementById('wl-mob-price-' + symbol);
@@ -7565,6 +7830,8 @@
                 const cls = `wl-signal-badge ${sigNow.cls}`;
                 if (mobSigEl.className !== cls) mobSigEl.className = cls;
             }
+            // ── 7D/30D Low badge ──
+            if (price != null) _applyLowBadge(symbol, price);
             // Seed Movement sparkline from OHLC once per symbol (แสดงทันทีแบบ Webull)
             const hasSpark = wlSparklineCache[symbol] && Array.isArray(wlSparklineCache[symbol].prices) && wlSparklineCache[symbol].prices.length >= 2;
             const canUseRealBars = hasRealSparkSource();
@@ -12282,7 +12549,7 @@ ${_clip(contextSections, 2600)}`;
             const d = wlDataCache[sym];
             if (!d || !newPrice) return;
 
-            // Compute math first — no DOM touch yet (ใช้ prevClose เป็น base เดียว)
+            // Compute math first — no DOM touch yet
             const pc  = d._prevDailyC ?? d.pc ?? null;
             let chg = 0, pct = 0;
             if (pc != null) {
@@ -12296,7 +12563,7 @@ ${_clip(contextSections, 2600)}`;
 
             // Mutate cache in-place
             d.c = newPrice;
-            if (pc != null) { d.d = chg; d.dp = pct; } // only update change/pct when prev close known
+            if (pc != null) { d.d = chg; d.dp = pct; }
             if (d.h != null) { if (newPrice > d.h) d.h = newPrice; } else d.h = newPrice;
             if (d.l != null) { if (newPrice < d.l) d.l = newPrice; } else d.l = newPrice;
 
@@ -12308,75 +12575,114 @@ ${_clip(contextSections, 2600)}`;
             if (_lwcCanvasHovered && sym !== _lwcSymbol) return;
 
             const cells = d._cells;
-            if (!cells || cells.length < 14) { updateWatchlistPriceCells(sym, d); return; }
+            if (!cells || cells.length < 15) { updateWatchlistPriceCells(sym, d); return; }
 
-            // Build strings once — reuse across all writes
-            const p2    = newPrice.toFixed(2);
+            // Build strings once
+            const p2     = newPrice.toFixed(2);
             const newTxt = '$' + p2;
 
-            // Flash: read _lastTxt (no DOM read) to detect change
+            // ── OPT #1: Flash — use _flashState to avoid string replace every tick ──
             const tr = d._tr;
             if (tr && d._lastTxt && d._lastTxt !== newTxt) {
-                tr.className = tr.className.replace(' flash-up','').replace(' flash-down','');
-                tr.className += isUp ? ' flash-up' : ' flash-down';
+                // Only toggle class when direction changes or first flash
+                const wantUp = isUp;
+                if (d._flashState !== wantUp) {
+                    d._flashState = wantUp;
+                    if (wantUp) {
+                        tr.classList.remove('flash-down'); tr.classList.add('flash-up');
+                    } else {
+                        tr.classList.remove('flash-up'); tr.classList.add('flash-down');
+                    }
+                } else {
+                    // Same direction — re-trigger by toggling off/on in rAF to restart animation
+                    tr.classList.remove('flash-up', 'flash-down');
+                    requestAnimationFrame(() => tr.classList.add(wantUp ? 'flash-up' : 'flash-down'));
+                }
                 clearTimeout(tr._ft);
                 tr._ft = setTimeout(_clearFlash, 500, tr);
             }
             d._lastTxt = newTxt;
 
-            // Price cell (index 6) — write only if changed (avoid layout thrash)
+            // Price cell (index 7)
             const priceCls = isUp ? _CLS_UP_PRICE : _CLS_DN_PRICE;
-            if (cells[6].data !== p2) {
-                cells[6].data = p2;
-                cells[6].className = priceCls;
-                cells[6].firstChild ? (cells[6].firstChild.nodeValue = newTxt) : (cells[6].innerText = newTxt);
+            if (cells[7].data !== p2) {
+                cells[7].data = p2;
+                cells[7].className = priceCls;
+                cells[7].firstChild ? (cells[7].firstChild.nodeValue = newTxt) : (cells[7].innerText = newTxt);
             }
 
-            // Chg cell (index 7)
+            // Chg cell (index 8)
             const chgAbs = Math.abs(chg);
             const chgTxt = (isUp ? '+' : '-') + chgAbs.toFixed(2);
-            if (cells[7].data !== chgTxt) {
-                cells[7].data = chgTxt;
-                cells[7].className = isUp ? _CLS_UP_CHG : _CLS_DN_CHG;
-                cells[7].firstChild ? (cells[7].firstChild.nodeValue = chgTxt) : (cells[7].innerText = chgTxt);
+            if (cells[8].data !== chgTxt) {
+                cells[8].data = chgTxt;
+                cells[8].className = isUp ? _CLS_UP_CHG : _CLS_DN_CHG;
+                cells[8].firstChild ? (cells[8].firstChild.nodeValue = chgTxt) : (cells[8].innerText = chgTxt);
             }
 
-            // Pct badge (index 8)
+            // ── OPT #4: Pct badge — use firstChild.nodeValue instead of innerHTML ──
             const pctStr = pct.toFixed(2);
-            const pctTxt = (isUp ? '▲ +' : '▼ ') + pctStr + '%';
-            if (cells[8].data !== pctStr) {
-                cells[8].data = pctStr;
-                cells[8].innerHTML = '<span class="' + (isUp ? 'wl-badge-up' : 'wl-badge-dn') + '">' + pctTxt + '</span>';
+            if (cells[9].data !== pctStr) {
+                cells[9].data = pctStr;
+                // Lazy-init span — first time only
+                if (!cells[9].firstElementChild) {
+                    const sp = document.createElement('span');
+                    cells[9].innerHTML = '';
+                    cells[9].appendChild(sp);
+                }
+                const sp = cells[9].firstElementChild;
+                const pctTxt = (isUp ? '▲ +' : '▼ ') + pctStr + '%';
+                if (sp.firstChild) { sp.firstChild.nodeValue = pctTxt; } else { sp.textContent = pctTxt; }
+                const badgeCls = isUp ? 'wl-badge-up' : 'wl-badge-dn';
+                if (sp.className !== badgeCls) sp.className = badgeCls;
             }
 
-            // H/L (index 12, 13) — only write if changed
-            if (cells[12] && d.h != null) { const ht = '$'+d.h.toFixed(2); if (cells[12].data !== ht) { cells[12].data = ht; cells[12].innerText = ht; } }
-            if (cells[13] && d.l != null) { const lt = '$'+d.l.toFixed(2); if (cells[13].data !== lt) { cells[13].data = lt; cells[13].innerText = lt; } }
-            const sigEl = document.getElementById('wl-signal-' + sym);
-            const rateEl = document.getElementById('wl-rating-' + sym);
-            const sigNow = (sigEl || rateEl) ? getWatchlistSignal(sym, d) : null;
-            const analystNow = rateEl ? getAnalystRating(d) : null;
-            if (sigEl) {
-                if (sigEl.textContent !== sigNow.label) sigEl.textContent = sigNow.label;
-                const cls = 'wl-signal-badge ' + sigNow.cls;
-                if (sigEl.className !== cls) sigEl.className = cls;
-                const tip = 'Confidence ' + sigNow.confidence + '%';
-                if (sigEl.title !== tip) sigEl.title = tip;
-            }
-            if (rateEl) {
-                if (rateEl.textContent !== analystNow.label) rateEl.textContent = analystNow.label;
-                const cls = 'wl-signal-badge ' + analystNow.cls;
-                if (rateEl.className !== cls) rateEl.className = cls;
-                const tip = 'Analyst rating (API)';
-                if (rateEl.title !== tip) rateEl.title = tip;
+            // H/L (index 13, 14)
+            if (cells[13] && d.h != null) { const ht = '$'+d.h.toFixed(2); if (cells[13].data !== ht) { cells[13].data = ht; cells[13].innerText = ht; } }
+            if (cells[14] && d.l != null) { const lt = '$'+d.l.toFixed(2); if (cells[14].data !== lt) { cells[14].data = lt; cells[14].innerText = lt; } }
+
+            // ── OPT #2+#3: Cache signal/rating DOM refs + throttle signal recalc ──
+            // Cache refs once per symbol — zero getElementById on hot path after first tick
+            if (!d._sigEl)  d._sigEl  = document.getElementById('wl-signal-' + sym);
+            if (!d._rateEl) d._rateEl = document.getElementById('wl-rating-' + sym);
+
+            if (d._sigEl || d._rateEl) {
+                // Throttle signal recalc — only when price changes >0.3% OR every 60 ticks
+                d._sigTickCount = (d._sigTickCount || 0) + 1;
+                const priceMoved = !d._sigLastPrice || Math.abs(newPrice - d._sigLastPrice) / d._sigLastPrice > 0.003;
+                const forceRecalc = d._sigTickCount >= 60;
+                if (priceMoved || forceRecalc) {
+                    d._sigLastPrice = newPrice;
+                    d._sigTickCount = 0;
+                    const sigNow     = d._sigEl  ? getWatchlistSignal(sym, d) : null;
+                    const analystNow = d._rateEl ? getAnalystRating(d) : null;
+                    if (d._sigEl && sigNow) {
+                        if (d._sigEl.textContent !== sigNow.label) d._sigEl.textContent = sigNow.label;
+                        const cls = 'wl-signal-badge ' + sigNow.cls;
+                        if (d._sigEl.className !== cls) d._sigEl.className = cls;
+                        const tip = 'Confidence ' + sigNow.confidence + '%';
+                        if (d._sigEl.title !== tip) d._sigEl.title = tip;
+                    }
+                    if (d._rateEl && analystNow) {
+                        if (d._rateEl.textContent !== analystNow.label) d._rateEl.textContent = analystNow.label;
+                        const cls = 'wl-signal-badge ' + analystNow.cls;
+                        if (d._rateEl.className !== cls) d._rateEl.className = cls;
+                    }
+                    // Mobile signal badge — also cached
+                    if (!d._mobSigEl) d._mobSigEl = document.getElementById('wl-mob-sig-' + sym);
+                    if (d._mobSigEl && sigNow) {
+                        if (d._mobSigEl.textContent !== sigNow.label) d._mobSigEl.textContent = sigNow.label;
+                        const cls = 'wl-signal-badge ' + sigNow.cls;
+                        if (d._mobSigEl.className !== cls) d._mobSigEl.className = cls;
+                    }
+                }
             }
 
-            // Mobile card — price + % badge (separate DOM elements, not covered by desktop cells)
-            // Lazy-cache: one getElementById per symbol per session, then zero DOM queries
+            // Mobile card — price + % (lazy-cached refs)
             if (!d._mobPriceEl) {
                 const pb = document.getElementById('wl-mob-price-' + sym);
-                d._mobPriceEl = pb ? pb.firstElementChild : null; // .wl-mob-price div
-                d._mobChgdEl  = pb ? pb.querySelector('.wl-mob-chgd') : null; // tablet $-chg
+                d._mobPriceEl = pb ? pb.firstElementChild : null;
+                d._mobChgdEl  = pb ? pb.querySelector('.wl-mob-chgd') : null;
             }
             if (!d._mobChgEl) d._mobChgEl = document.getElementById('wl-mob-chg-' + sym);
             if (d._mobPriceEl && d._mobPriceEl.data !== p2) {
@@ -12385,11 +12691,13 @@ ${_clip(contextSections, 2600)}`;
                     ? (d._mobPriceEl.firstChild.nodeValue = newTxt)
                     : (d._mobPriceEl.innerText = newTxt);
                 d._mobPriceEl.style.color = '';
-                // Flash — exact same pattern as desktop _clearFlash + setTimeout cleanup
-                d._mobPriceEl.className = d._mobPriceEl.className.replace(' mob-price-fl-up','').replace(' mob-price-fl-dn','');
-                d._mobPriceEl.className += isUp ? ' mob-price-fl-up' : ' mob-price-fl-dn';
+                // Mobile flash — use classList (no string replace)
+                d._mobPriceEl.classList.remove('mob-price-fl-up', 'mob-price-fl-dn');
+                d._mobPriceEl.classList.add(isUp ? 'mob-price-fl-up' : 'mob-price-fl-dn');
                 clearTimeout(d._mobPriceFt);
-                d._mobPriceFt = setTimeout(function(el){ el.className = el.className.replace(' mob-price-fl-up','').replace(' mob-price-fl-dn',''); }, 650, d._mobPriceEl);
+                d._mobPriceFt = setTimeout(function(el){
+                    el.classList.remove('mob-price-fl-up', 'mob-price-fl-dn');
+                }, 650, d._mobPriceEl);
             }
             if (d._mobChgEl && d._mobChgEl.data !== pctStr) {
                 d._mobChgEl.data = pctStr;
@@ -12397,14 +12705,13 @@ ${_clip(contextSections, 2600)}`;
                 d._mobChgEl.style.background = isUp ? 'rgba(8,153,129,0.15)' : 'rgba(242,54,69,0.15)';
                 d._mobChgEl.style.color      = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
             }
-            // Tablet: update dollar-change element (hidden on phone, shown on tablet)
             if (d._mobChgdEl && d._mobChgdEl.data !== chgTxt) {
                 d._mobChgdEl.data = chgTxt;
                 d._mobChgdEl.textContent = chgTxt;
                 d._mobChgdEl.style.color = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
             }
 
-            // Stream latest tick into Movement sparkline buffer (ต่อจากเส้น OHLC เดิม)
+            // Stream latest tick into Movement sparkline buffer
             pushSparklinePrice(sym, newPrice);
         }
 
@@ -13748,6 +14055,10 @@ ${_clip(contextSections, 2600)}`;
                 loadWlCache(); // restore price/profile cache for instant display
                 prewarmWatchlistLogos(80); // warm visible symbols ASAP after refresh
                 loadSparklineCache({ allowDuringOpen: false }); // open market redraws, closed market restores cache
+                _loadLowCache(); // restore 7D/30D low cache from localStorage
+                setTimeout(() => { refreshAllLowData(); scheduleLowRefresh(); }, 5000);
+                // If market already closed when app loads → fetch official EOD close
+                if (!isMarketOpen()) setTimeout(() => refreshEodPrices(), 3000);
             } catch(e) {}
             const savedMonth = localStorage.getItem('ps_month');
             if (savedMonth) curMonth = savedMonth;
@@ -13815,6 +14126,9 @@ ${_clip(contextSections, 2600)}`;
                         if (fhWs  && fhWs.readyState  <= 1) { fhWs.close();  fhWs  = null; }
                         if (alpWs && alpWs.readyState <= 1) { alpWs.close(); alpWs = null; _wsAuthenticated = false; }
                         _stopSparklineAutoRefresh();
+                        // ── Fetch official EOD close prices (Alpaca dailyBar.c) ─────────────
+                        // Delay 90s to let exchange finalize closing prints
+                        setTimeout(() => refreshEodPrices(), 90 * 1000);
                     } else if (!document.hidden && watchlist.length) {
                         // ── Market just OPENED (page is visible) ────────────────────────────
                         // Prices shown are yesterday's close — refresh + start streaming
@@ -14979,5 +15293,15 @@ ${_clip(contextSections, 2600)}`;
         </div>
     </div>
     <div id="wl-toast-wrap" aria-live="polite" aria-atomic="true"></div>
+    <!-- Landscape lock overlay (mobile/tablet only) -->
+    <div id="pslink-rotate-msg" style="display:none">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2"/>
+            <circle cx="12" cy="17" r="1"/>
+            <path d="M8 6h8"/>
+        </svg>
+        <p style="font-size:15px;font-weight:600;color:#94a3b8;margin:0">กรุณาหมุนหน้าจอเป็น Portrait</p>
+        <p style="font-size:12px;color:#475569;margin:0">PSLink ออกแบบสำหรับแนวตั้งเท่านั้น</p>
+    </div>
 </body>
 </html>
