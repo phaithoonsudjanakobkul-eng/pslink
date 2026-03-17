@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.2.3 — Fix Gist sync: syncToGist uses _buildExportData+updates _lastSavedHash; syncFromGist pushes if local photos newer than Gist -->
+    <!-- v1.2.4 — Fix syncFromGist: always fetch raw_url with cache:no-store + timestamp bust; fixes stale data on manual sync -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14109,8 +14109,9 @@ ${_clip(contextSections, 2600)}`;
             showGistStatus('SYNCING...', 'text-blue-500');
             _isSyncing = true;
             try {
-                const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-                    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+                const res = await fetch(`https://api.github.com/gists/${GIST_ID}?_=${Date.now()}`, {
+                    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+                    cache: 'no-store'
                 });
                 // Specific HTTP error messages
                 if (res.status === 401) { showGistStatus('TOKEN หมดอายุ ✗', 'text-rose-500'); return; }
@@ -14129,9 +14130,12 @@ ${_clip(contextSections, 2600)}`;
 
                 // Handle GitHub's truncation for large files (> 1MB) — must fetch raw_url
                 let content = fileObj.content;
-                if (fileObj.truncated && fileObj.raw_url) {
-                    const rawRes = await fetch(fileObj.raw_url, {
-                        headers: { 'Authorization': `token ${token}` }
+                // Always fetch raw_url for latest content — don't trust fileObj.content
+                // which can be stale/truncated, especially for large files with avatars
+                if (fileObj.raw_url) {
+                    const rawRes = await fetch(fileObj.raw_url + '?_=' + Date.now(), {
+                        headers: { 'Authorization': `token ${token}` },
+                        cache: 'no-store'
                     });
                     if (!rawRes.ok) { showGistStatus(`RAW ERR ${rawRes.status} ✗`, 'text-rose-500'); return; }
                     content = await rawRes.text();
