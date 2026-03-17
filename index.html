@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.6.11 — Watchlist swipe: reveal-then-confirm delete (tap button to delete, tap elsewhere to cancel) -->
+    <!-- v1.6.12 — Drag clone: deep computed-style copy so clone looks pixel-perfect outside #watchlist-table -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7333,9 +7333,35 @@
                     if (navigator.vibrate) navigator.vibrate(28);
                     const rc = inner.getBoundingClientRect();
                     _dragOffY = _sy - rc.top;
-                    const clone = inner.cloneNode(true);
+
+                    // Deep-clone with computed styles so it looks identical outside #watchlist-table
+                    function _deepCloneWithStyles(src) {
+                        const dst = src.cloneNode(false);
+                        const cs  = window.getComputedStyle(src);
+                        // Copy every computed property as inline style
+                        let styleStr = '';
+                        for (let i = 0; i < cs.length; i++) {
+                            const prop = cs[i];
+                            // Skip transition/animation so the clone doesn't animate
+                            if (prop.startsWith('transition') || prop.startsWith('animation') || prop.startsWith('will-change')) continue;
+                            styleStr += prop + ':' + cs.getPropertyValue(prop) + ';';
+                        }
+                        dst.style.cssText = styleStr;
+                        // Copy children recursively
+                        for (let c = src.firstElementChild; c; c = c.nextElementSibling) {
+                            dst.appendChild(_deepCloneWithStyles(c));
+                        }
+                        // Preserve text nodes
+                        if (!src.firstElementChild && src.textContent) {
+                            dst.textContent = src.textContent;
+                        }
+                        return dst;
+                    }
+
+                    const clone = _deepCloneWithStyles(inner);
                     clone.id = 'wl-drag-clone';
-                    clone.style.cssText = 'position:fixed;left:' + rc.left + 'px;top:' + rc.top + 'px;width:' + rc.width + 'px;height:' + rc.height + 'px;pointer-events:none;z-index:9999;opacity:.94;';
+                    // Override position to fixed, lock size to exact pixels
+                    clone.style.cssText += ';position:fixed!important;left:' + rc.left + 'px;top:' + rc.top + 'px;width:' + rc.width + 'px;height:' + rc.height + 'px;pointer-events:none;z-index:9999;opacity:.96;box-shadow:0 16px 48px rgba(0,0,0,.6);border-radius:6px;overflow:hidden;margin:0;transform:none;';
                     document.body.appendChild(clone);
                     _dragClone = clone;
                     const row = document.getElementById('wl-row-' + sym);
