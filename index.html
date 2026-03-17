@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.2.5 — Fix file:// protocol detection: Gist sync blocked on file:// (browser security); clear error + warning banner; must host on https:// -->
+    <!-- v1.2.6 — Fix: importJSON now auto-calls syncFromGist() after import so device always gets latest Gist data immediately -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14434,7 +14434,14 @@ ${_clip(contextSections, 2600)}`;
                     const nameEl2 = document.getElementById('db-name-display');
                     if (nameEl2) { nameEl2.innerText = fileName; nameEl2.style.color = ''; }
                     try { localStorage.setItem('ps_dbname', fileName); } catch(e) {}
-                    showGistStatus('IMPORTED ✓', 'text-emerald-500');
+                    // Auto-sync from Gist after import — token is now available,
+                    // pull latest data immediately so device is up to date
+                    if (getGistToken()) {
+                        showGistStatus('IMPORTED — กำลัง SYNC...', 'text-blue-500');
+                        setTimeout(() => syncFromGist(false), 800);
+                    } else {
+                        showGistStatus('IMPORTED ✓ (ไม่มี Gist Token)', 'text-emerald-500');
+                    }
                 } catch(err) { alert('อ่านไฟล์ไม่ได้: ' + err.message); }
             };
             reader.readAsText(file);
