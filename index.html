@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.6.15 — Splash: longer display 2.2s, added credit "Phaithoon Sudjanakobkul" bottom -->
+    <!-- v1.6.18 — Fix Signal stuck Neutral: re-compute signal after Alpaca bars arrive in refreshSparklineSymbol -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6358,6 +6358,26 @@
                     // Always render after fetch — even if quality doesn't pass yet
                     // (market just opened: few bars, but better to show than loop skeleton)
                     updateSparklineCell(symbol);
+                    // ── Re-compute Signal now that sparkline data is available ──
+                    const _d = wlDataCache[symbol];
+                    if (_d) {
+                        const sigEl    = document.getElementById('wl-signal-' + symbol);
+                        const mobSigEl = document.getElementById('wl-mob-sig-' + symbol);
+                        if (sigEl || mobSigEl) {
+                            const sigNow = getWatchlistSignal(symbol, _d);
+                            if (sigEl) {
+                                if (sigEl.textContent !== sigNow.label) sigEl.textContent = sigNow.label;
+                                const cls = `wl-signal-badge ${sigNow.cls}`;
+                                if (sigEl.className !== cls) sigEl.className = cls;
+                                sigEl.title = `Confidence ${sigNow.confidence}%`;
+                            }
+                            if (mobSigEl) {
+                                if (mobSigEl.textContent !== sigNow.label) mobSigEl.textContent = sigNow.label;
+                                const cls = `wl-signal-badge ${sigNow.cls}`;
+                                if (mobSigEl.className !== cls) mobSigEl.className = cls;
+                            }
+                        }
+                    }
                     return sparklineQuality(a, wlSparklineCache[symbol]?.base);
                 }
                 // Fetch returned nothing → seed from OHLC so something is shown
@@ -8493,10 +8513,17 @@
             const strongSellGate = quality >= 3.1 && bearConf >= 6 && bullConf <= 1 && edge <= -4.8 && !bearVeto;
             const sellGate = quality >= 2.6 && bearConf >= 5 && bullConf <= 2 && edge <= -3.0 && !bearVeto;
 
+            // low-quality fallback gates — ใช้เมื่อไม่มี Alpaca bars (quality < 2.6)
+            // ต้องการ confirmation มากขึ้นเพื่อชดเชย data ที่น้อยลง
+            const lqBuyGate      = quality >= 1.2 && quality < 2.6 && bullConf >= 3 && bearConf <= 1 && edge >= 2.2 && !bullVeto;
+            const lqSellGate     = quality >= 1.2 && quality < 2.6 && bearConf >= 3 && bullConf <= 1 && edge <= -2.2 && !bearVeto;
+
             if (strongBuyGate) return { label: `Strong Buy ▲`, cls: 'wl-sig-sb', confidence };
             if (buyGate) return { label: `Buy ▲`, cls: 'wl-sig-buy', confidence: Math.min(confidence, 90) };
             if (strongSellGate) return { label: `Strong Sell ▼`, cls: 'wl-sig-ss', confidence };
             if (sellGate) return { label: `Sell ▼`, cls: 'wl-sig-sell', confidence: Math.min(confidence, 90) };
+            if (lqBuyGate)  return { label: `Buy ▲`, cls: 'wl-sig-buy', confidence: Math.min(confidence, 72) };
+            if (lqSellGate) return { label: `Sell ▼`, cls: 'wl-sig-sell', confidence: Math.min(confidence, 72) };
 
             const neutralConf = Math.round(_clamp(58 - absEdge * 2.8, 45, 62));
             return { label: `Neutral •`, cls: 'wl-sig-neu', confidence: neutralConf };
@@ -11074,16 +11101,84 @@ ${sourceText}`;
         }
 
         // Active Tab Monitoring
+        let _tabHiddenAt = 0; // timestamp when tab was hidden
+
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
+                _tabHiddenAt = Date.now();
                 stopExtHoursPolling();
                 _stopSparklineAutoRefresh();
             } else {
+                const hiddenMs = _tabHiddenAt ? Date.now() - _tabHiddenAt : 0;
+                _tabHiddenAt = 0;
+
                 startExtHoursPolling();
+
+                // ── Step 1: แสดง cache ทันทีก่อนเลย ไม่รอ fetch ──
+                if (watchlist.length) {
+                    watchlist.forEach(s => {
+                        if (!document.getElementById('wl-row-' + s))
+                            renderWatchlistRow(s, wlDataCache[s] || null);
+                        else if (wlDataCache[s])
+                            updateWatchlistPriceCells(s, wlDataCache[s]);
+                    });
+                }
+
                 if (isMarketOpen()) {
                     _startSparklineAutoRefresh();
-                    // Market may have opened while the page was hidden (e.g. app left overnight):
-                    // WS was never connected → reconnect now + refresh stale prices
+
+                    const _fhLive  = fhWs  && fhWs.readyState  === 1;
+                    const _alpLive = alpWs && alpWs.readyState  === 1;
+                    const wsLive   = _fhLive || _alpLive;
+
+                    // ── Step 2: WS ยังต่ออยู่ + hidden < 5 นาที → ไม่ต้อง refresh ──
+                    if (wsLive && hiddenMs < 5 * 60 * 1000) {
+                        return; // WS จะส่ง tick ใหม่มาเองในไม่ช้า
+                    }
+
+                    // ── Step 3: WS หลุด → reconnect ──
+                    if (!wsLive && watchlist.length) {
+                        _wsBackgroundMode = document.getElementById('tab-watchlist')
+                            ?.classList.contains('hidden') ?? true;
+                        connectWs();
+                    }
+
+                    // ── Step 4: hidden นาน หรือ WS หลุด → quote-only refresh (เร็ว) ──
+                    if (hiddenMs > 5 * 60 * 1000 || !wsLive) {
+                        // Quote-only: อย่าทำ full refreshWatchlist() เพราะช้า
+                        // ใช้ Phase B เท่านั้น — fetch quote ทุก symbol พร้อมกัน
+                        const fhKey = getFinnhubKey();
+                        if (fhKey && watchlist.length) {
+                            const now = Date.now();
+                            const symbols = watchlist.filter(s => profileCache[s]); // มี cache แล้ว
+                            const noCache = watchlist.filter(s => !profileCache[s]); // ยังไม่มี → full refresh
+                            if (noCache.length) {
+                                // มี symbol ใหม่ที่ไม่มี cache → full refresh
+                                refreshWatchlist().then(() => refreshSparklineForTopSymbols());
+                            } else {
+                                // ทุก symbol มี cache → quote-only ทั้งหมด เร็วมาก
+                                Promise.allSettled(symbols.map(async sym => {
+                                    try {
+                                        const r = await finnhubFetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${fhKey}`);
+                                        if (!r.ok) return;
+                                        const q = await r.json();
+                                        if (!q.c || q.c === 0) q.c = q.pc;
+                                        const existing = wlDataCache[sym] || {};
+                                        wlDataCache[sym] = { ...profileCache[sym], ...existing, ...q };
+                                        quoteTsCache[sym] = Date.now();
+                                        updateWatchlistPriceCells(sym, wlDataCache[sym]);
+                                    } catch(e) {}
+                                })).then(() => {
+                                    refreshSparklineForTopSymbols();
+                                    saveWlCache();
+                                    document.getElementById('wl-last-update').innerText =
+                                        `Updated ${new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})}`;
+                                });
+                            }
+                        }
+                    }
+                } else {
+                    // ตลาดปิด — แค่แสดง cache, ไม่ fetch
                     if (!fhWs && !alpWs && watchlist.length) {
                         _wsBackgroundMode = document.getElementById('tab-watchlist')
                             ?.classList.contains('hidden') ?? true;
