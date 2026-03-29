@@ -292,7 +292,7 @@
         }
         /* TV: row-paid tint stays dark */
         [data-theme="tv"] .row-paid {
-            background-image: linear-gradient(to right, #10b981 3px, rgba(8,153,129,0.04) 3px) !important;
+            background-color: rgba(16, 185, 129, 0.10) !important;
         }
         [data-theme="tv"] .row-paid input[type=text] {
             color: #6b7280 !important;
@@ -2275,12 +2275,12 @@
         }
 
         .row-paid {
-            background-image: linear-gradient(to right, #10b981 3px, #f0fdf4 3px) !important;
-        }
-        .row-paid input {
-            background-color: transparent !important;
+            background-color: rgba(16, 185, 129, 0.12) !important;
+            border-radius: 12px;
         }
         .row-paid input[type=text] {
+            background-color: rgba(16, 185, 129, 0.08) !important;
+            border-color: rgba(16, 185, 129, 0.25) !important;
             color: #9ca3af !important;
         }
 
@@ -5076,7 +5076,15 @@
             container.insertAdjacentHTML('beforeend', html);
             if (isPaid) {
                 const row = document.getElementById(id);
-                if (row) row.querySelectorAll('input[type=text]').forEach(inp => inp.style.textDecoration = 'line-through');
+                if (row) {
+                    row.style.backgroundColor = 'rgba(16, 185, 129, 0.13)';
+                    row.style.borderRadius = '12px';
+                    row.querySelectorAll('input[type=text]').forEach(inp => {
+                        inp.style.textDecoration = 'line-through';
+                        inp.style.color = '#9ca3af';
+                        inp.style.backgroundColor = 'rgba(16, 185, 129, 0.07)';
+                    });
+                }
             }
         }
 
@@ -5085,10 +5093,22 @@
             if (!row) return;
             if (checked) {
                 row.classList.add('row-paid');
-                row.querySelectorAll('input[type=text]').forEach(inp => inp.style.textDecoration = 'line-through');
+                row.style.backgroundColor = 'rgba(16, 185, 129, 0.13)';
+                row.style.borderRadius = '12px';
+                row.querySelectorAll('input[type=text]').forEach(inp => {
+                    inp.style.textDecoration = 'line-through';
+                    inp.style.color = '#9ca3af';
+                    inp.style.backgroundColor = 'rgba(16, 185, 129, 0.07)';
+                });
             } else {
                 row.classList.remove('row-paid');
-                row.querySelectorAll('input[type=text]').forEach(inp => inp.style.textDecoration = '');
+                row.style.backgroundColor = '';
+                row.style.borderRadius = '';
+                row.querySelectorAll('input[type=text]').forEach(inp => {
+                    inp.style.textDecoration = '';
+                    inp.style.color = '';
+                    inp.style.backgroundColor = '';
+                });
             }
             saveAndCalc();
             scheduleAutoSave(true); // immediate — checkbox is a discrete completed action
