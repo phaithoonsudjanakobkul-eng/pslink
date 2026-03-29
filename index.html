@@ -7740,14 +7740,17 @@
         async function refreshAllLowData() {
             if (!getAlpacaKey() || !getAlpacaSecret()) return;
             const syms = [...watchlist];
-            for (let i = 0; i < syms.length; i++) {
-                await fetchLowData(syms[i]);
-                const d = wlDataCache[syms[i]];
-                const price = isMarketOpen() ? (d?.c ?? null) : (d?._dailyC ?? d?.pc ?? d?.c ?? null);
-                if (price != null) _applyLowBadge(syms[i], price);
-                if (i < syms.length - 1) await new Promise(r => setTimeout(r, 300));
+            const BATCH = 5;
+            for (let i = 0; i < syms.length; i += BATCH) {
+                const batch = syms.slice(i, i + BATCH);
+                await Promise.allSettled(batch.map(async sym => {
+                    await fetchLowData(sym);
+                    const d = wlDataCache[sym];
+                    const price = isMarketOpen() ? (d?.c ?? null) : (d?._dailyC ?? d?.pc ?? d?.c ?? null);
+                    if (price != null) _applyLowBadge(sym, price);
+                }));
+                if (i + BATCH < syms.length) await new Promise(r => setTimeout(r, 200));
             }
-            // Re-render console after full refresh
             _renderWlConsole();
         }
 
