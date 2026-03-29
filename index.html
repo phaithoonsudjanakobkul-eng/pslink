@@ -292,7 +292,10 @@
         }
         /* TV: row-paid tint stays dark */
         [data-theme="tv"] .row-paid {
-            background-color: rgba(8,153,129,0.04) !important;
+            background-image: linear-gradient(to right, #10b981 3px, rgba(8,153,129,0.04) 3px) !important;
+        }
+        [data-theme="tv"] .row-paid input[type=text] {
+            color: #6b7280 !important;
         }
         /* TV: quick-chart panel */
         [data-theme="tv"] #quick-chart-panel {
@@ -2272,11 +2275,13 @@
         }
 
         .row-paid {
-            opacity: 0.6;
-            background-color: #f0fdf4 !important;
+            background-image: linear-gradient(to right, #10b981 3px, #f0fdf4 3px) !important;
         }
         .row-paid input {
             background-color: transparent !important;
+        }
+        .row-paid input[type=text] {
+            color: #9ca3af !important;
         }
 
         /* ── Mobile expense rows ── */
@@ -4872,10 +4877,14 @@
         function handleCurrencyInput(el, hiddenId) {
             let val = parseToValidNumber(el.value);
             document.getElementById(hiddenId).value = val;
-            if (!val.includes('.') && val !== "") {
-                el.value = parseFloat(val).toLocaleString();
-            } else {
+            if (val === "") {
                 el.value = val;
+            } else if (val.includes('.')) {
+                const parts = val.split('.');
+                const intFormatted = parts[0] === '' ? '0' : parseFloat(parts[0]).toLocaleString();
+                el.value = intFormatted + '.' + parts[1];
+            } else {
+                el.value = parseFloat(val).toLocaleString();
             }
             saveAndCalc();
         }
@@ -5178,7 +5187,7 @@
                 cb.checked = !allChecked;
                 togglePaidStatus(cb.closest('[id^="row-"]')?.id, !allChecked);
             });
-            btn.textContent = allChecked ? 'Uncheck All' : 'Check All';
+            btn.textContent = allChecked ? 'CHECK ALL' : 'UNCHECK ALL';
             scheduleAutoSave(true); // immediate — all checkboxes toggled
         }
 
@@ -7809,9 +7818,6 @@
         async function fetchYahooExtendedBatch() {
             if (watchlist.length === 0) return;
             if (document.hidden) return;
-            // v1.6.21: skip fetch entirely when no active session (overnight 20:00–04:00 ET)
-            // prevents spurious cache updates → flash outside market/ext-hours
-            { const _u = new Date(); const _um = _u.getUTCHours()*60+_u.getUTCMinutes(); const _dst = isUSDST(_u); const _et = ((_um - (_dst?4:5)*60) % (24*60) + 24*60) % (24*60); if (_et < 240 || _et >= 1200) return; }
             const now = Date.now();
             if (now - _extLastBatchTs < 15000) return; // max once per 15s
             _extLastBatchTs = now;
@@ -8589,8 +8595,7 @@
             const tr = cells[7].closest('tr');
             const prevPriceText = cells[7].innerText;
             const newPriceText  = price !== null ? '$' + fmt(price) : '—';
-            // v1.6.21: flash only during market hours — polling/cache refreshes when closed must not flash
-            if (_mktOpen && tr && prevPriceText && prevPriceText !== '—' && prevPriceText !== newPriceText) {
+            if (tr && prevPriceText && prevPriceText !== '—' && prevPriceText !== newPriceText) {
                 const flashCls = isUp ? 'flash-up' : 'flash-down';
                 tr.classList.remove('flash-up', 'flash-down');
                 tr.getAnimations().forEach(a => a.cancel()); // v1.6.21: no forced reflow
