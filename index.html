@@ -7304,6 +7304,8 @@
                 const price2 = isMarketOpen() ? (d2?.c ?? null) : (d2?._dailyC ?? d2?.pc ?? d2?.c ?? null);
                 if (price2 != null && typeof _applyLowBadge === 'function') _applyLowBadge(symbol, price2);
             });
+            // Re-apply column picker visibility to newly rendered/updated row
+            requestAnimationFrame(_applyWlCols);
         }
         let dragSrc = null;
 
@@ -9004,7 +9006,19 @@
             const table = document.getElementById('watchlist-table');
             if (!table) return;
             const cols = _lwcPrefs.cols || {};
-            WL_COL_DEFS.forEach(({ key }) => table.classList.toggle('show-wlc-' + key, !!cols[key]));
+            WL_COL_DEFS.forEach(({ key }) => {
+                const show = !!cols[key];
+                // Also keep CSS class for compatibility
+                table.classList.toggle('show-wlc-' + key, show);
+                // Directly set inline style — overrides any !important CSS rule
+                table.querySelectorAll('.wlc-' + key).forEach(el => {
+                    if (show) {
+                        el.style.setProperty('display', 'table-cell', 'important');
+                    } else {
+                        el.style.removeProperty('display'); // CSS default (none) takes over
+                    }
+                });
+            });
         }
         function _wlToggleCol(key, on) {
             _lwcPrefs.cols = _lwcPrefs.cols || {};
