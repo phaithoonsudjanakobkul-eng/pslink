@@ -8125,9 +8125,10 @@
 
             const now = Date.now();
             // wsLive = WS connected AND market is open (closed market = no streaming data)
+            const _pgLive  = pgWs  && pgWs.readyState   === 1;
             const _fhLive  = fhWs  && fhWs.readyState  === 1;
             const _alpLive = alpWs && alpWs.readyState  === 1;
-            const wsLive   = (_fhLive || _alpLive) && isMarketOpen();
+            const wsLive   = (_pgLive || _fhLive || _alpLive) && isMarketOpen();
 
             // Phase A: symbols needing full profile (new or >24h stale)
             // Each row renders as soon as its data arrives
@@ -13629,11 +13630,74 @@ ${_clip(contextSections, 2600)}`;
         let fhWsSubscribed = new Set();
         let fhWsBackoff = 5000; // start 5s, max 30s
 
-        // ── WebSocket router: Alpaca (primary) → Finnhub (fallback) ──────────
+        // ── WebSocket router: Polygon (primary) → Alpaca IEX → Finnhub ──────
         function connectWs() {
-            const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
-            if (aKey && aSecret) connectAlpacaWs(aKey, aSecret);
-            else connectFinnhubWs();
+            const pgKey = getPolygonKey();
+            const aKey  = getAlpacaKey(), aSecret = getAlpacaSecret();
+            if (pgKey)             connectPolygonWs(pgKey);
+            else if (aKey && aSecret) connectAlpacaWs(aKey, aSecret);
+            else                   connectFinnhubWs();
+        }
+
+        // ── Polygon.io WebSocket ──────────────────────────────────────────────
+        let pgWs = null, pgWsReconnectTimer = null, pgWsBackoff = 5000, pgWsSubscribed = new Set();
+
+        function connectPolygonWs(apiKey) {
+            if (!watchlist.length) return;
+            if (pgWs && pgWs.readyState <= 1) return;
+            pgWs = new WebSocket('wss://socket.polygon.io/stocks');
+            pgWs.onopen = () => pgWs.send(JSON.stringify({ action:'auth', params: apiKey }));
+            pgWs.onmessage = (e) => {
+                try {
+                    const msgs = JSON.parse(e.data);
+                    for (let i = 0; i < msgs.length; i++) {
+                        const m = msgs[i];
+                        if (m.ev === 'status') {
+                            if (m.status === 'auth_success') {
+                                pgWsBackoff = 5000;
+                                // Subscribe trades: T.AAPL,T.NVDA,...
+                                const subs = watchlist.map(s => 'T.' + s).join(',');
+                                pgWs.send(JSON.stringify({ action:'subscribe', params: subs }));
+                                pgWsSubscribed = new Set(watchlist);
+                                _wsAuthenticated = true;
+                                updateMarketStatus();
+                            } else if (m.status === 'auth_failed') {
+                                console.warn('Polygon WS auth failed'); pgWs.close();
+                            }
+                        } else if (m.ev === 'T') {
+                            // Trade event: { ev:'T', sym:'AAPL', p:167.5, s:100, t:1234567890 }
+                            const d = wlDataCache[m.sym];
+                            if (d && m.p) {
+                                const pc = d._prevDailyC ?? d.pc ?? null;
+                                d.c = m.p;
+                                if (pc != null) { d.d = m.p - pc; d.dp = d.d / pc * 100; }
+                                if (d.h != null) { if (m.p > d.h) d.h = m.p; } else d.h = m.p;
+                                if (d.l != null) { if (m.p < d.l) d.l = m.p; } else d.l = m.p;
+                                _pendingTrades[m.sym] = m.p;
+                                _hasPendingTrades = true;
+                                if (!_wsBackgroundMode && !_rafPending) {
+                                    _rafPending = true;
+                                    requestAnimationFrame(_rafFlushQuotes);
+                                }
+                                if (qcCurrentSymbol === m.sym) _updateChartDirect(m.sym, m.p);
+                            }
+                        }
+                    }
+                } catch(err) {}
+            };
+            pgWs.onclose = () => {
+                pgWs = null; pgWsSubscribed.clear(); _wsAuthenticated = false;
+                clearTimeout(pgWsReconnectTimer);
+                pgWsReconnectTimer = setTimeout(() => { if (isMarketOpen()) connectPolygonWs(apiKey); }, pgWsBackoff);
+                pgWsBackoff = Math.min(pgWsBackoff * 1.5, 30000);
+                updateMarketStatus(false);
+            };
+            pgWs.onerror = () => pgWs?.close();
+        }
+
+        function disconnectPolygonWs() {
+            clearTimeout(pgWsReconnectTimer); pgWsBackoff = 5000;
+            if (pgWs) { pgWs.close(); pgWs = null; } pgWsSubscribed.clear();
         }
 
         let alpWs = null, alpWsReconnectTimer = null, alpWsBackoff = 5000, alpWsSubscribed = new Set();
@@ -14092,12 +14156,25 @@ ${_clip(contextSections, 2600)}`;
         }
 
         function subscribeWs(sym) {
-            if (!fhWs || fhWs.readyState !== 1 || fhWsSubscribed.has(sym)) return;
-            fhWs.send(JSON.stringify({ type:'subscribe', symbol:sym })); fhWsSubscribed.add(sym);
+            if (pgWs && pgWs.readyState === 1 && !pgWsSubscribed.has(sym)) {
+                pgWs.send(JSON.stringify({ action:'subscribe', params:'T.' + sym }));
+                pgWsSubscribed.add(sym);
+            } else if (alpWs && alpWs.readyState === 1 && !alpWsSubscribed.has(sym)) {
+                alpWs.send(JSON.stringify({ action:'subscribe', trades:[sym] }));
+                alpWsSubscribed.add(sym);
+            } else if (fhWs && fhWs.readyState === 1 && !fhWsSubscribed.has(sym)) {
+                fhWs.send(JSON.stringify({ type:'subscribe', symbol:sym }));
+                fhWsSubscribed.add(sym);
+            }
         }
         function unsubscribeWs(sym) {
-            if (!fhWs || fhWs.readyState !== 1) return;
-            fhWs.send(JSON.stringify({ type:'unsubscribe', symbol:sym })); fhWsSubscribed.delete(sym);
+            if (pgWs && pgWs.readyState === 1) {
+                pgWs.send(JSON.stringify({ action:'unsubscribe', params:'T.' + sym }));
+                pgWsSubscribed.delete(sym);
+            } else if (fhWs && fhWs.readyState === 1) {
+                fhWs.send(JSON.stringify({ type:'unsubscribe', symbol:sym }));
+                fhWsSubscribed.delete(sym);
+            }
         }
         function disconnectFinnhubWs() {
             clearTimeout(fhWsReconnectTimer); fhWsBackoff = 5000;
@@ -15372,6 +15449,7 @@ ${_clip(contextSections, 2600)}`;
             // Collect all localStorage keys that belong to this app
             const lsKeys = [
                 'ps_finnhub_key', 'ps_fmp_key', 'ps_erapi_key',
+                'ps_polygon_key',
                 'ps_alpaca_key', 'ps_alpaca_secret',
                 'ps_openrouter_key', 'ps_gist_token',
                 'ps_dbname', 'ps_dark', 'ps_month',
@@ -15527,10 +15605,11 @@ ${_clip(contextSections, 2600)}`;
         }
 
         // ── Settings Modal ────────────────────────────────────────────────────
-        function getFinnhubKey() { return localStorage.getItem('ps_finnhub_key') || ''; }
-        function getErapiKey()   { return localStorage.getItem('ps_erapi_key')   || ''; }
-        function getAlpacaKey()    { return localStorage.getItem('ps_alpaca_key')    || ''; }
-        function getAlpacaSecret() { return localStorage.getItem('ps_alpaca_secret') || ''; }
+        function getFinnhubKey()   { return localStorage.getItem('ps_finnhub_key')    || ''; }
+        function getErapiKey()     { return localStorage.getItem('ps_erapi_key')      || ''; }
+        function getAlpacaKey()    { return localStorage.getItem('ps_alpaca_key')     || ''; }
+        function getAlpacaSecret() { return localStorage.getItem('ps_alpaca_secret')  || ''; }
+        function getPolygonKey()   { return localStorage.getItem('ps_polygon_key')    || ''; }
 
         function switchSettingsTab(tab) {
             ['api','sync','theme','display'].forEach(t => {
@@ -15575,12 +15654,13 @@ ${_clip(contextSections, 2600)}`;
                 const el = document.getElementById(inputId);
                 if (el) el.value = localStorage.getItem(key) || '';
             };
-            fill('s-finnhub-input',    'ps_finnhub_key');
-            fill('s-fmp-key-input',    'ps_fmp_key');
-            fill('s-erapi-input',      'ps_erapi_key');
+            fill('s-finnhub-input',       'ps_finnhub_key');
+            fill('s-fmp-key-input',       'ps_fmp_key');
+            fill('s-erapi-input',         'ps_erapi_key');
+            fill('s-polygon-key-input',   'ps_polygon_key');
             fill('s-alpaca-key-input',    'ps_alpaca_key');
             fill('s-alpaca-secret-input', 'ps_alpaca_secret');
-            fill('s-openrouter-input', 'ps_openrouter_key');
+            fill('s-openrouter-input',    'ps_openrouter_key');
             fill('s-gist-input',       'ps_gist_token');
             updateSettingsBadges();
             _updateDisplayModeButtons();
@@ -15602,7 +15682,8 @@ ${_clip(contextSections, 2600)}`;
             badge('s-finnhub-badge',    'ps_finnhub_key');
             badge('s-erapi-badge',      'ps_erapi_key');
             badge('s-fmp-badge',        'ps_fmp_key');
-            badge('s-alpaca-badge',      'ps_alpaca_key');
+            badge('s-polygon-badge',    'ps_polygon_key');
+            badge('s-alpaca-badge',     'ps_alpaca_key');
             badge('s-openrouter-badge', 'ps_openrouter_key');
             badge('s-gist-badge',       'ps_gist_token');
         }
@@ -15615,9 +15696,10 @@ ${_clip(contextSections, 2600)}`;
                 if (val && (!validator || validator(val)))
                     localStorage.setItem(storageKey, val);
             };
-            save('s-finnhub-input',    'ps_finnhub_key');
-            save('s-erapi-input',      'ps_erapi_key');
+            save('s-finnhub-input',       'ps_finnhub_key');
+            save('s-erapi-input',         'ps_erapi_key');
             save('s-fmp-key-input',       'ps_fmp_key');
+            save('s-polygon-key-input',   'ps_polygon_key');
             save('s-alpaca-key-input',    'ps_alpaca_key');
             save('s-alpaca-secret-input', 'ps_alpaca_secret');
             save('s-openrouter-input', 'ps_openrouter_key', v => v.startsWith('sk-or-'));
@@ -17102,12 +17184,32 @@ ${_clip(contextSections, 2600)}`;
                     </div>
                     <p class="text-[9px] mt-1.5" style="color:var(--text-dim)">สมัครฟรีที่ <a href="https://financialmodelingprep.com/developer/docs" target="_blank" class="underline" style="color:#f59e0b">financialmodelingprep.com</a> → Register → Dashboard → API Key · ไม่ต้องใส่บัตรเครดิต</p>
                 </div>
-                <!-- Alpaca -->
+                <!-- Polygon.io — Primary WS (replaces Alpaca IEX WS) -->
+                <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:#6366f1"><span style="font-size:10px;font-weight:900;color:#fff">P</span></div>
+                            <div>
+                                <p class="text-xs font-bold" style="color:var(--text-primary)">Polygon.io
+                                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(99,102,241,0.18);color:#818cf8">WebSocket · SIP</span>
+                                </p>
+                                <p class="text-[10px]" style="color:var(--text-dim)">Real-time tick ทุก trade · volume จริง 100%</p>
+                            </div>
+                        </div>
+                        <span id="s-polygon-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="s-polygon-key-input" type="password" autocomplete="off" placeholder="Polygon API Key" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-polygon-key-input')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    </div>
+                    <p class="text-[9px] mt-1.5" style="color:var(--text-dim)"><a href="https://polygon.io/dashboard/api-keys" target="_blank" class="underline" style="color:#818cf8">polygon.io</a> → Dashboard → API Keys · ใช้แทน Alpaca IEX สำหรับ real-time tick</p>
+                </div>
+                <!-- Alpaca — REST only (chart bars, low alert, sparklines) -->
                 <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
                     <div class="flex items-center justify-between mb-2.5">
                         <div class="flex items-center gap-2">
                             <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:#FFCD00"><span style="font-size:10px;font-weight:900;color:#000">A</span></div>
-                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">Alpaca Markets <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(255,205,0,0.15);color:#FFCD00">WebSocket</span></p><p class="text-[10px]" style="color:var(--text-dim)">Real-time price ~200-500ms</p></div>
+                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">Alpaca Markets <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(255,205,0,0.15);color:#FFCD00">REST · Historical</span></p><p class="text-[10px]" style="color:var(--text-dim)">Chart bars · Low Alert · Sparklines (IEX free)</p></div>
                         </div>
                         <span id="s-alpaca-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
                     </div>
