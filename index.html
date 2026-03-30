@@ -8991,33 +8991,36 @@
         }
 
         // ── Watchlist column picker ───────────────────────────────────────────
+        // colIdx = index of <col> in <colgroup> (0-based); colW = original width to restore
         const WL_COL_DEFS = [
-            { key:'premkt',  label:'PRE-MKT'  },
-            { key:'open',    label:'OPEN'     },
-            { key:'pcls',    label:'P.CLS'    },
-            { key:'high',    label:'HIGH'     },
-            { key:'low',     label:'LOW'      },
-            { key:'52wh',    label:'52W·H'    },
-            { key:'52wl',    label:'52W·L'    },
-            { key:'mcap',    label:'MCAP'     },
-            { key:'vol10d',  label:'VOL·10D'  },
-            { key:'beta',    label:'BETA'     },
-            { key:'pe',      label:'P/E'      },
-            { key:'div',     label:'DIV%'     },
+            { key:'premkt',  label:'PRE-MKT',  colIdx:10, colW:'88px'  },
+            { key:'open',    label:'OPEN',     colIdx:11, colW:'78px'  },
+            { key:'pcls',    label:'P.CLS',    colIdx:12, colW:'78px'  },
+            { key:'high',    label:'HIGH',     colIdx:13, colW:'75px'  },
+            { key:'low',     label:'LOW',      colIdx:14, colW:'75px'  },
+            { key:'52wh',    label:'52W·H',    colIdx:15, colW:'72px'  },
+            { key:'52wl',    label:'52W·L',    colIdx:16, colW:'72px'  },
+            { key:'mcap',    label:'MCAP',     colIdx:17, colW:'72px'  },
+            { key:'vol10d',  label:'VOL·10D',  colIdx:18, colW:'68px'  },
+            { key:'beta',    label:'BETA',     colIdx:19, colW:'46px'  },
+            { key:'pe',      label:'P/E',      colIdx:20, colW:'52px'  },
+            { key:'div',     label:'DIV%',     colIdx:21, colW:'52px'  },
         ];
         function _applyWlCols() {
             const table = document.getElementById('watchlist-table');
             if (!table) return;
-            const cols = _lwcPrefs.cols || {};
-            WL_COL_DEFS.forEach(({ key }) => {
-                const show = !!cols[key];
+            const colEls = table.querySelectorAll('colgroup col');
+            const userCols = _lwcPrefs.cols || {};
+            WL_COL_DEFS.forEach(({ key, colIdx, colW }) => {
+                const show = !!userCols[key];
                 table.classList.toggle('show-wlc-' + key, show);
-                // Use inline setProperty('important') for BOTH show+hide
-                // — bypasses all CSS specificity/!important conflicts entirely
-                const val = show ? 'table-cell' : 'none';
+                // Cells: explicit inline !important — bypasses all CSS conflicts
                 table.querySelectorAll('.wlc-' + key).forEach(el => {
-                    el.style.setProperty('display', val, 'important');
+                    el.style.setProperty('display', show ? 'table-cell' : 'none', 'important');
                 });
+                // <col>: collapse width so hidden columns don't leave blank space
+                const colEl = colEls[colIdx];
+                if (colEl) colEl.style.width = show ? colW : '0px';
             });
         }
         function _wlToggleCol(key, on) {
