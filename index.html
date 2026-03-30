@@ -7646,7 +7646,7 @@
         // ── Multi-period Low Alert ────────────────────────────────────────
         const _lowCache = {};
         const LOW_CACHE_TTL = 30 * 60 * 1000;
-        const LOW_LS_KEY = 'ps_low_cache_v3'; // v3: includes low60/low90/low180/low365
+        const LOW_LS_KEY = 'ps_low_cache_v2';
         const LOW_PERIODS = [
             { key: 'low7',   label: '7D',  cls: 'wl-low-7d',  dotCls: 'dot-7d',  color: 'var(--wl-dn)' },
             { key: 'low30',  label: '30D', cls: 'wl-low-30d', dotCls: 'dot-30d', color: 'var(--warning)' },
@@ -7671,7 +7671,10 @@
             if (!aKey || !aSecret) return null;
             const now = Date.now();
             const cached = _lowCache[symbol];
-            if (cached && (now - cached.ts) < LOW_CACHE_TTL) return cached;
+            // Only use cache if fresh AND has all 6 periods (low60/90/180/365 added later)
+            const cacheComplete = cached && cached.low60 != null && cached.low90 != null &&
+                                  cached.low180 != null && cached.low365 != null;
+            if (cacheComplete && (now - cached.ts) < LOW_CACHE_TTL) return cached;
             try {
                 const end   = new Date();
                 const start = new Date(end.getTime() - 375 * 24 * 60 * 60 * 1000);
@@ -7801,14 +7804,25 @@
             const BATCH = 5;
             for (let i = 0; i < syms.length; i += BATCH) {
                 const batch = syms.slice(i, i + BATCH);
-                await Promise.allSettled(batch.map(async sym => {
-                    await fetchLowData(sym);
+                await Promise.allSettled(batch.map(sym => fetchLowData(sym)));
+                // Apply badges immediately after each batch — price may arrive later
+                batch.forEach(sym => {
                     const d = wlDataCache[sym];
-                    const price = isMarketOpen() ? (d?.c ?? null) : (d?._dailyC ?? d?.pc ?? d?.c ?? null);
+                    const price = isMarketOpen()
+                        ? (d?.c ?? d?.pc ?? null)
+                        : (d?._dailyC ?? d?.pc ?? d?.c ?? null);
                     if (price != null) _applyLowBadge(sym, price);
-                }));
+                });
                 if (i + BATCH < syms.length) await new Promise(r => setTimeout(r, 200));
             }
+            // Second pass: after all fetches done, re-apply for any symbol that now has price
+            syms.forEach(sym => {
+                const d = wlDataCache[sym];
+                const price = isMarketOpen()
+                    ? (d?.c ?? d?.pc ?? null)
+                    : (d?._dailyC ?? d?.pc ?? d?.c ?? null);
+                if (price != null) _applyLowBadge(sym, price);
+            });
             _renderWlConsole();
         }
 
@@ -15875,7 +15889,7 @@ ${_clip(contextSections, 2600)}`;
                 // Never preload old bars into memory — prevents "old chart → new chart" flicker
                 // loadSparklineCache only reads from localStorage for reference, not applied to memory
                 _loadLowCache(); // restore 7D/30D low cache from localStorage
-                setTimeout(() => { refreshAllLowData(); scheduleLowRefresh(); }, 5000);
+                setTimeout(() => { refreshAllLowData(); scheduleLowRefresh(); }, 2000);
                 // If market already closed when app loads → fetch official EOD close
                 if (!isMarketOpen()) setTimeout(() => refreshEodPrices(), 3000);
             } catch(e) {}
