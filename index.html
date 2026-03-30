@@ -5043,6 +5043,9 @@
                         renderWatchlistRow(s, wlDataCache[s] || null);
                 });
 
+                // Apply column picker visibility after rows are in DOM
+                requestAnimationFrame(_applyWlCols);
+
                 // Apply mobile column layout after rows are in DOM
                 if (window.innerWidth <= 1200) {
                     requestAnimationFrame(applyMobileWatchlistCols);
@@ -9008,15 +9011,12 @@
             const cols = _lwcPrefs.cols || {};
             WL_COL_DEFS.forEach(({ key }) => {
                 const show = !!cols[key];
-                // Also keep CSS class for compatibility
                 table.classList.toggle('show-wlc-' + key, show);
-                // Directly set inline style — overrides any !important CSS rule
+                // Use inline setProperty('important') for BOTH show+hide
+                // — bypasses all CSS specificity/!important conflicts entirely
+                const val = show ? 'table-cell' : 'none';
                 table.querySelectorAll('.wlc-' + key).forEach(el => {
-                    if (show) {
-                        el.style.setProperty('display', 'table-cell', 'important');
-                    } else {
-                        el.style.removeProperty('display'); // CSS default (none) takes over
-                    }
+                    el.style.setProperty('display', val, 'important');
                 });
             });
         }
