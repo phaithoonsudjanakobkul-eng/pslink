@@ -2143,7 +2143,10 @@
         #wl-col-picker-wrap { display: flex; align-items: center; flex-shrink: 0; }
         @media (max-width: 768px) { #wl-col-picker-wrap { display: none !important; } }
 
-        /* ── Watchlist column picker overrides ── */
+        /* ── Watchlist extra columns: hidden by default on ALL screen sizes ── */
+        #watchlist-table .wl-col-hide { display: none !important; }
+
+        /* ── Column picker: show selected columns (override the hide above) ── */
         #watchlist-table.show-wlc-premkt  .wlc-premkt  { display: table-cell !important; }
         #watchlist-table.show-wlc-open    .wlc-open    { display: table-cell !important; }
         #watchlist-table.show-wlc-pcls    .wlc-pcls    { display: table-cell !important; }
