@@ -9566,6 +9566,8 @@
             const closes = bars.map(b => b.c);
 
             // ── Extended hours shading ────────────────────────────────────────
+            // Uses isolated priceScaleId 'ext-shade' + value=1 (fixed) so it NEVER
+            // affects the main price axis. scaleMargins top=0,bottom=0 fills the pane.
             if (window._lwcExtSeries) { try { _lwcChart.removeSeries(window._lwcExtSeries); } catch(e) {} window._lwcExtSeries = null; }
             if (isIntra && _lwcShowExtH) {
                 const extData = [];
@@ -9573,10 +9575,16 @@
                     const mins = etMinutes(b.t);
                     if (mins == null) continue;
                     if (!(mins >= 570 && mins < 960))
-                        extData.push({ time: toTime(b.t), value: b.h * 1.5, color: 'rgba(148,163,184,0.06)' });
+                        extData.push({ time: toTime(b.t), value: 1, color: 'rgba(148,163,184,0.07)' });
                 }
                 if (extData.length) {
-                    const extSeries = _lwcChart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'right', lastValueVisible:false, priceLineVisible:false });
+                    const extSeries = _lwcChart.addHistogramSeries({
+                        priceFormat: { type: 'volume' },
+                        priceScaleId: 'ext-shade',
+                        lastValueVisible: false,
+                        priceLineVisible: false,
+                    });
+                    extSeries.priceScale().applyOptions({ scaleMargins: { top: 0, bottom: 0 }, visible: false });
                     extSeries.setData(extData);
                     window._lwcExtSeries = extSeries;
                 }
