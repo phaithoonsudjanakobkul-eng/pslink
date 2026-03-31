@@ -6183,15 +6183,94 @@
                 // Polygon lastTrade.t is nanoseconds — convert to ms for _snapTs guard
                 const ltRaw = t.lastTrade?.t;
                 const ltMs  = ltRaw ? (ltRaw > 1e15 ? Math.round(ltRaw / 1e6) : ltRaw) : null;
+                // day = today's regular session (0 if not opened yet)
+                // prevDay = yesterday's official close — always populated
+                // min = latest 1-minute bar (includes after-hours)
+                // todaysChange/Perc = Polygon pre-calculated change vs prevDay.c
                 out[t.ticker] = {
-                    dailyBar:     { c: t.day?.c    || null, o: t.day?.o    || null, h: t.day?.h    || null, l: t.day?.l    || null, v: t.day?.v    || null },
-                    prevDailyBar: { c: t.prevDay?.c || null },
+                    dailyBar:     { c: t.day?.c    || null, o: t.day?.o    || null, h: t.day?.h    || null, l: t.day?.l    || null, v: t.day?.v    || null, vw: t.day?.vw || null },
+                    prevDailyBar: { c: t.prevDay?.c || null, o: t.prevDay?.o || null, h: t.prevDay?.h || null, l: t.prevDay?.l || null, v: t.prevDay?.v || null },
                     latestTrade:  { p: t.lastTrade?.p || null, t: ltMs ? new Date(ltMs).toISOString() : null },
+                    minBar:       { c: t.min?.c || null, o: t.min?.o || null, h: t.min?.h || null, l: t.min?.l || null, v: t.min?.v || null },
                     todaysChangePerc: t.todaysChangePerc ?? null,
                     todaysChange:     t.todaysChange     ?? null,
                 };
             }
             return out;
+        }
+
+        // ── _applyPolygonSnap: single source of truth for Polygon snapshot → wlDataCache ──
+        // Handles market open vs closed correctly using Polygon's own todaysChange fields
+        function _applyPolygonSnap(sym, sn, existingData) {
+            if (!sn) return existingData || {};
+            const existing = existingData || wlDataCache[sym] || {};
+
+            // prevDay = yesterday's official regular session close — always valid
+            const prevDayC = sn.prevDailyBar?.c || null;
+            const prevDayO = sn.prevDailyBar?.o || null;
+            const prevDayH = sn.prevDailyBar?.h || null;
+            const prevDayL = sn.prevDailyBar?.l || null;
+            const prevDayV = sn.prevDailyBar?.v || null;
+
+            // day = today's regular session (all 0 if not opened yet)
+            const dayC = sn.dailyBar?.c || null;
+            const dayO = sn.dailyBar?.o || null;
+            const dayH = sn.dailyBar?.h || null;
+            const dayL = sn.dailyBar?.l || null;
+            const dayV = sn.dailyBar?.v || null;
+
+            // min = latest 1-min bar (includes after/pre-market)
+            const minC = sn.minBar?.c || null;
+
+            // lastTrade price
+            const lastP = sn.latestTrade?.p || null;
+
+            const mktOpen = isMarketOpen();
+
+            // displayC = what to show as "last price"
+            // Market open:  live trade price → day close → prevDay close
+            // Market closed: prevDay close (official close) — NOT min/lastTrade (= after-hours noise)
+            const displayC = mktOpen
+                ? (lastP || dayC || prevDayC || existing.c || null)
+                : (prevDayC || existing.c || null);
+
+            // prevClose for CHG% calculation
+            // Market open:  prevDay.c (yesterday close)
+            // Market closed: use todaysChange to back-calculate, or fall back to existing pc
+            const prevClose = prevDayC || existing.pc || null;
+
+            // CHG / CHG% — use Polygon pre-calculated when available (most accurate)
+            let chg, dp;
+            if (sn.todaysChange != null && sn.todaysChangePerc != null && prevDayC) {
+                // Polygon gives us change vs prevDay.c directly
+                chg = sn.todaysChange;
+                dp  = sn.todaysChangePerc;
+            } else if (displayC && prevClose) {
+                chg = displayC - prevClose;
+                dp  = chg / prevClose * 100;
+            } else {
+                chg = existing.d ?? 0;
+                dp  = existing.dp ?? 0;
+            }
+
+            // OPEN/HIGH/LOW: market open = today's session, closed = yesterday's session
+            const open = mktOpen ? (dayO || existing.o || null) : (prevDayO || existing.o || null);
+            const high = mktOpen ? (dayH || existing.h || null) : (prevDayH || existing.h || null);
+            const low  = mktOpen ? (dayL || existing.l || null) : (prevDayL || existing.l || null);
+            const vol  = mktOpen ? (dayV || existing.v || null) : (prevDayV || existing.v || null);
+
+            return Object.assign({}, existing, {
+                c:           displayC,
+                d:           chg,
+                dp:          dp,
+                pc:          prevClose,
+                o:           open,
+                h:           high,
+                l:           low,
+                v:           vol,
+                _dailyC:     dayC,
+                _prevDailyC: prevDayC,
+            });
         }
 
         function hasAlpacaSparkSource() {
@@ -8080,17 +8159,8 @@
                 watchlist.forEach(sym => {
                     const sn = snap[sym];
                     if (!sn) return;
-                    const officialClose = sn.dailyBar?.c || null;
-                    const prevClose     = sn.prevDailyBar?.c || null;
-                    if (!officialClose) return;
-
-                    const existing = wlDataCache[sym] || {};
-                    // Merge ONLY _dailyC + _prevDailyC — never overwrite .c (WS intraday) or sparkline
-                    wlDataCache[sym] = Object.assign({}, existing, {
-                        _dailyC:     officialClose,
-                        _prevDailyC: prevClose ?? existing._prevDailyC ?? existing.pc ?? null,
-                    });
-                    // Re-render price cells with official close
+                    // Use full _applyPolygonSnap — sets c, d, dp, pc, o, h, l, v correctly
+                    wlDataCache[sym] = _applyPolygonSnap(sym, sn, wlDataCache[sym]);
                     updateWatchlistPriceCells(sym, wlDataCache[sym]);
                 });
 
@@ -8362,24 +8432,7 @@
                         watchlist.forEach(sym => {
                             const sn = _preSnap[sym];
                             if (!sn) return;
-                            const existing = wlDataCache[sym] || {};
-                            const prevC    = sn.prevDailyBar?.c || null;
-                            const dayC     = sn.dailyBar?.c    || null;
-                            const lastP    = sn.latestTrade?.p || null;
-                            const displayC = isMarketOpen()
-                                ? (lastP || dayC || prevC || existing.c || null)
-                                : (prevC || existing.pc || existing.c || null);
-                            const prevClose = prevC || existing.pc || null;
-                            const chg = (displayC && prevClose) ? displayC - prevClose : 0;
-                            const dp  = (displayC && prevClose) ? chg / prevClose * 100 : 0;
-                            wlDataCache[sym] = Object.assign({}, existing, {
-                                c: displayC, d: chg, dp,
-                                pc: prevClose, _dailyC: dayC, _prevDailyC: prevC,
-                                o: sn.dailyBar?.o || existing.o || null,
-                                h: sn.dailyBar?.h || existing.h || null,
-                                l: sn.dailyBar?.l || existing.l || null,
-                                v: sn.dailyBar?.v || existing.v || null,
-                            });
+                            wlDataCache[sym] = _applyPolygonSnap(sym, sn, wlDataCache[sym]);
                             quoteTsCache[sym] = Date.now();
                         });
                         // Render ทันทีหลัง snapshot — ก่อน profile fetch เสร็จ
@@ -8503,31 +8556,7 @@
                             watchlist.forEach(symbol => {
                                 const sn = snap[symbol];
                                 if (!sn) return;
-                                const existing = wlDataCache[symbol] || {};
-                                // prevDay.c = yesterday's official close (most accurate prevClose)
-                                // day.c = today's regular session close (0 if market not opened yet)
-                                const dayC    = sn.dailyBar?.c    || null;  // today close (0 if not opened)
-                                const prevC   = sn.prevDailyBar?.c || null; // yesterday close
-                                const lastP   = sn.latestTrade?.p || null;  // latest trade price
-                                // Display price: market open = lastTrade, closed = yesterday's close
-                                const displayC = isMarketOpen()
-                                    ? (lastP || dayC || prevC || existing.c || null)
-                                    : (prevC || existing.pc || existing.c || null);
-                                const prevClose = prevC || existing.pc || null;
-                                const chg  = (displayC && prevClose) ? displayC - prevClose : (existing.d ?? 0);
-                                const dp   = (displayC && prevClose) ? (chg / prevClose * 100) : (existing.dp ?? 0);
-                                wlDataCache[symbol] = Object.assign({}, existing, {
-                                    c:           displayC,
-                                    d:           chg,
-                                    dp:          dp,
-                                    pc:          prevClose,
-                                    _dailyC:     dayC,
-                                    _prevDailyC: prevC,
-                                    o:           sn.dailyBar?.o   || existing.o   || null,
-                                    h:           sn.dailyBar?.h   || existing.h   || null,
-                                    l:           sn.dailyBar?.l   || existing.l   || null,
-                                    v:           sn.dailyBar?.v   || existing.v   || null,
-                                });
+                                wlDataCache[symbol] = _applyPolygonSnap(symbol, sn, wlDataCache[symbol]);
                                 quoteTsCache[symbol] = Date.now();
                             });
                             priceUpdated = true;
