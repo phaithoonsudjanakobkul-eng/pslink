@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.6.22 — Polygon migration complete: searchTickerSymbol→Polygon Search (Finnhub fallback), fetchFxRate→Polygon Forex (primary source) -->
+    <!-- v1.6.22 — Polygon migration + JIT opt + 144Hz/120Hz double-buffer rAF: zero dropped trades, native refresh rate DOM updates -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -123,22 +123,22 @@
             --wl-dn:          #ef5350;
         }
 
-        /* Price flash — subtle row highlight, fast fade like Bloomberg/TV terminal */
+        /* Price flash — Bloomberg/TV terminal style: sharp hit, fast fade */
         @keyframes flashUp {
-            0%   { box-shadow: inset 0 0 0 9999px rgba(38, 166, 154, 0.20); }
+            0%   { box-shadow: inset 0 0 0 9999px rgba(38, 166, 154, 0.28); }
             100% { box-shadow: inset 0 0 0 9999px rgba(38, 166, 154, 0); }
         }
         @keyframes flashDown {
-            0%   { box-shadow: inset 0 0 0 9999px rgba(239, 83, 80, 0.20); }
+            0%   { box-shadow: inset 0 0 0 9999px rgba(239, 83, 80, 0.28); }
             100% { box-shadow: inset 0 0 0 9999px rgba(239, 83, 80, 0); }
         }
-        .flash-up   { animation: flashUp   0.6s ease-out; }
-        .flash-down { animation: flashDown 0.6s ease-out; }
-        /* Mobile price flash — box-shadow:inset on price text, same 0.6s ease-out as desktop */
+        .flash-up   { animation: flashUp   0.3s ease-out; will-change: box-shadow; }
+        .flash-down { animation: flashDown 0.3s ease-out; will-change: box-shadow; }
+        /* Mobile price flash */
         @keyframes mobPriceFlUp { 0% { box-shadow:inset 0 0 0 9999px rgba(38,166,154,0.38); } 100% { box-shadow:inset 0 0 0 9999px rgba(38,166,154,0); } }
         @keyframes mobPriceFlDn { 0% { box-shadow:inset 0 0 0 9999px rgba(239,83,80,0.34);  } 100% { box-shadow:inset 0 0 0 9999px rgba(239,83,80,0);  } }
-        .mob-price-fl-up { animation: mobPriceFlUp 0.6s ease-out; border-radius:3px; }
-        .mob-price-fl-dn { animation: mobPriceFlDn 0.6s ease-out; border-radius:3px; }
+        .mob-price-fl-up { animation: mobPriceFlUp 0.3s ease-out; border-radius:3px; will-change: box-shadow; }
+        .mob-price-fl-dn { animation: mobPriceFlDn 0.3s ease-out; border-radius:3px; will-change: box-shadow; }
         #watchlist-table .wl-mob-price { will-change: box-shadow; }
         /* GPU compositing — browser paints each row on own layer, no full-table repaint per tick */
         .wl-row { will-change: box-shadow; contain: layout style; }
@@ -3390,6 +3390,11 @@
                 padding: 2px 6px !important;
                 border-radius: 4px !important;
             }
+            /* className-based color — replaces inline style.background/color on hot path */
+            #watchlist-table .wl-mob-chg-up  { background: rgba(8,153,129,0.15) !important; color: var(--wl-up) !important; }
+            #watchlist-table .wl-mob-chg-dn  { background: rgba(242,54,69,0.15) !important; color: var(--wl-dn) !important; }
+            #watchlist-table .wl-mob-chgd-up { color: var(--wl-up) !important; }
+            #watchlist-table .wl-mob-chgd-dn { color: var(--wl-dn) !important; }
             #tab-watchlist, #wl-table-panel, #wl-table-panel .glass-card, #wl-table-panel .glass-card > div {
                 overflow-x: hidden !important;
                 max-width: 100% !important;
@@ -6690,11 +6695,13 @@
             updateSparklineCell(symbol);
             scheduleSaveSparklineCache();
         }
+        // Sparkline DOM update throttle map — max once per 500ms per symbol
+        const _sparkDomThrottle = {};
         function pushSparklinePrice(symbol, price) {
             if (price == null || isNaN(price)) return;
             let entry = wlSparklineCache[symbol];
             if (!entry) {
-                if (hasRealSparkSource()) return; // wait for real bars instead of drawing misleading flat starter line
+                if (hasRealSparkSource()) return;
                 const d = wlDataCache[symbol] || {};
                 wlSparklineCache[symbol] = { prices: [Number(price.toFixed(2))], base: (d?.pc ?? null), open: (d?.o ?? null), src: 'live', ts: Date.now() };
                 return;
@@ -6702,16 +6709,20 @@
             const arr = entry.prices;
             const p2  = Number(price.toFixed(2));
             if (arr.length && arr[arr.length - 1] === p2) return;
-            // Alpaca/Polygon-sourced: update final point only — keeps canonical bar shape, shows latest WS tick
+            // Alpaca/Polygon-sourced: update final point only
             if (entry.src === 'alpaca' || entry.src === 'polygon') {
                 if (arr.length > 0) arr[arr.length - 1] = p2;
-                updateSparklineCell(symbol);
-                return;
+            } else {
+                arr.push(p2);
+                if (arr.length > 180) arr.splice(0, arr.length - 180);
+                entry.ts = Date.now();
             }
-            arr.push(p2);
-            if (arr.length > 180) arr.splice(0, arr.length - 180);
-            entry.ts = Date.now();
-            updateSparklineCell(symbol);
+            // Throttle DOM write — max once per 500ms per symbol (data updates every tick, DOM does not)
+            const now = Date.now();
+            if (!_sparkDomThrottle[symbol] || now - _sparkDomThrottle[symbol] >= 500) {
+                _sparkDomThrottle[symbol] = now;
+                updateSparklineCell(symbol);
+            }
         }
         function renderSparklinePlaceholderSVG(w, h, isUp) {
             w = w || 88; h = h || 44;
@@ -8509,19 +8520,23 @@
         }
         function _macd(arr) {
             if (!arr || arr.length < 35) return null;
-            const ema12 = _ema(arr, 12), ema26 = _ema(arr, 26);
-            if (ema12 == null || ema26 == null) return null;
-            const line = ema12 - ema26;
-            // approximate signal from recent macd-line history
-            const lines = [];
-            for (let i = 26; i < arr.length; i++) {
-                const slice = arr.slice(0, i + 1);
-                const a = _ema(slice, 12), b = _ema(slice, 26);
-                if (a != null && b != null) lines.push(a - b);
+            // O(n) incremental — replaces O(n²) slice loop
+            const k12 = 2 / 13, k26 = 2 / 27, k9 = 2 / 10;
+            let e12 = arr[0], e26 = arr[0];
+            for (let i = 1; i < arr.length; i++) { e12 = arr[i] * k12 + e12 * (1 - k12); e26 = arr[i] * k26 + e26 * (1 - k26); }
+            const line = e12 - e26;
+            // Build MACD line series for signal EMA (need at least 9 points)
+            let e12b = arr[0], e26b = arr[0];
+            const macdLine = [];
+            for (let i = 1; i < arr.length; i++) {
+                e12b = arr[i] * k12 + e12b * (1 - k12);
+                e26b = arr[i] * k26 + e26b * (1 - k26);
+                if (i >= 25) macdLine.push(e12b - e26b);
             }
-            const signal = _ema(lines, 9);
-            if (signal == null) return null;
-            return { line, signal, hist: line - signal };
+            if (macdLine.length < 9) return null;
+            let sig = macdLine[0];
+            for (let i = 1; i < macdLine.length; i++) sig = macdLine[i] * k9 + sig * (1 - k9);
+            return { line, signal: sig, hist: line - sig };
         }
         function _rsiSeries(arr, period = 14) {
             const out = new Array(arr?.length || 0).fill(null);
@@ -8734,13 +8749,18 @@
             const mktOpen = isMarketOpen();
             const last = mktOpen ? (d?.c ?? null) : (d?._dailyC ?? d?.pc ?? d?.c ?? null);
             const prevClose = d?._prevDailyC ?? d?.pc ?? null;
+
+            // ── Signal cache: skip full recalc if price + sparkline len unchanged ──
+            const prices = wlSparklineCache[symbol]?.prices || null;
+            const sparkLen = prices ? prices.length : 0;
+            const _cacheKey = `${last}|${sparkLen}|${d.h}|${d.l}|${d.v}`;
+            if (d._sigCache && d._sigCacheKey === _cacheKey) return d._sigCache;
             const changePct = (last != null && prevClose) ? ((last - prevClose) / prevClose * 100) : null;
             const open = d?.o ?? null;
             const high = d?.h ?? null;
             const low = d?.l ?? null;
             const vol = d?.v ?? null;
             const avgVol = d?.avgVol10d ?? null;
-            const prices = wlSparklineCache[symbol]?.prices || null;
             let quality = 0;
             if (changePct != null) quality += 0.7;
             if (open != null && prevClose != null) quality += 0.4;
@@ -8830,15 +8850,16 @@
             const lqBuyGate      = quality >= 1.2 && quality < 2.6 && bullConf >= 3 && bearConf <= 1 && edge >= 2.2 && !bullVeto;
             const lqSellGate     = quality >= 1.2 && quality < 2.6 && bearConf >= 3 && bullConf <= 1 && edge <= -2.2 && !bearVeto;
 
-            if (strongBuyGate) return { label: `Strong Buy ▲`, cls: 'wl-sig-sb', confidence };
-            if (buyGate) return { label: `Buy ▲`, cls: 'wl-sig-buy', confidence: Math.min(confidence, 90) };
-            if (strongSellGate) return { label: `Strong Sell ▼`, cls: 'wl-sig-ss', confidence };
-            if (sellGate) return { label: `Sell ▼`, cls: 'wl-sig-sell', confidence: Math.min(confidence, 90) };
-            if (lqBuyGate)  return { label: `Buy ▲`, cls: 'wl-sig-buy', confidence: Math.min(confidence, 72) };
-            if (lqSellGate) return { label: `Sell ▼`, cls: 'wl-sig-sell', confidence: Math.min(confidence, 72) };
+            const _cacheAndReturn = (result) => { d._sigCache = result; d._sigCacheKey = _cacheKey; return result; };
+            if (strongBuyGate) return _cacheAndReturn({ label: `Strong Buy ▲`, cls: 'wl-sig-sb', confidence });
+            if (buyGate) return _cacheAndReturn({ label: `Buy ▲`, cls: 'wl-sig-buy', confidence: Math.min(confidence, 90) });
+            if (strongSellGate) return _cacheAndReturn({ label: `Strong Sell ▼`, cls: 'wl-sig-ss', confidence });
+            if (sellGate) return _cacheAndReturn({ label: `Sell ▼`, cls: 'wl-sig-sell', confidence: Math.min(confidence, 90) });
+            if (lqBuyGate)  return _cacheAndReturn({ label: `Buy ▲`, cls: 'wl-sig-buy', confidence: Math.min(confidence, 72) });
+            if (lqSellGate) return _cacheAndReturn({ label: `Sell ▼`, cls: 'wl-sig-sell', confidence: Math.min(confidence, 72) });
 
             const neutralConf = Math.round(_clamp(58 - absEdge * 2.8, 45, 62));
-            return { label: `Neutral •`, cls: 'wl-sig-neu', confidence: neutralConf };
+            return _cacheAndReturn({ label: `Neutral •`, cls: 'wl-sig-neu', confidence: neutralConf });
         }
 
         function updateWatchlistPriceCells(symbol, data) {
@@ -8901,13 +8922,7 @@
             if (tr && prevPriceText && prevPriceText !== '—' && prevPriceText !== newPriceText) {
                 const flashCls = isUp ? 'flash-up' : 'flash-down';
                 tr.classList.remove('flash-up', 'flash-down');
-                tr.getAnimations().forEach(a => a.cancel()); // v1.6.21: no forced reflow
-                tr.classList.add(flashCls);
-                clearTimeout(tr._flashTimer);
-                tr._flashTimer = setTimeout(() => {
-                    tr.classList.remove('flash-up', 'flash-down');
-                    tr._flashTimer = null;
-                }, 470);
+                requestAnimationFrame(() => tr.classList.add(flashCls));
             }
 
             setClass(cells[7], `px-3 py-2 text-right price-cell text-sm ${priceColor}`);
@@ -13856,48 +13871,75 @@ ${_clip(contextSections, 2600)}`;
         // ── Polygon.io WebSocket ──────────────────────────────────────────────
         let pgWs = null, pgWsReconnectTimer = null, pgWsBackoff = 5000, pgWsSubscribed = new Set();
 
+        // ── Polygon WS message handlers — separated for V8 JIT optimization ──
+        // V8 cannot JIT-compile functions containing try/catch.
+        // _pgHandleTrades: HOT PATH — no try/catch, runs fully JIT-optimized.
+        // Polygon trade frame: '[{"ev":"T","sym":"AAPL","p":167.5,"s":100,"t":...}]'
+        // Fast-path detect: frame starts with '[' AND contains '"ev":"T"'
+        function _pgHandleTrades(raw) {
+            const msgs = JSON.parse(raw);
+            let scheduled = false;
+            for (let i = 0; i < msgs.length; i++) {
+                const m = msgs[i];
+                if (m.ev !== 'T' || !m.p) continue;
+                const d = wlDataCache[m.sym];
+                if (!d) continue;
+                const pc = d._prevDailyC ?? d.pc ?? null;
+                d.c = m.p;
+                if (pc != null) { d.d = m.p - pc; d.dp = d.d / pc * 100; }
+                if (d.h != null) { if (m.p > d.h) d.h = m.p; } else d.h = m.p;
+                if (d.l != null) { if (m.p < d.l) d.l = m.p; } else d.l = m.p;
+                _pendingTrades[m.sym] = m.p;
+                _hasPendingTrades = true;
+                if (!_wsBackgroundMode && !_rafPending && !scheduled) {
+                    _rafPending = true;
+                    requestAnimationFrame(_rafFlushQuotes);
+                    scheduled = true;
+                }
+            }
+            // Chart: zero-latency direct update for currently-open symbol
+            if (qcCurrentSymbol && _pendingTrades[qcCurrentSymbol]) {
+                _updateChartDirect(qcCurrentSymbol, _pendingTrades[qcCurrentSymbol]);
+            }
+        }
+
+        // _pgHandleControl: COLD PATH — auth/subscribe/error, can afford try/catch
+        function _pgHandleControl(raw, apiKey) {
+            try {
+                const msgs = JSON.parse(raw);
+                for (let i = 0; i < msgs.length; i++) {
+                    const m = msgs[i];
+                    if (m.ev === 'status') {
+                        if (m.status === 'auth_success') {
+                            pgWsBackoff = 5000;
+                            const subs = watchlist.map(s => 'T.' + s).join(',');
+                            pgWs.send(JSON.stringify({ action:'subscribe', params: subs }));
+                            pgWsSubscribed = new Set(watchlist);
+                            _wsAuthenticated = true;
+                            updateMarketStatus();
+                        } else if (m.status === 'auth_failed') {
+                            console.warn('Polygon WS auth failed'); pgWs.close();
+                        }
+                    }
+                }
+            } catch(err) {}
+        }
+
         function connectPolygonWs(apiKey) {
             if (!watchlist.length) return;
             if (pgWs && pgWs.readyState <= 1) return;
             pgWs = new WebSocket('wss://socket.polygon.io/stocks');
             pgWs.onopen = () => pgWs.send(JSON.stringify({ action:'auth', params: apiKey }));
             pgWs.onmessage = (e) => {
-                try {
-                    const msgs = JSON.parse(e.data);
-                    for (let i = 0; i < msgs.length; i++) {
-                        const m = msgs[i];
-                        if (m.ev === 'status') {
-                            if (m.status === 'auth_success') {
-                                pgWsBackoff = 5000;
-                                // Subscribe trades: T.AAPL,T.NVDA,...
-                                const subs = watchlist.map(s => 'T.' + s).join(',');
-                                pgWs.send(JSON.stringify({ action:'subscribe', params: subs }));
-                                pgWsSubscribed = new Set(watchlist);
-                                _wsAuthenticated = true;
-                                updateMarketStatus();
-                            } else if (m.status === 'auth_failed') {
-                                console.warn('Polygon WS auth failed'); pgWs.close();
-                            }
-                        } else if (m.ev === 'T') {
-                            // Trade event: { ev:'T', sym:'AAPL', p:167.5, s:100, t:1234567890 }
-                            const d = wlDataCache[m.sym];
-                            if (d && m.p) {
-                                const pc = d._prevDailyC ?? d.pc ?? null;
-                                d.c = m.p;
-                                if (pc != null) { d.d = m.p - pc; d.dp = d.d / pc * 100; }
-                                if (d.h != null) { if (m.p > d.h) d.h = m.p; } else d.h = m.p;
-                                if (d.l != null) { if (m.p < d.l) d.l = m.p; } else d.l = m.p;
-                                _pendingTrades[m.sym] = m.p;
-                                _hasPendingTrades = true;
-                                if (!_wsBackgroundMode && !_rafPending) {
-                                    _rafPending = true;
-                                    requestAnimationFrame(_rafFlushQuotes);
-                                }
-                                if (qcCurrentSymbol === m.sym) _updateChartDirect(m.sym, m.p);
-                            }
-                        }
-                    }
-                } catch(err) {}
+                // Fast-path: Polygon trade batch starts with '[' and contains '"ev":"T"'
+                // indexOf beats full JSON.parse on the hot path — same pattern as Alpaca handler
+                const raw = e.data;
+                if (raw.charCodeAt(0) === 91 && raw.indexOf('"ev":"T"') !== -1) {
+                    _pgHandleTrades(raw);
+                    return;
+                }
+                // Control messages (auth, subscribe confirm, error) — cold path with try/catch
+                _pgHandleControl(raw, apiKey);
             };
             pgWs.onclose = () => {
                 pgWs = null; pgWsSubscribed.clear(); _wsAuthenticated = false;
@@ -14010,14 +14052,19 @@ ${_clip(contextSections, 2600)}`;
         }
 
         // ── Shared trade handler — two separate paths for min latency ──────────
+        // ── Adaptive high-refresh rAF scheduler ──────────────────────────────
+        // rAF is already sync'd to display Hz automatically (144Hz = 6.9ms/frame, 120Hz = 8.3ms)
+        // Problem: _rafPending flag can cause trades to be dropped if WS fires during flush.
+        // Solution: double-buffer — swap pending map instead of clearing in-place.
         // PATH A (Chart):    synchronous in WS onmessage — zero rAF delay
-        // PATH B (Watchlist): rAF batch — max 60fps DOM writes
-        const _pendingTrades      = {};
-        const _pendingTimestamps  = {}; // v1.6.21: Finnhub per-symbol timestamp (separate map — never pollutes _pendingTrades loop)
+        // PATH B (Watchlist): rAF batch at native display Hz — zero dropped trades
+        let _pendingTrades      = {};      // active buffer — WS writes here
+        let _flushingTrades     = {};      // flush buffer — rAF drains this
+        const _pendingTimestamps  = {};
         const _priceRing          = {};
         let _rafPending           = false;
-        let _hasPendingTrades     = false; // v1.6.21: O(1) flag replaces Object.keys() on tab switch
-        let _wsBackgroundMode     = false; // true = WS runs but skip DOM writes
+        let _hasPendingTrades     = false;
+        let _wsBackgroundMode     = false;
 
         // Inline chart updater — called directly from WS, no rAF
         function _updateChartDirect(sym, newPrice) {
@@ -14089,28 +14136,36 @@ ${_clip(contextSections, 2600)}`;
             }
         }
 
-        // _rafFlushQuotes: drain _pendingTrades once per animation frame — zero GC pressure
+        // _rafFlushQuotes: double-buffer swap — WS never blocks, rAF never drops trades
+        // At 144Hz this runs every ~6.9ms | 120Hz ~8.3ms | 60Hz ~16.7ms
         function _rafFlushQuotes() {
             _rafPending = false;
-            _hasPendingTrades = false; // v1.6.21: reset O(1) flag
+            _hasPendingTrades = false;
             if (_wsBackgroundMode) {
-                // Drop queued DOM writes — cache already updated in _alpHandleTrades
-                for (const s in _pendingTrades) delete _pendingTrades[s];
+                _pendingTrades = {}; _flushingTrades = {};
                 return;
             }
-            for (const sym in _pendingTrades) {
-                const price = _pendingTrades[sym];
-                delete _pendingTrades[sym];
-                _handleTrade(sym, price);
+            // Atomic swap: hand current buffer to flush, give WS a fresh empty buffer instantly
+            // Any trades arriving DURING this flush go into the new _pendingTrades — never dropped
+            _flushingTrades = _pendingTrades;
+            _pendingTrades  = {};
+            // Drain the swap buffer
+            const _syms = Object.keys(_flushingTrades);
+            for (let _i = 0; _i < _syms.length; _i++) {
+                _handleTrade(_syms[_i], _flushingTrades[_syms[_i]]);
+            }
+            _flushingTrades = {};
+            // If WS pushed new trades during our flush — schedule next frame immediately
+            if (_hasPendingTrades) {
+                _rafPending = true;
+                requestAnimationFrame(_rafFlushQuotes);
             }
         }
 
-        // _flushTrades: drain any queued background updates when returning to watchlist tab
-        // (quotes in background still update wlDataCache, this just refreshes DOM with latest values)
+        // _flushTrades: re-render all rows on tab return — uses latest wlDataCache directly
         function _flushTrades() {
             _rafPending = false;
             if (_wsBackgroundMode) return;
-            // Re-render all rows with latest cached prices accumulated while in background
             watchlist.forEach(sym => {
                 if (wlDataCache[sym]) updateWatchlistPriceCells(sym, wlDataCache[sym]);
             });
@@ -14137,138 +14192,102 @@ ${_clip(contextSections, 2600)}`;
             const d = wlDataCache[sym];
             if (!d || !newPrice) return;
 
-            // Recompute display values from already-mutated cache
-            const pc  = d._prevDailyC ?? d.pc ?? null;
+            // ── Compute all values once — single pass, no repeated toFixed ───
+            const pc = d._prevDailyC ?? d.pc ?? null;
             let chg = 0, pct = 0;
             if (pc != null) {
-                chg = d.d ?? (newPrice - pc);
-                pct = d.dp ?? (chg / pc * 100);
+                d.c = newPrice; chg = newPrice - pc; d.d = chg; pct = chg / pc * 100; d.dp = pct;
             } else {
-                chg = d.d ?? 0;
-                pct = d.dp ?? 0;
+                d.c = newPrice; chg = d.d ?? 0; pct = d.dp ?? 0;
             }
+            if (d.h != null) { if (newPrice > d.h) d.h = newPrice; } else d.h = newPrice;
+            if (d.l != null) { if (newPrice < d.l) d.l = newPrice; } else d.l = newPrice;
             const isUp = pct >= 0;
 
-            // Mutate cache — idempotent if _alpHandleTrades already did it
-            if (d.c !== newPrice) {
-                d.c = newPrice;
-                if (pc != null) { d.d = chg; d.dp = pct; }
-                if (d.h != null) { if (newPrice > d.h) d.h = newPrice; } else d.h = newPrice;
-                if (d.l != null) { if (newPrice < d.l) d.l = newPrice; } else d.l = newPrice;
-            }
-
-            // PATH A: chart update — zero latency
+            // PATH A: chart — zero latency, always first
             if (sym === qcCurrentSymbol) _updateChartDirect(sym, newPrice);
-
-            // Background: cache-only, skip DOM entirely
             if (_wsBackgroundMode) { _queueNewsFilterRefresh(); return; }
             if (_lwcCanvasHovered && sym !== _lwcSymbol) return;
 
             const cells = d._cells;
             if (!cells || cells.length < 15) { updateWatchlistPriceCells(sym, d); return; }
 
-            // Build strings once
+            // Pre-format all strings once — reused across every cell write
             const p2     = newPrice.toFixed(2);
             const newTxt = '$' + p2;
+            const chgAbs = chg < 0 ? -chg : chg;
+            const chgTxt = (isUp ? '+' : '-') + chgAbs.toFixed(2);
+            const pctStr = pct.toFixed(2);
+            const pctTxt = (isUp ? '▲ +' : '▼ ') + pctStr + '%';
 
-            // ── OPT #1: Flash — use _flashState to avoid string replace every tick ──
+            // ── Flash: void offsetWidth restarts animation cheaply (1 sync reflow vs nested rAF = 16ms) ──
             const tr = d._tr;
             if (tr && d._lastTxt && d._lastTxt !== newTxt) {
-                // Only toggle class when direction changes or first flash
-                const wantUp = isUp;
-                const cls = wantUp ? 'flash-up' : 'flash-down';
-                if (d._flashState !== wantUp) {
-                    d._flashState = wantUp;
-                    tr.classList.remove('flash-down', 'flash-up');
+                const cls = isUp ? 'flash-up' : 'flash-down';
+                const rmv = isUp ? 'flash-down' : 'flash-up';
+                if (d._flashState !== isUp) {
+                    d._flashState = isUp; tr.classList.remove(rmv); tr.classList.add(cls);
+                } else if (!tr.classList.contains(cls)) {
                     tr.classList.add(cls);
                 } else {
-                    // v1.6.21: Web Animations API cancel() restarts CSS animation without forced layout reflow
-                    // Replaces: tr.offsetWidth — which caused synchronous layout on every same-direction tick
-                    tr.classList.remove('flash-up', 'flash-down');
-                    tr.getAnimations().forEach(a => a.cancel());
-                    tr.classList.add(cls);
+                    tr.classList.remove(cls); void tr.offsetWidth; tr.classList.add(cls);
                 }
-                clearTimeout(tr._ft);
-                tr._ft = setTimeout(_clearFlash, 500, tr);
             }
             d._lastTxt = newTxt;
 
-            // Price cell (index 7)
-            const priceCls = isUp ? _CLS_UP_PRICE : _CLS_DN_PRICE;
+            // ── Price [7] ─────────────────────────────────────────────────────
             if (cells[7].data !== p2) {
                 cells[7].data = p2;
-                cells[7].className = priceCls;
+                cells[7].className = isUp ? _CLS_UP_PRICE : _CLS_DN_PRICE;
                 cells[7].firstChild ? (cells[7].firstChild.nodeValue = newTxt) : (cells[7].innerText = newTxt);
             }
-
-            // Chg cell (index 8)
-            const chgAbs = Math.abs(chg);
-            const chgTxt = (isUp ? '+' : '-') + chgAbs.toFixed(2);
+            // ── CHG [8] ───────────────────────────────────────────────────────
             if (cells[8].data !== chgTxt) {
                 cells[8].data = chgTxt;
                 cells[8].className = isUp ? _CLS_UP_CHG : _CLS_DN_CHG;
                 cells[8].firstChild ? (cells[8].firstChild.nodeValue = chgTxt) : (cells[8].innerText = chgTxt);
             }
-
-            // ── OPT #4: Pct badge — use firstChild.nodeValue instead of innerHTML ──
-            const pctStr = pct.toFixed(2);
+            // ── CHG% badge [9] ────────────────────────────────────────────────
             if (cells[9].data !== pctStr) {
                 cells[9].data = pctStr;
-                // Lazy-init span — first time only
-                if (!cells[9].firstElementChild) {
-                    const sp = document.createElement('span');
-                    cells[9].innerHTML = '';
-                    cells[9].appendChild(sp);
-                }
+                if (!cells[9].firstElementChild) { const sp = document.createElement('span'); cells[9].innerHTML = ''; cells[9].appendChild(sp); }
                 const sp = cells[9].firstElementChild;
-                const pctTxt = (isUp ? '▲ +' : '▼ ') + pctStr + '%';
                 if (sp.firstChild) { sp.firstChild.nodeValue = pctTxt; } else { sp.textContent = pctTxt; }
-                const badgeCls = isUp ? 'wl-badge-up' : 'wl-badge-dn';
-                if (sp.className !== badgeCls) sp.className = badgeCls;
+                const bc = isUp ? 'wl-badge-up' : 'wl-badge-dn'; if (sp.className !== bc) sp.className = bc;
             }
+            // ── H/L [13][14] ──────────────────────────────────────────────────
+            if (cells[13] && d.h != null) { const ht = '$'+d.h.toFixed(2); if (cells[13].data !== ht) { cells[13].data = ht; cells[13].firstChild ? (cells[13].firstChild.nodeValue = ht) : (cells[13].innerText = ht); } }
+            if (cells[14] && d.l != null) { const lt = '$'+d.l.toFixed(2); if (cells[14].data !== lt) { cells[14].data = lt; cells[14].firstChild ? (cells[14].firstChild.nodeValue = lt) : (cells[14].innerText = lt); } }
 
-            // H/L (index 13, 14)
-            if (cells[13] && d.h != null) { const ht = '$'+d.h.toFixed(2); if (cells[13].data !== ht) { cells[13].data = ht; cells[13].innerText = ht; } }
-            if (cells[14] && d.l != null) { const lt = '$'+d.l.toFixed(2); if (cells[14].data !== lt) { cells[14].data = lt; cells[14].innerText = lt; } }
-
-            // ── OPT #2+#3: Cache signal/rating DOM refs + throttle signal recalc ──
-            // Cache refs once per symbol — zero getElementById on hot path after first tick
+            // ── Signal/Rating — adaptive throttle by watchlist size ───────────
             if (!d._sigEl)  d._sigEl  = document.getElementById('wl-signal-' + sym);
             if (!d._rateEl) d._rateEl = document.getElementById('wl-rating-' + sym);
-
             if (d._sigEl || d._rateEl) {
-                // Throttle signal recalc — only when price changes >0.3% OR every 60 ticks
+                const _th = watchlist.length > 50 ? watchlist.length * 3 : watchlist.length > 20 ? watchlist.length * 2 : 60;
                 d._sigTickCount = (d._sigTickCount || 0) + 1;
-                const priceMoved = !d._sigLastPrice || Math.abs(newPrice - d._sigLastPrice) / d._sigLastPrice > 0.003;
-                const forceRecalc = d._sigTickCount >= 60;
-                if (priceMoved || forceRecalc) {
-                    d._sigLastPrice = newPrice;
-                    d._sigTickCount = 0;
-                    const sigNow     = d._sigEl  ? getWatchlistSignal(sym, d) : null;
+                const moved = !d._sigLastPrice || (newPrice > d._sigLastPrice ? newPrice - d._sigLastPrice : d._sigLastPrice - newPrice) / d._sigLastPrice > 0.003;
+                if (moved || d._sigTickCount >= _th) {
+                    d._sigLastPrice = newPrice; d._sigTickCount = 0;
+                    const sigNow = d._sigEl ? getWatchlistSignal(sym, d) : null;
                     const analystNow = d._rateEl ? getAnalystRating(d) : null;
                     if (d._sigEl && sigNow) {
                         if (d._sigEl.textContent !== sigNow.label) d._sigEl.textContent = sigNow.label;
-                        const cls = 'wl-signal-badge ' + sigNow.cls;
-                        if (d._sigEl.className !== cls) d._sigEl.className = cls;
-                        const tip = 'Confidence ' + sigNow.confidence + '%';
-                        if (d._sigEl.title !== tip) d._sigEl.title = tip;
+                        const c = 'wl-signal-badge ' + sigNow.cls; if (d._sigEl.className !== c) d._sigEl.className = c;
+                        const tip = 'Confidence ' + sigNow.confidence + '%'; if (d._sigEl.title !== tip) d._sigEl.title = tip;
                     }
                     if (d._rateEl && analystNow) {
                         if (d._rateEl.textContent !== analystNow.label) d._rateEl.textContent = analystNow.label;
-                        const cls = 'wl-signal-badge ' + analystNow.cls;
-                        if (d._rateEl.className !== cls) d._rateEl.className = cls;
+                        const c = 'wl-signal-badge ' + analystNow.cls; if (d._rateEl.className !== c) d._rateEl.className = c;
                     }
-                    // Mobile signal badge — also cached
                     if (!d._mobSigEl) d._mobSigEl = document.getElementById('wl-mob-sig-' + sym);
                     if (d._mobSigEl && sigNow) {
                         if (d._mobSigEl.textContent !== sigNow.label) d._mobSigEl.textContent = sigNow.label;
-                        const cls = 'wl-signal-badge ' + sigNow.cls;
-                        if (d._mobSigEl.className !== cls) d._mobSigEl.className = cls;
+                        const c = 'wl-signal-badge ' + sigNow.cls; if (d._mobSigEl.className !== c) d._mobSigEl.className = c;
                     }
                 }
             }
 
-            // Mobile card — price + % (lazy-cached refs)
+            // ── Mobile card — className for color (no inline style recalc) ────
             if (!d._mobPriceEl) {
                 const pb = document.getElementById('wl-mob-price-' + sym);
                 d._mobPriceEl = pb ? pb.firstElementChild : null;
@@ -14277,36 +14296,39 @@ ${_clip(contextSections, 2600)}`;
             if (!d._mobChgEl) d._mobChgEl = document.getElementById('wl-mob-chg-' + sym);
             if (d._mobPriceEl && d._mobPriceEl.data !== p2) {
                 d._mobPriceEl.data = p2;
-                d._mobPriceEl.firstChild
-                    ? (d._mobPriceEl.firstChild.nodeValue = newTxt)
-                    : (d._mobPriceEl.innerText = newTxt);
+                d._mobPriceEl.firstChild ? (d._mobPriceEl.firstChild.nodeValue = newTxt) : (d._mobPriceEl.innerText = newTxt);
                 d._mobPriceEl.style.color = '';
-                // Mobile flash — use classList (no string replace)
-                d._mobPriceEl.classList.remove('mob-price-fl-up', 'mob-price-fl-dn');
-                d._mobPriceEl.classList.add(isUp ? 'mob-price-fl-up' : 'mob-price-fl-dn');
-                clearTimeout(d._mobPriceFt);
-                d._mobPriceFt = setTimeout(function(el){
-                    el.classList.remove('mob-price-fl-up', 'mob-price-fl-dn');
-                }, 650, d._mobPriceEl);
+                const mc = isUp ? 'mob-price-fl-up' : 'mob-price-fl-dn';
+                const mr = isUp ? 'mob-price-fl-dn' : 'mob-price-fl-up';
+                d._mobPriceEl.classList.remove(mr);
+                if (!d._mobPriceEl.classList.contains(mc)) { d._mobPriceEl.classList.add(mc); }
+                else { d._mobPriceEl.classList.remove(mc); void d._mobPriceEl.offsetWidth; d._mobPriceEl.classList.add(mc); }
             }
             if (d._mobChgEl && d._mobChgEl.data !== pctStr) {
                 d._mobChgEl.data = pctStr;
                 d._mobChgEl.textContent = (isUp ? '+' : '') + pctStr + '%';
-                d._mobChgEl.style.background = isUp ? 'rgba(8,153,129,0.15)' : 'rgba(242,54,69,0.15)';
-                d._mobChgEl.style.color      = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
+                const mc = isUp ? 'wl-mob-chg-up' : 'wl-mob-chg-dn'; if (d._mobChgEl.className !== mc) d._mobChgEl.className = mc;
             }
             if (d._mobChgdEl && d._mobChgdEl.data !== chgTxt) {
-                d._mobChgdEl.data = chgTxt;
-                d._mobChgdEl.textContent = chgTxt;
-                d._mobChgdEl.style.color = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
+                d._mobChgdEl.data = chgTxt; d._mobChgdEl.textContent = chgTxt;
+                const mc = isUp ? 'wl-mob-chgd-up' : 'wl-mob-chgd-dn'; if (d._mobChgdEl.className !== mc) d._mobChgdEl.className = mc;
             }
 
-            // Stream latest tick into Movement sparkline buffer
             pushSparklinePrice(sym, newPrice);
         }
 
         // Extracted to avoid closure allocation on hot path — classList is faster than string replace
-        function _clearFlash(tr) { tr.classList.remove('flash-up', 'flash-down'); }
+        // Flash auto-cleanup via animationend — eliminates all setTimeout timers on hot path
+        // Runs once per row per flash cycle, completely off the tick hot path
+        document.addEventListener('animationend', (e) => {
+            const el = e.target;
+            const name = e.animationName;
+            if (name === 'flashUp' || name === 'flashDown') {
+                el.classList.remove('flash-up', 'flash-down');
+            } else if (name === 'mobPriceFlUp' || name === 'mobPriceFlDn') {
+                el.classList.remove('mob-price-fl-up', 'mob-price-fl-dn');
+            }
+        }, true);
 
         // ── Finnhub WebSocket (fallback) ────────────────────────────────────────
         function connectFinnhubWs() {
