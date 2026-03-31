@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.6.22 — Polygon migration + JIT opt + 144Hz/120Hz double-buffer rAF: zero dropped trades, native refresh rate DOM updates -->
+    <!-- v1.6.23 — Chart: Polygon native ms timestamp (no ISO roundtrip), VWAP overlay, EMA9/21/20/50/200, pagination, smart cache invalidation, ET timezone tooltip -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6126,8 +6126,9 @@
             return m[tf] || '1/day';
         }
 
-        // Fetch aggregates from Polygon and return Alpaca-compatible bars [{t,o,h,l,c,v}]
-        // t is ISO string (for drop-in compatibility with existing bar processing code)
+        // Fetch aggregates from Polygon — returns bars [{t(ms), o, h, l, c, v, vw}]
+        // t is Unix milliseconds (NOT ISO string) — chart converts directly to unix seconds
+        // vw = VWAP per bar (Polygon Massive plan includes this in every agg response)
         async function _polygonAggs(sym, tf, fromMs, toMs, limit) {
             const pgKey = getPolygonKey();
             if (!pgKey) return null;
@@ -6135,18 +6136,25 @@
             const mult = parts[0], span = parts[1];
             const from = new Date(fromMs).toISOString().split('T')[0];
             const to   = new Date(toMs  ).toISOString().split('T')[0];
-            const u = new URL(`https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(sym)}/range/${mult}/${span}/${from}/${to}`);
-            u.searchParams.set('adjusted', 'true');
-            u.searchParams.set('sort', 'asc');
-            u.searchParams.set('limit', String(limit || 50000));
-            u.searchParams.set('apiKey', pgKey);
-            const r = await fetch(u.toString(), { signal: AbortSignal.timeout(10000) });
-            if (!r.ok) return null;
-            const json = await r.json();
-            const results = json?.results;
-            if (!Array.isArray(results) || !results.length) return null;
-            // Convert Polygon ms timestamp → ISO string for drop-in compat with Alpaca bar code
-            return results.map(b => ({ t: new Date(b.t).toISOString(), o: b.o, h: b.h, l: b.l, c: b.c, v: b.v ?? 0 }));
+            let allResults = [];
+            let url = `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(sym)}/range/${mult}/${span}/${from}/${to}`;
+            const params = `?adjusted=true&sort=asc&limit=${limit || 50000}&apiKey=${pgKey}`;
+            // Polygon pagination: follow next_url until exhausted (handles 5Y weekly 2200 bars)
+            let nextUrl = url + params;
+            let pages = 0;
+            while (nextUrl && pages < 10) {
+                pages++;
+                const r = await fetch(nextUrl, { signal: AbortSignal.timeout(12000) });
+                if (!r.ok) break;
+                const json = await r.json();
+                if (Array.isArray(json?.results)) allResults = allResults.concat(json.results);
+                // next_url already has apiKey — use directly
+                nextUrl = json?.next_url ? json.next_url + `&apiKey=${pgKey}` : null;
+                if (!nextUrl || allResults.length >= (limit || 50000)) break;
+            }
+            if (!allResults.length) return null;
+            // Return raw ms timestamp + vw — NO ISO conversion (avoids double-parse overhead)
+            return allResults.map(b => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v ?? 0, vw: b.vw ?? null }));
         }
 
         // Fetch snapshot for multiple symbols from Polygon.
@@ -9357,11 +9365,11 @@
             // displayDays = what user wants to see
             // fetchDays   = extra lookback so EMA200 has enough warmup bars
             const rangeMap = {
-                '1D': { tf:'1Min',  displayDays:2,    fetchDays:7    }, // 5min*390bars=~2days trading, fetch 1wk for EMA warmup
-                '5D': { tf:'5Min',  displayDays:8,    fetchDays:60   }, // fetch 2mo for EMA200 warmup at 5min
-                '1M': { tf:'1Hour', displayDays:35,   fetchDays:120  }, // fetch 4mo for EMA200 hourly warmup
-                '3M': { tf:'1Day',  displayDays:100,  fetchDays:400  }, // fetch >200 trading days for EMA200
-                '6M': { tf:'1Day',  displayDays:190,  fetchDays:680  }, // 200 trading days + 6mo display
+                '1D': { tf:'1Min',  displayDays:2,    fetchDays:7    },
+                '5D': { tf:'5Min',  displayDays:8,    fetchDays:60   },
+                '1M': { tf:'1Hour', displayDays:35,   fetchDays:120  },
+                '3M': { tf:'1Day',  displayDays:100,  fetchDays:400  },
+                '6M': { tf:'1Day',  displayDays:190,  fetchDays:680  },
                 '1Y': { tf:'1Day',  displayDays:380,  fetchDays:650  },
                 '5Y': { tf:'1Week', displayDays:1850, fetchDays:2200 },
             };
@@ -9370,11 +9378,16 @@
             const tf       = (_lwcRes && (_lwcResOptions[range]||[]).includes(_lwcRes)) ? _lwcRes : _defRes;
             _lwcCurrentTf = tf;
             const isIntra  = ['1Min','5Min','15Min','1Hour'].includes(tf);
-            const toTime   = t => isIntra ? Math.floor(new Date(t).getTime()/1000) : t.split('T')[0];
+            // toTime: Polygon t is Unix ms — convert directly to unix seconds for intraday
+            // daily/weekly: convert ms → 'YYYY-MM-DD' (LWC requires string for daily bars)
+            const toTime = isIntra
+                ? (t) => Math.floor((typeof t === 'number' ? t : new Date(t).getTime()) / 1000)
+                : (t) => { const d = new Date(typeof t === 'number' ? t : t); return d.toISOString().split('T')[0]; };
             const now      = new Date();
-            const end           = now.toISOString();
-            const displayCutoff = new Date(now - (entry.displayDays || entry.days || 2) * 86400000);
-            const start         = new Date(now - (entry.fetchDays  || entry.days || 7) * 86400000).toISOString();
+            const nowMs    = now.getTime();
+            const displayCutoffMs = nowMs - (entry.displayDays || 2) * 86400000;
+            const end      = now.toISOString();
+            const start    = new Date(nowMs - (entry.fetchDays || 7) * 86400000).toISOString();
 
             // ── Spinner (lives in wrapper, survives chart.remove()) ───────────
             const wrap = canvas.parentElement;
@@ -9395,16 +9408,21 @@
             const _barsCacheKey = `${symbol}|${tf}`;
             const _barsTTL = _LWC_BARS_TTL[tf] || 5 * 60 * 1000;
             const _barsCached = _lwcBarsCache[_barsCacheKey];
-            if (_barsCached && (Date.now() - _barsCached.ts) < _barsTTL) {
+            // Smart cache invalidation: intraday cache is stale if last bar is >1 bar-width old
+            const _barWidthMs = {'1Min':60000,'5Min':300000,'15Min':900000,'1Hour':3600000,'1Day':86400000,'1Week':604800000}[tf] || 300000;
+            const _cacheStale = !_barsCached || (Date.now() - _barsCached.ts) >= _barsTTL ||
+                (isIntra && isMarketOpen() && _barsCached.bars.length &&
+                 Date.now() - _barsCached.bars[_barsCached.bars.length-1].t > _barWidthMs * 2);
+            if (!_cacheStale) {
                 bars = _barsCached.bars;
             } else {
                 try {
-                    // ── Try Polygon first ──
+                    // ── Polygon primary ──
                     if (pgKey) {
                         const pgBars = await _polygonAggs(symbol, tf, new Date(start).getTime(), new Date(end).getTime(), 50000);
                         if (pgBars && pgBars.length) bars = pgBars;
                     }
-                    // ── Fallback: Alpaca IEX (pagination) ──
+                    // ── Fallback: Alpaca IEX — normalize t to ms for unified toTime() ──
                     if (!bars.length && aKey && aSecret) {
                         let pt = null;
                         do {
@@ -9419,7 +9437,8 @@
                             if (pt) u.searchParams.set('page_token', pt);
                             const r = await fetch(u.toString(), { headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret } });
                             const j = await r.json();
-                            bars = bars.concat(j.bars || []);
+                            // Alpaca t is ISO string — normalize to ms for unified toTime()
+                            (j.bars || []).forEach(b => bars.push({ t: new Date(b.t).getTime(), o: b.o, h: b.h, l: b.l, c: b.c, v: b.v ?? 0, vw: null }));
                             pt = j.next_page_token || null;
                         } while (pt);
                     }
@@ -9498,26 +9517,100 @@
             window._lwcVolSeries = vSeries;
 
             // ── Set data ─────────────────────────────────────────────────────
-            const displayBars   = bars.filter(b => new Date(b.t) >= displayCutoff);
+            // Filter to display window — t is now ms for Polygon bars
+            const _tMs = b => typeof b.t === 'number' ? b.t : new Date(b.t).getTime();
+            const displayBars    = bars.filter(b => _tMs(b) >= displayCutoffMs);
             const barsForDisplay = displayBars.length > 0 ? displayBars : bars;
-            const tfSec = { '1Min':60, '5Min':300, '15Min':900, '1Hour':3600 }[tf] || 300;
 
             // Detect session boundaries (gap > 4h for intraday)
-            const isSessionGap = (a, b) => isIntra && (new Date(b.t) - new Date(a.t)) / 1000 > 4 * 3600;
+            const isSessionGap = (a, b) => isIntra && (_tMs(b) - _tMs(a)) > 4 * 3600000;
 
             const candles  = barsForDisplay.map(b => ({ time:toTime(b.t), open:b.o, high:b.h, low:b.l, close:b.c }));
             const lineData = barsForDisplay.map(b => ({ time:toTime(b.t), value:b.c }));
-            _lwcCandles  = candles;  // cache for instant type swap
+            _lwcCandles  = candles;
             _lwcLineData = lineData;
             cSeries.setData(_lwcType === 'candle' ? candles : lineData);
             _lwcCandleSeries = cSeries;
             _lwcLastCandle   = candles.length ? {...candles[candles.length-1]} : null;
             _lwcLastTime     = _lwcLastCandle?.time ?? null;
+
+            // Volume histogram
             vSeries.setData(barsForDisplay.map(b => ({
                 time:  toTime(b.t),
                 value: b.v,
                 color: b.c >= b.o ? 'rgba(16,185,129,0.3)' : 'rgba(225,29,72,0.3)'
             })));
+
+            // ── VWAP overlay (Polygon vw per bar) ────────────────────────────
+            // Only for intraday — VWAP resets each session
+            // Remove old VWAP series if present
+            if (window._lwcVwapSeries) {
+                try { _lwcChart.removeSeries(window._lwcVwapSeries); } catch(e) {}
+                window._lwcVwapSeries = null;
+            }
+            const hasVwap = isIntra && barsForDisplay.some(b => b.vw != null && b.vw > 0);
+            if (hasVwap) {
+                const vwapSeries = _lwcChart.addLineSeries({
+                    color: 'rgba(255, 200, 0, 0.85)',
+                    lineWidth: 1,
+                    lineStyle: 0,
+                    priceLineVisible: false,
+                    lastValueVisible: true,
+                    lastValueText: 'VWAP',
+                    title: 'VWAP',
+                    crosshairMarkerVisible: false,
+                });
+                // Cumulative VWAP per session (resets at session gap > 4h)
+                let cumVol = 0, cumVolPrice = 0;
+                const vwapData = [];
+                for (let i = 0; i < barsForDisplay.length; i++) {
+                    const b = barsForDisplay[i];
+                    if (i > 0 && isSessionGap(barsForDisplay[i-1], b)) {
+                        cumVol = 0; cumVolPrice = 0; // reset at session boundary
+                    }
+                    if (b.vw != null && b.v > 0) {
+                        cumVol += b.v;
+                        cumVolPrice += b.vw * b.v;
+                        vwapData.push({ time: toTime(b.t), value: cumVol > 0 ? cumVolPrice / cumVol : b.vw });
+                    }
+                }
+                if (vwapData.length) vwapSeries.setData(vwapData);
+                window._lwcVwapSeries = vwapSeries;
+            }
+
+            // ── EMA overlays (20 / 50 / 200) ─────────────────────────────────
+            // Remove old EMA series
+            if (_lwcEmaSeriesMap) {
+                Object.values(_lwcEmaSeriesMap).forEach(s => { try { _lwcChart.removeSeries(s); } catch(e) {} });
+                _lwcEmaSeriesMap = null;
+            }
+            // EMA on all timeframes — periods adapt to tf
+            const _emaConfigs = isIntra
+                ? [{ p:9, color:'rgba(139,92,246,0.8)', title:'EMA9' }, { p:21, color:'rgba(251,146,60,0.8)', title:'EMA21' }]
+                : [{ p:20, color:'rgba(139,92,246,0.8)', title:'EMA20' }, { p:50, color:'rgba(251,146,60,0.8)', title:'EMA50' }, { p:200, color:'rgba(239,68,68,0.75)', title:'EMA200' }];
+            const closes = bars.map(b => b.c); // use full fetch (not display) for warmup
+            _lwcEmaSeriesMap = {};
+            _emaConfigs.forEach(cfg => {
+                if (closes.length < cfg.p) return;
+                const k = 2 / (cfg.p + 1);
+                let ema = closes[0];
+                const emaVals = [];
+                for (let i = 0; i < bars.length; i++) {
+                    ema = closes[i] * k + ema * (1 - k);
+                    // Only emit EMA values within display window (after warmup)
+                    if (_tMs(bars[i]) >= displayCutoffMs) {
+                        emaVals.push({ time: toTime(bars[i].t), value: +ema.toFixed(4) });
+                    }
+                }
+                if (!emaVals.length) return;
+                const emaSeries = _lwcChart.addLineSeries({
+                    color: cfg.color, lineWidth: 1, lineStyle: 0,
+                    priceLineVisible: false, lastValueVisible: false,
+                    crosshairMarkerVisible: false, title: cfg.title,
+                });
+                emaSeries.setData(emaVals);
+                _lwcEmaSeriesMap[cfg.title] = emaSeries;
+            });
 
             // ── Live price overlay ────────────────────────────────────────────
             const liveP = wlDataCache[symbol]?.c;
@@ -9734,8 +9827,8 @@
                     let dateStr;
                     if (isIntra) {
                         const dt = new Date(param.time * 1000);
-                        dateStr = dt.toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'2-digit'})+' '+
-                                  dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
+                        dateStr = dt.toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'2-digit',timeZone:'America/New_York'})+' '+
+                                  dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/New_York'})+' ET';
                     } else {
                         const dt = new Date(param.time+'T12:00:00Z');
                         dateStr = dt.toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'numeric'});
@@ -9743,6 +9836,8 @@
                     const vd = param.seriesData?.get(_volSeries);
                     const vol = vd?.value ?? 0;
                     const volStr = vol>=1e6?(vol/1e6).toFixed(2)+'M':vol>=1e3?(vol/1e3).toFixed(1)+'K':vol.toFixed(0);
+                    const vwapVal = window._lwcVwapSeries ? param.seriesData?.get(window._lwcVwapSeries)?.value : null;
+                    const vwapStr = vwapVal ? '<span style="color:#ffc800;margin-left:8px">VWAP $'+vwapVal.toFixed(2)+'</span>' : '';
                     if (_lwcType === 'candle') {
                         const chg = d.close-d.open, pct = d.open?(chg/d.open*100):0;
                         const col = chg>=0?'#26a69a':'#ef5350';
@@ -9757,13 +9852,14 @@
                             '<div style="margin-top:4px;border-top:1px solid '+(isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.06)')+';padding-top:4px;font-size:10px">'+
                             '<span style="color:'+col+';font-weight:600">'+(chg>=0?'▲':'▼')+' '+Math.abs(chg).toFixed(2)+' ('+Math.abs(pct).toFixed(2)+'%)</span>'+
                             (vol?'<span style="color:'+dimC+';margin-left:8px">Vol '+volStr+'</span>':'')+
+                            vwapStr+
                             '</div>';
                     } else {
                         const val = d.value ?? d.close ?? 0;
                         tip.innerHTML =
                             '<div style="font-size:10px;color:'+dimC+';margin-bottom:3px">'+dateStr+'</div>'+
                             '<div style="font-size:16px;font-weight:700;color:'+bold+'">$'+(+val).toFixed(2)+'</div>'+
-                            (vol?'<div style="font-size:10px;color:'+dimC+';margin-top:3px">Volume <b style="color:'+(isDark?'#94a3b8':'#475569')+'">'+volStr+'</b></div>':'');
+                            (vol?'<div style="font-size:10px;color:'+dimC+';margin-top:3px">Vol <b style="color:'+(isDark?'#94a3b8':'#475569')+'">'+volStr+'</b>'+vwapStr+'</div>':'');
                     }
                     tip.style.display = 'block';
                     _tipVisible = true;
@@ -9814,7 +9910,7 @@
                         const pgBars = await _polygonAggs(symbol, tf, new Date(start).getTime(), new Date(end).getTime(), 5000);
                         if (pgBars && pgBars.length) bars = pgBars;
                     }
-                    // ── Fallback: Alpaca IEX ──
+                    // ── Fallback: Alpaca IEX — normalize t to ms ──
                     if (!bars.length && aKey && aSecret) {
                         let pt = null;
                         do {
@@ -9829,7 +9925,7 @@
                             if (pt) u.searchParams.set('page_token', pt);
                             const r = await fetch(u.toString(), { headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret } });
                             const j = await r.json();
-                            bars = bars.concat(j.bars || []);
+                            (j.bars || []).forEach(b => bars.push({ t: new Date(b.t).getTime(), o: b.o, h: b.h, l: b.l, c: b.c, v: b.v ?? 0, vw: null }));
                             pt = j.next_page_token || null;
                         } while (pt);
                     }
