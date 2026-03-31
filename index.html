@@ -8602,9 +8602,13 @@
                     } catch(e) {}
                 }
 
-                // Single render pass
+                // Single render pass — skip symbols ที่ WS เพิ่ง tick มา (< 2s) เพื่อไม่ให้กระตุก
+                const _now2 = Date.now();
                 watchlist.forEach(symbol => {
-                    if (wlDataCache[symbol]) updateWatchlistPriceCells(symbol, wlDataCache[symbol]);
+                    const _d = wlDataCache[symbol];
+                    if (!_d) return;
+                    if (isMarketOpen() && _d._wsTs && (_now2 - _d._wsTs) < 2000) return;
+                    updateWatchlistPriceCells(symbol, _d);
                 });
             }
 
@@ -16719,20 +16723,19 @@ ${_clip(contextSections, 2600)}`;
                     if (!sd) return;
                     watchlist.forEach(sym => {
                         const sn = sd[sym]; if (!sn) return;
-                        const lp = sn.latestTrade?.p ?? null; // real-time during market hours
+                        const lp = sn.latestTrade?.p ?? sn.minBar?.c ?? null;
                         if (!lp || !wlDataCache[sym]) return;
                         const prev = wlDataCache[sym];
-                        // Polygon lastTrade.t is nanoseconds → convert to ms
+                        // Skip ถ้า WS (Alpaca) tick มาใหม่กว่า 3 วิ — WS แม่นกว่า snapshot
+                        if (prev._wsTs && (Date.now() - prev._wsTs) < 3000) return;
                         const rawTs = sn.lastTrade?.t ?? sn.latestTrade?.t ?? 0;
                         const snapTs = rawTs > 1e15 ? Math.floor(rawTs / 1e6) : (rawTs > 1e12 ? rawTs : rawTs * 1000);
                         if (prev._snapTs && snapTs <= prev._snapTs) return;
-                        // pc = Finnhub prev close ที่เก็บใน cache — ไม่ใช้ Polygon prevDay.c (= last price)
-                        const pc = prev.pc || lp;
+                        const pc = prev.pc || prev._prevDailyC || lp;
                         const chg = lp - pc, pct = pc ? (chg/pc)*100 : 0;
                         const updated = { ...prev, c:lp, d:chg, dp:pct, _snapTs:snapTs };
                         wlDataCache[sym] = updated;
                         updateWatchlistPriceCells(sym, updated);
-                        // Sync priceLine if this is the active chart symbol
                         if (sym === _lwcSymbol && window._lwcLivePriceLine) {
                             try { window._lwcLivePriceLine.applyOptions({ price: lp }); } catch(e){}
                         }
