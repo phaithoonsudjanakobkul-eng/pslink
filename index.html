@@ -14,7 +14,7 @@
       }
     </script>
     <title>PSLink</title>
-    <!-- v1.6.21 — WS patch: fix Finnhub timestamp pollution, charCodeAt robust indexOf, flash reflow→WebAnimations API, Finnhub JIT hot-loop, drop dead _quoteThrottle, _hasPendingTrades flag -->
+    <!-- v1.6.22 — Polygon migration complete: searchTickerSymbol→Polygon Search (Finnhub fallback), fetchFxRate→Polygon Forex (primary source) -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6114,11 +6114,72 @@
             return spanPct >= SPARKLINE_MIN_SPAN_PCT;
         }
 
+        // ── Polygon REST helpers (primary data source) ────────────────────────
+        // Map Alpaca-style timeframe → Polygon multiplier/span parts
+        function _pgTf(tf) {
+            const m = { '1Min':'1/minute','5Min':'5/minute','15Min':'15/minute','1Hour':'1/hour','1Day':'1/day','1Week':'1/week' };
+            return m[tf] || '1/day';
+        }
+
+        // Fetch aggregates from Polygon and return Alpaca-compatible bars [{t,o,h,l,c,v}]
+        // t is ISO string (for drop-in compatibility with existing bar processing code)
+        async function _polygonAggs(sym, tf, fromMs, toMs, limit) {
+            const pgKey = getPolygonKey();
+            if (!pgKey) return null;
+            const parts = _pgTf(tf).split('/');
+            const mult = parts[0], span = parts[1];
+            const from = new Date(fromMs).toISOString().split('T')[0];
+            const to   = new Date(toMs  ).toISOString().split('T')[0];
+            const u = new URL(`https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(sym)}/range/${mult}/${span}/${from}/${to}`);
+            u.searchParams.set('adjusted', 'true');
+            u.searchParams.set('sort', 'asc');
+            u.searchParams.set('limit', String(limit || 50000));
+            u.searchParams.set('apiKey', pgKey);
+            const r = await fetch(u.toString(), { signal: AbortSignal.timeout(10000) });
+            if (!r.ok) return null;
+            const json = await r.json();
+            const results = json?.results;
+            if (!Array.isArray(results) || !results.length) return null;
+            // Convert Polygon ms timestamp → ISO string for drop-in compat with Alpaca bar code
+            return results.map(b => ({ t: new Date(b.t).toISOString(), o: b.o, h: b.h, l: b.l, c: b.c, v: b.v ?? 0 }));
+        }
+
+        // Fetch snapshot for multiple symbols from Polygon.
+        // Returns Alpaca-compatible map: { SYM: { dailyBar:{c,o,h,l,v}, prevDailyBar:{c}, latestTrade:{p,t} } }
+        async function _polygonSnapshot(syms) {
+            const pgKey = getPolygonKey();
+            if (!pgKey || !syms.length) return null;
+            const u = new URL('https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers');
+            u.searchParams.set('tickers', syms.join(','));
+            u.searchParams.set('apiKey', pgKey);
+            const r = await fetch(u.toString(), { signal: AbortSignal.timeout(10000) });
+            if (!r.ok) return null;
+            const json = await r.json();
+            if (!Array.isArray(json?.tickers)) return null;
+            const out = {};
+            for (const t of json.tickers) {
+                // Polygon lastTrade.t is nanoseconds — convert to ms for _snapTs guard
+                const ltRaw = t.lastTrade?.t;
+                const ltMs  = ltRaw ? (ltRaw > 1e15 ? Math.round(ltRaw / 1e6) : ltRaw) : null;
+                out[t.ticker] = {
+                    dailyBar:     { c: t.day?.c    ?? null, o: t.day?.o    ?? null, h: t.day?.h    ?? null, l: t.day?.l    ?? null, v: t.day?.v    ?? null },
+                    prevDailyBar: { c: t.prevDay?.c ?? null },
+                    latestTrade:  { p: t.lastTrade?.p ?? null, t: ltMs ? new Date(ltMs).toISOString() : null },
+                    todaysChangePerc: t.todaysChangePerc ?? null,
+                    todaysChange:     t.todaysChange     ?? null,
+                };
+            }
+            return out;
+        }
+
         function hasAlpacaSparkSource() {
             return !!getAlpacaKey() && !!getAlpacaSecret();
         }
+        function hasPolygonSparkSource() {
+            return !!getPolygonKey();
+        }
         function hasRealSparkSource() {
-            return hasAlpacaSparkSource();
+            return hasPolygonSparkSource() || hasAlpacaSparkSource();
         }
 
         async function fetchAlpacaSparkline(symbol) {
@@ -6131,7 +6192,7 @@
                 : SPARKLINE_TTL_MS;
             if (
                 entry &&
-                entry.src === 'alpaca' &&
+                (entry.src === 'alpaca' || entry.src === 'polygon') &&
                 entry.session === nowEtDay &&
                 entry.prices?.length >= 2 &&
                 sparklineQuality(entry.prices, entry.base) &&
@@ -6139,7 +6200,41 @@
             ) {
                 return entry.prices;
             }
+            const pgKey = getPolygonKey();
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
+            if (!pgKey && (!aKey || !aSecret)) return null;
+            // ── Try Polygon first (paid subscription) ──
+            if (pgKey) {
+                try {
+                    const end2   = new Date();
+                    const start2 = new Date(end2.getTime() - 48 * 60 * 60 * 1000);
+                    const bars2  = await _polygonAggs(symbol, '1Min', start2.getTime(), end2.getTime(), 2000);
+                    if (bars2 && bars2.length) {
+                        const dayBarsAll2 = bars2.filter(b => b?.t && b?.c != null && inExtendedDayEt(b.t));
+                        if (dayBarsAll2.length) {
+                            const latestDay2 = dateKeyEt(dayBarsAll2[dayBarsAll2.length - 1].t);
+                            let dayBars2 = dayBarsAll2.filter(b => dateKeyEt(b.t) === latestDay2);
+                            if (dayBars2.length) {
+                                if (isMarketOpen()) {
+                                    const cut2 = currentEtMinutes();
+                                    if (cut2 != null) dayBars2 = dayBars2.filter(b => (etMinutes(b.t) ?? 9999) <= (cut2 + 2));
+                                    if (dayBars2.length < 1) return null;
+                                }
+                                let closes2 = dayBars2.map(b => b.c).filter(v => v != null);
+                                if (closes2.length >= 2) {
+                                    closes2 = sampleWebullLike(closes2, SPARKLINE_POINTS_TARGET);
+                                    const open2 = Number(dayBars2[0]?.o ?? closes2[0]);
+                                    const base2 = Number(wlDataCache[symbol]?.pc ?? open2 ?? closes2[0]);
+                                    wlSparklineCache[symbol] = { prices: closes2, ts: now, src: 'polygon', base: base2, open: open2, session: latestDay2 };
+                                    scheduleSaveSparklineCache();
+                                    return closes2;
+                                }
+                            }
+                        }
+                    }
+                } catch(_pgErr) {}
+            }
+            // ── Fallback: Alpaca IEX ──
             if (!aKey || !aSecret) return null;
             try {
                 const end   = new Date();
@@ -6257,8 +6352,32 @@
             if (_alpacaDailyBarsInflight[sym]) return _alpacaDailyBarsInflight[sym];
             _alpacaDailyBarsInflight[sym] = (async () => {
                 try {
+                    const pgKey = getPolygonKey();
                     const aKey = getAlpacaKey();
                     const aSecret = getAlpacaSecret();
+                    if (!pgKey && (!aKey || !aSecret)) return null;
+                    // ── Try Polygon first ──
+                    if (pgKey) {
+                        const toMs   = Date.now();
+                        const fromMs = toMs - 430 * 24 * 60 * 60 * 1000; // 430 days
+                        const pgBars = await _polygonAggs(sym, '1Day', fromMs, toMs, 50000);
+                        if (pgBars && pgBars.length >= 20) {
+                            const out = {
+                                s: 'ok',
+                                o: pgBars.map(b => Number(b.o)).filter(v => Number.isFinite(v)),
+                                h: pgBars.map(b => Number(b.h)).filter(v => Number.isFinite(v)),
+                                l: pgBars.map(b => Number(b.l)).filter(v => Number.isFinite(v)),
+                                c: pgBars.map(b => Number(b.c)).filter(v => Number.isFinite(v)),
+                                v: pgBars.map(b => Number(b.v || 0)),
+                                t: pgBars.map(b => b.t),
+                            };
+                            const n = out.c.length;
+                            if (n >= 20 && out.h.length === n && out.l.length === n) {
+                                _alpacaDailyBarsCache[sym] = { ts: Date.now(), data: out };
+                                return out;
+                            }
+                        }
+                    }
                     if (!aKey || !aSecret) return null;
                     const end = new Date();
                     const mkParams = (u, start, feed, adjustment) => {
@@ -6312,9 +6431,6 @@
                         }
                         if (bars.length >= 20) break;
                     }
-                    if (bars.length < 20) {
-                        return null;
-                    }
                     if (bars.length < 20) return null;
                     const out = {
                         s: 'ok',
@@ -6339,36 +6455,46 @@
         }
 
         async function fetchAlpacaIntraday(symbol) {
+            const pgKey = getPolygonKey();
             const aKey = getAlpacaKey();
             const aSecret = getAlpacaSecret();
-            if (!aKey || !aSecret) return null;
+            if (!pgKey && (!aKey || !aSecret)) return null;
             try {
                 const end = new Date();
                 const start = new Date(end.getTime() - (6 * 24 * 60 * 60 * 1000)); // enough for 48x 1H bars
-                const u = new URL(`https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars`);
-                u.searchParams.set('timeframe', '1Hour');
-                u.searchParams.set('start', start.toISOString());
-                u.searchParams.set('end', end.toISOString());
-                u.searchParams.set('limit', '120');
-                u.searchParams.set('feed', 'iex');
-                u.searchParams.set('adjustment', 'split');
-                u.searchParams.set('sort', 'asc');
-                const res = await fetch(u.toString(), {
-                    headers: {
-                        'APCA-API-KEY-ID': aKey,
-                        'APCA-API-SECRET-KEY': aSecret,
-                    },
-                    signal: AbortSignal.timeout(6500),
-                });
-                if (!res.ok) return null;
-                const json = await res.json();
-                const sym = String(symbol || '').toUpperCase();
-                const barsRaw = json?.bars;
-                const bars = Array.isArray(barsRaw)
-                    ? barsRaw
-                    : (barsRaw && typeof barsRaw === 'object')
-                        ? (barsRaw[sym] || barsRaw[Object.keys(barsRaw)[0]] || [])
-                        : [];
+                let bars = [];
+                // ── Try Polygon first ──
+                if (pgKey) {
+                    const pgBars = await _polygonAggs(symbol, '1Hour', start.getTime(), end.getTime(), 200);
+                    if (pgBars && pgBars.length >= 20) {
+                        bars = pgBars;
+                    }
+                }
+                // ── Fallback: Alpaca IEX ──
+                if (!bars.length && aKey && aSecret) {
+                    const u = new URL(`https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars`);
+                    u.searchParams.set('timeframe', '1Hour');
+                    u.searchParams.set('start', start.toISOString());
+                    u.searchParams.set('end', end.toISOString());
+                    u.searchParams.set('limit', '120');
+                    u.searchParams.set('feed', 'iex');
+                    u.searchParams.set('adjustment', 'split');
+                    u.searchParams.set('sort', 'asc');
+                    const res = await fetch(u.toString(), {
+                        headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret },
+                        signal: AbortSignal.timeout(6500),
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        const sym = String(symbol || '').toUpperCase();
+                        const barsRaw = json?.bars;
+                        bars = Array.isArray(barsRaw)
+                            ? barsRaw
+                            : (barsRaw && typeof barsRaw === 'object')
+                                ? (barsRaw[sym] || barsRaw[Object.keys(barsRaw)[0]] || [])
+                                : [];
+                    }
+                }
                 if (bars.length < 20) return null;
                 const tail = bars.slice(-48);
                 const closes = tail.map(b => Number(b?.c)).filter(v => Number.isFinite(v) && v > 0);
@@ -6424,7 +6550,7 @@
             if (
                 !force &&
                 entry &&
-                entry.src === 'alpaca' &&
+                (entry.src === 'alpaca' || entry.src === 'polygon') &&
                 entry.session === currentEtDateKey() &&
                 entry.prices?.length >= 2 &&
                 sparklineQuality(entry.prices, entry.base) &&
@@ -6488,7 +6614,7 @@
             // ── Phase 1: fetch all Alpaca bars in parallel (concurrency 8) ──────
             // Higher concurrency = all symbols get real bars closer together
             // → consistent shape on first render, no staggered OHLC→real swap
-            const hasAlpaca = hasAlpacaSparkSource();
+            const hasAlpaca = hasAlpacaSparkSource() || hasPolygonSparkSource();
             const results = {}; // sym → true if real bars fetched
 
             await throttledAll(symbols, hasAlpaca ? 8 : 3, async (symbol) => {
@@ -6576,8 +6702,8 @@
             const arr = entry.prices;
             const p2  = Number(price.toFixed(2));
             if (arr.length && arr[arr.length - 1] === p2) return;
-            // Alpaca-sourced: update final point only — keeps canonical bar shape, shows latest WS tick
-            if (entry.src === 'alpaca') {
+            // Alpaca/Polygon-sourced: update final point only — keeps canonical bar shape, shows latest WS tick
+            if (entry.src === 'alpaca' || entry.src === 'polygon') {
                 if (arr.length > 0) arr[arr.length - 1] = p2;
                 updateSparklineCell(symbol);
                 return;
@@ -6984,8 +7110,10 @@
 
         async function searchTickerSymbol(q) {
             const dd = document.getElementById('ticker-dropdown');
-            const key = getFinnhubKey();
-            if (!key || q.length < 1) { dd.classList.add('hidden'); return; }
+            const pgKey = getPolygonKey();
+            const fhKey = getFinnhubKey();
+            if (!pgKey && !fhKey) { dd.classList.add('hidden'); return; }
+            if (q.length < 1) { dd.classList.add('hidden'); return; }
             const inpNow = (document.getElementById('ticker-input')?.value || '').toUpperCase().trim();
             if (inpNow !== q) return;
             if (_tickerSearchAbort) _tickerSearchAbort.abort();
@@ -6993,16 +7121,51 @@
             _tickerSearchAbort = controller;
             const reqSeq = ++_tickerSearchReqSeq;
             try {
-                const r = await fetch(
-                    `https://finnhub.io/api/v1/search?q=${encodeURIComponent(q)}&token=${key}`,
-                    { signal: controller.signal }
-                );
-                const data = r.ok ? await r.json() : {};
-                let results = _rankTickerResults((data.result || []), q).slice(0, 7);
-                const hasExact = results.some(x => String(x?.symbol || '').toUpperCase() === q);
-                if (!hasExact && _shouldProbeExactSymbol(q)) {
-                    const exact = await _fetchExactTickerCandidate(q, key);
-                    if (exact) results = [exact, ...results.filter(x => String(x?.symbol || '').toUpperCase() !== q)].slice(0, 7);
+                let results = [];
+                // ── Try Polygon Search first ──────────────────────────────────
+                if (pgKey) {
+                    try {
+                        const u = new URL('https://api.polygon.io/v3/reference/tickers');
+                        u.searchParams.set('search', q);
+                        u.searchParams.set('active', 'true');
+                        u.searchParams.set('market', 'stocks');
+                        u.searchParams.set('limit', '10');
+                        u.searchParams.set('apiKey', pgKey);
+                        const r = await fetch(u.toString(), { signal: controller.signal });
+                        if (r.ok) {
+                            const data = await r.json();
+                            // Convert Polygon format → Finnhub-compatible {symbol, description, type}
+                            results = (data.results || []).map(t => ({
+                                symbol:      String(t.ticker || '').toUpperCase(),
+                                description: t.name || '',
+                                type:        t.type === 'CS' ? 'Common Stock'
+                                           : t.type === 'ETF' ? 'ETF'
+                                           : t.type === 'ADRC' ? 'ADR'
+                                           : (t.type || 'Stock'),
+                            })).filter(x => x.symbol);
+                            results = _rankTickerResults(results, q).slice(0, 7);
+                        }
+                    } catch(pgErr) {
+                        if (pgErr?.name === 'AbortError') throw pgErr;
+                        // Polygon failed — fall through to Finnhub
+                    }
+                }
+                // ── Fallback: Finnhub search ──────────────────────────────────
+                if (!results.length && fhKey) {
+                    const r = await fetch(
+                        `https://finnhub.io/api/v1/search?q=${encodeURIComponent(q)}&token=${fhKey}`,
+                        { signal: controller.signal }
+                    );
+                    const data = r.ok ? await r.json() : {};
+                    results = _rankTickerResults((data.result || []), q).slice(0, 7);
+                }
+                // ── Exact symbol probe (Finnhub only — Polygon search handles it natively) ──
+                if (!pgKey && fhKey) {
+                    const hasExact = results.some(x => String(x?.symbol || '').toUpperCase() === q);
+                    if (!hasExact && _shouldProbeExactSymbol(q)) {
+                        const exact = await _fetchExactTickerCandidate(q, fhKey);
+                        if (exact) results = [exact, ...results.filter(x => String(x?.symbol || '').toUpperCase() !== q)].slice(0, 7);
+                    }
                 }
                 _tickerCacheSet(q, results);
                 const inpLatest = (document.getElementById('ticker-input')?.value || '').toUpperCase().trim();
@@ -7667,8 +7830,9 @@
         }
 
         async function fetchLowData(symbol) {
+            const pgKey = getPolygonKey();
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
-            if (!aKey || !aSecret) return null;
+            if (!pgKey && (!aKey || !aSecret)) return null;
             const now = Date.now();
             const cached = _lowCache[symbol];
             // Only use cache if fresh AND has all 6 periods (low60/90/180/365 added later)
@@ -7678,20 +7842,31 @@
             try {
                 const end   = new Date();
                 const start = new Date(end.getTime() - 375 * 24 * 60 * 60 * 1000);
-                const u = new URL(`https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars`);
-                u.searchParams.set('timeframe', '1Day');
-                u.searchParams.set('start', start.toISOString().split('T')[0]);
-                u.searchParams.set('end',   end.toISOString().split('T')[0]);
-                u.searchParams.set('limit', '385');
-                u.searchParams.set('feed', 'iex');
-                u.searchParams.set('adjustment', 'split');
-                const res = await fetch(u.toString(), {
-                    headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret },
-                    signal: AbortSignal.timeout(8000),
-                });
-                if (!res.ok) return null;
-                const json = await res.json();
-                const bars = (json?.bars || []).filter(b => b?.l != null);
+                let bars = [];
+                // ── Try Polygon first ──
+                if (pgKey) {
+                    const pgBars = await _polygonAggs(symbol, '1Day', start.getTime(), end.getTime(), 50000);
+                    if (pgBars && pgBars.length >= 2) bars = pgBars;
+                }
+                // ── Fallback: Alpaca IEX ──
+                if (!bars.length && aKey && aSecret) {
+                    const u = new URL(`https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars`);
+                    u.searchParams.set('timeframe', '1Day');
+                    u.searchParams.set('start', start.toISOString().split('T')[0]);
+                    u.searchParams.set('end',   end.toISOString().split('T')[0]);
+                    u.searchParams.set('limit', '385');
+                    u.searchParams.set('feed', 'iex');
+                    u.searchParams.set('adjustment', 'split');
+                    const res = await fetch(u.toString(), {
+                        headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret },
+                        signal: AbortSignal.timeout(8000),
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        bars = (json?.bars || []);
+                    }
+                }
+                bars = bars.filter(b => b?.l != null);
                 if (bars.length < 2) return null;
                 const historical = bars.slice(0, -1);
                 const _low = (n) => { const s = historical.slice(-n); return s.length ? Math.min(...s.map(b => b.l)) : null; };
@@ -7799,7 +7974,7 @@
         const _lowToastSent = {};
 
         async function refreshAllLowData() {
-            if (!getAlpacaKey() || !getAlpacaSecret()) return;
+            if (!getPolygonKey() && (!getAlpacaKey() || !getAlpacaSecret())) return;
             const syms = [...watchlist];
             const BATCH = 5;
             for (let i = 0; i < syms.length; i += BATCH) {
@@ -7844,8 +8019,9 @@
         async function refreshEodPrices() {
             if (isMarketOpen()) return; // safety guard — never run during market hours
             if (watchlist.length === 0) return;
+            const pgKey = getPolygonKey();
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
-            if (!aKey || !aSecret) {
+            if (!pgKey && (!aKey || !aSecret)) {
                 // Fallback: trigger Finnhub refreshWatchlist for best available close
                 if (getFinnhubKey()) refreshWatchlist();
                 return;
@@ -7855,15 +8031,23 @@
             if (_eodRefreshed && _eodRefreshDate === todayKey) return;
 
             try {
-                const url = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
-                url.searchParams.set('symbols', watchlist.join(','));
-                url.searchParams.set('feed', 'iex');
-                const res = await fetch(url.toString(), {
-                    headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret },
-                    signal: AbortSignal.timeout(10000),
-                });
-                if (!res.ok) return;
-                const snap = await res.json();
+                // ── Try Polygon snapshot first ──
+                let snap = null;
+                if (pgKey) {
+                    snap = await _polygonSnapshot(watchlist);
+                }
+                // ── Fallback: Alpaca IEX snapshot ──
+                if (!snap && aKey && aSecret) {
+                    const url = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
+                    url.searchParams.set('symbols', watchlist.join(','));
+                    url.searchParams.set('feed', 'iex');
+                    const res = await fetch(url.toString(), {
+                        headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret },
+                        signal: AbortSignal.timeout(10000),
+                    });
+                    if (res.ok) snap = await res.json();
+                }
+                if (!snap) return;
 
                 watchlist.forEach(sym => {
                     const sn = snap[sym];
@@ -7923,8 +8107,7 @@
               + '</div>';
         }
 
-        // ── Extended Hours via Alpaca snapshot (premarket_price / afterhours_price) ──
-        // Alpaca free tier includes extended hours in snapshot response
+        // ── Extended Hours via Polygon/Alpaca snapshot ─────────────────────────
         async function fetchYahooExtendedBatch() {
             if (watchlist.length === 0) return;
             if (document.hidden) return;
@@ -7932,19 +8115,28 @@
             if (now - _extLastBatchTs < 15000) return; // max once per 15s
             _extLastBatchTs = now;
 
+            const pgKey = getPolygonKey();
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
-            if (!aKey || !aSecret) return; // no Alpaca key — skip silently
+            if (!pgKey && (!aKey || !aSecret)) return; // no keys — skip silently
 
             try {
-                const url = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
-                url.searchParams.set('symbols', watchlist.join(','));
-                url.searchParams.set('feed', 'iex');
-                const res = await fetch(url.toString(), {
-                    headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret },
-                    signal: AbortSignal.timeout(8000)
-                });
-                if (!res.ok) return;
-                const data = await res.json();
+                // ── Try Polygon snapshot first ──
+                let data = null;
+                if (pgKey) {
+                    data = await _polygonSnapshot(watchlist);
+                }
+                // ── Fallback: Alpaca IEX snapshot ──
+                if (!data && aKey && aSecret) {
+                    const url = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
+                    url.searchParams.set('symbols', watchlist.join(','));
+                    url.searchParams.set('feed', 'iex');
+                    const res = await fetch(url.toString(), {
+                        headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret },
+                        signal: AbortSignal.timeout(8000)
+                    });
+                    if (res.ok) data = await res.json();
+                }
+                if (!data) return;
                 let updated = 0;
 
                 watchlist.forEach(sym => {
@@ -9101,6 +9293,7 @@
             }
             _lwcSymbol = symbol;
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
+            const pgKey = getPolygonKey();
             const wrap = document.getElementById('lwc-inner');
             if (!wrap) return;
 
@@ -9138,10 +9331,10 @@
                 <div id="lwc-canvas" style="width:100%;flex:1;min-height:0"></div>`;
 
             _lwcRenderResBtns(_lwcRange);
-            await _lwcDraw(symbol, _lwcRange, isDark, aKey, aSecret);
+            await _lwcDraw(symbol, _lwcRange, isDark, pgKey, aKey, aSecret);
         }
 
-        async function _lwcDraw(symbol, range, isDark, aKey, aSecret) {
+        async function _lwcDraw(symbol, range, isDark, pgKey, aKey, aSecret) {
             const canvas = document.getElementById('lwc-canvas');
             if (!canvas) return;
 
@@ -9191,22 +9384,30 @@
                 bars = _barsCached.bars;
             } else {
                 try {
-                    let pt = null;
-                    do {
-                        const u = new URL(`https://data.alpaca.markets/v2/stocks/${symbol}/bars`);
-                        u.searchParams.set('timeframe', tf);
-                        u.searchParams.set('start', start);
-                        u.searchParams.set('end', end);
-                        u.searchParams.set('limit', '1000');
-                        u.searchParams.set('feed', 'iex');
-                        u.searchParams.set('adjustment', 'split');
-                        u.searchParams.set('sort', 'asc');
-                        if (pt) u.searchParams.set('page_token', pt);
-                        const r = await fetch(u.toString(), { headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret } });
-                        const j = await r.json();
-                        bars = bars.concat(j.bars || []);
-                        pt = j.next_page_token || null;
-                    } while (pt);
+                    // ── Try Polygon first ──
+                    if (pgKey) {
+                        const pgBars = await _polygonAggs(symbol, tf, new Date(start).getTime(), new Date(end).getTime(), 50000);
+                        if (pgBars && pgBars.length) bars = pgBars;
+                    }
+                    // ── Fallback: Alpaca IEX (pagination) ──
+                    if (!bars.length && aKey && aSecret) {
+                        let pt = null;
+                        do {
+                            const u = new URL(`https://data.alpaca.markets/v2/stocks/${symbol}/bars`);
+                            u.searchParams.set('timeframe', tf);
+                            u.searchParams.set('start', start);
+                            u.searchParams.set('end', end);
+                            u.searchParams.set('limit', '1000');
+                            u.searchParams.set('feed', 'iex');
+                            u.searchParams.set('adjustment', 'split');
+                            u.searchParams.set('sort', 'asc');
+                            if (pt) u.searchParams.set('page_token', pt);
+                            const r = await fetch(u.toString(), { headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret } });
+                            const j = await r.json();
+                            bars = bars.concat(j.bars || []);
+                            pt = j.next_page_token || null;
+                        } while (pt);
+                    }
                     if (bars.length) _lwcBarsCache[_barsCacheKey] = { bars, ts: Date.now() };
                 } catch(e) {
                     showSpin(false);
@@ -9577,8 +9778,9 @@
         // ── Prefetch 1D bars on hover/touch ──────────────────────────────────
         const _lwcPrefetchInFlight = new Set();
         function _lwcPrefetch1D(symbol) {
+            const pgKey = getPolygonKey();
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
-            if (!aKey || !aSecret) return;
+            if (!pgKey && (!aKey || !aSecret)) return;
             const tf = _lwcResDefault['1D'] || '5Min';
             const cacheKey = `${symbol}|${tf}`;
             const cached = _lwcBarsCache[cacheKey];
@@ -9591,22 +9793,31 @@
             const start = new Date(now - rangeEntry.fetchDays * 86400000).toISOString();
             (async () => {
                 try {
-                    let bars = [], pt = null;
-                    do {
-                        const u = new URL(`https://data.alpaca.markets/v2/stocks/${symbol}/bars`);
-                        u.searchParams.set('timeframe', tf);
-                        u.searchParams.set('start', start);
-                        u.searchParams.set('end', end);
-                        u.searchParams.set('limit', '1000');
-                        u.searchParams.set('feed', 'iex');
-                        u.searchParams.set('adjustment', 'split');
-                        u.searchParams.set('sort', 'asc');
-                        if (pt) u.searchParams.set('page_token', pt);
-                        const r = await fetch(u.toString(), { headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret } });
-                        const j = await r.json();
-                        bars = bars.concat(j.bars || []);
-                        pt = j.next_page_token || null;
-                    } while (pt);
+                    let bars = [];
+                    // ── Try Polygon first ──
+                    if (pgKey) {
+                        const pgBars = await _polygonAggs(symbol, tf, new Date(start).getTime(), new Date(end).getTime(), 5000);
+                        if (pgBars && pgBars.length) bars = pgBars;
+                    }
+                    // ── Fallback: Alpaca IEX ──
+                    if (!bars.length && aKey && aSecret) {
+                        let pt = null;
+                        do {
+                            const u = new URL(`https://data.alpaca.markets/v2/stocks/${symbol}/bars`);
+                            u.searchParams.set('timeframe', tf);
+                            u.searchParams.set('start', start);
+                            u.searchParams.set('end', end);
+                            u.searchParams.set('limit', '1000');
+                            u.searchParams.set('feed', 'iex');
+                            u.searchParams.set('adjustment', 'split');
+                            u.searchParams.set('sort', 'asc');
+                            if (pt) u.searchParams.set('page_token', pt);
+                            const r = await fetch(u.toString(), { headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret } });
+                            const j = await r.json();
+                            bars = bars.concat(j.bars || []);
+                            pt = j.next_page_token || null;
+                        } while (pt);
+                    }
                     if (bars.length) _lwcBarsCache[cacheKey] = { bars, ts: Date.now() };
                 } catch(e) {}
                 finally { _lwcPrefetchInFlight.delete(cacheKey); }
@@ -9668,6 +9879,7 @@
             _lwcRange = range; _lwcRes = null; _saveLwcPrefs();
             const isDark = document.documentElement.classList.contains('dark');
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
+            const _pgKey = getPolygonKey();
             ['1D','5D','1M','3M','6M','1Y','5Y'].forEach(r => {
                 const btn = document.getElementById('lwc-btn-' + r);
                 if (!btn) return;
@@ -9676,7 +9888,7 @@
             });
             if (_lwcRangeDebounce) clearTimeout(_lwcRangeDebounce);
             _lwcRangeDebounce = setTimeout(async () => {
-                await _lwcDraw(_lwcSymbol, range, isDark, aKey, aSecret);
+                await _lwcDraw(_lwcSymbol, range, isDark, _pgKey, aKey, aSecret);
                 _lwcRenderResBtns(range);
             }, 120);
         }
@@ -9695,7 +9907,8 @@
             _lwcRenderResBtns(_lwcRange);
             const isDark = document.documentElement.classList.contains('dark');
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
-            await _lwcDraw(_lwcSymbol, _lwcRange, isDark, aKey, aSecret);
+            const _pgKey = getPolygonKey();
+            await _lwcDraw(_lwcSymbol, _lwcRange, isDark, _pgKey, aKey, aSecret);
         }
 
         function lwcToggleAutoScroll() {
@@ -9799,7 +10012,8 @@
             // Fallback: full redraw (first load or error)
             const isDark = document.documentElement.classList.contains('dark');
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
-            await _lwcDraw(_lwcSymbol, _lwcRange, isDark, aKey, aSecret);
+            const _pgKey = getPolygonKey();
+            await _lwcDraw(_lwcSymbol, _lwcRange, isDark, _pgKey, aKey, aSecret);
         }
 
         // Add-to-watchlist from Quick Chart preview (for scanner-clicked symbols)
@@ -14263,12 +14477,36 @@ ${_clip(contextSections, 2600)}`;
             let prevMid = null;
             let src = '';
 
+            const pgKey    = getPolygonKey();
             const fKey     = getFinnhubKey();
             const erapiKey = getErapiKey();
 
-            // ── Source 1: Finnhub OANDA — realtime interbank (~15s updates) ──
+            // ── Source 1: Polygon Forex — real-time mid-market (Massive plan) ──
+            // GET /v1/conversion/USD/THB — returns {converted, from, initialAmount, last:{ask,bid,exchange,timestamp}, symbol, to}
+            if (pgKey && !midRate) {
+                try {
+                    const r = await fetch(
+                        `https://api.polygon.io/v1/conversion/USD/THB?amount=1&precision=4&apiKey=${pgKey}&_=${Date.now()}`,
+                        { cache: 'no-store' }
+                    );
+                    if (r.ok) {
+                        const j = await r.json();
+                        // j.converted = result of converting $1 USD → THB (= mid rate)
+                        // j.last.ask / j.last.bid available for spread calc if needed
+                        const mid = j?.converted ?? null;
+                        if (sane(mid)) {
+                            midRate = mid;
+                            src = 'Polygon';
+                            // Polygon doesn't give prev close directly — derive from bid/ask avg if available
+                            // prevMid stays null here; ERAPI will fill it below if key set
+                        }
+                    }
+                } catch(e) { console.warn('[FX] Polygon err:', e.message); }
+            }
+
+            // ── Source 2: Finnhub OANDA — realtime interbank (~15s updates) ──
             // Best for intraday movement. j.c = current, j.pc = prev close
-            if (fKey) {
+            if (fKey && !midRate) {
                 try {
                     const r = await fetch(
                         `https://finnhub.io/api/v1/quote?symbol=OANDA:USD_THB&token=${fKey}&_=${Date.now()}`,
@@ -14278,12 +14516,11 @@ ${_clip(contextSections, 2600)}`;
                         const j = await r.json();
                         if (sane(j.c))  { midRate = j.c;  src = 'Finnhub'; }
                         if (sane(j.pc)) { prevMid = j.pc; }
-                        console.log('[FX] Finnhub mid:', j.c?.toFixed(4), 'prev:', j.pc?.toFixed(4));
                     }
                 } catch(e) { console.warn('[FX] Finnhub err:', e.message); }
             }
 
-            // ── Source 2: ERAPI — use for yesterday close (more accurate % change) ──
+            // ── Source 3: ERAPI — use for yesterday close (more accurate % change) ──
             // Free tier updates once/day but history endpoint gives exact yesterday close
             if (erapiKey) {
                 if (!midRate) {
@@ -14339,7 +14576,7 @@ ${_clip(contextSections, 2600)}`;
             }
 
             if (!midRate) {
-                const noKey = !fKey && !erapiKey;
+                const noKey = !pgKey && !fKey && !erapiKey;
                 rateEl.textContent    = noKey ? 'ใส่ Key' : '—';
                 rateInvEl.textContent = noKey ? 'Settings' : '—';
                 rateEl.style.fontSize = noKey ? '9px' : '';
@@ -14364,9 +14601,15 @@ ${_clip(contextSections, 2600)}`;
             // Source badge on both cards
             const badge1 = document.getElementById('fx-src-badge');
             const badge2 = document.getElementById('fx-src-badge2');
-            const badgeColor = src === 'Finnhub' ? '#22c55e' : src === 'ExchangeRate-API' ? '#10b981' : '#94a3b8';
-            const badgeBg    = src === 'Finnhub' ? 'rgba(34,197,94,0.15)' : src === 'ExchangeRate-API' ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)';
-            const badgeLabel = src === 'Finnhub' ? 'LIVE' : src === 'ExchangeRate-API' ? 'ERAPI' : 'ECB';
+            const badgeColor = src === 'Polygon' ? '#818cf8'
+                             : src === 'Finnhub' ? '#22c55e'
+                             : src === 'ExchangeRate-API' ? '#10b981' : '#94a3b8';
+            const badgeBg    = src === 'Polygon' ? 'rgba(129,140,248,0.15)'
+                             : src === 'Finnhub' ? 'rgba(34,197,94,0.15)'
+                             : src === 'ExchangeRate-API' ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)';
+            const badgeLabel = src === 'Polygon' ? 'POLY'
+                             : src === 'Finnhub' ? 'LIVE'
+                             : src === 'ExchangeRate-API' ? 'ERAPI' : 'ECB';
             [badge1, badge2].forEach(b => {
                 if (!b) return;
                 b.textContent = badgeLabel;
@@ -16110,30 +16353,42 @@ ${_clip(contextSections, 2600)}`;
                 refreshWatchlist();
             }, 60 * 1000);
 
-            // Alpaca Snapshot safety-net poll every 15s — ONLY during market hours
-            // Uses latestTrade.p (real-time) when market open
+            // Snapshot safety-net poll every 15s — ONLY during market hours
+            // Polygon primary → Alpaca IEX fallback. Uses latestTrade.p (real-time) when market open
             setInterval(async () => {
                 const wlVisible = !document.getElementById('tab-watchlist').classList.contains('hidden');
                 if (!wlVisible || watchlist.length === 0 || !isMarketOpen()) return;
-                const aKey2 = getAlpacaKey(), aSecret2 = getAlpacaSecret();
-                if (!aKey2 || !aSecret2) return;
+                const pgKey2  = getPolygonKey();
+                const aKey2   = getAlpacaKey(), aSecret2 = getAlpacaSecret();
+                if (!pgKey2 && (!aKey2 || !aSecret2)) return;
                 try {
-                    const u2 = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
-                    u2.searchParams.set('symbols', watchlist.join(','));
-                    u2.searchParams.set('feed', 'iex');
-                    const r2 = await fetch(u2.toString(), {
-                        headers: { 'APCA-API-KEY-ID': aKey2, 'APCA-API-SECRET-KEY': aSecret2 }
-                    });
-                    if (!r2.ok) return;
-                    const sd = await r2.json();
+                    let sd = null;
+                    // ── Try Polygon snapshot first ──
+                    if (pgKey2) {
+                        const snap = await _polygonSnapshot(watchlist);
+                        if (snap) sd = snap;
+                    }
+                    // ── Fallback: Alpaca IEX snapshot ──
+                    if (!sd && aKey2 && aSecret2) {
+                        const u2 = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
+                        u2.searchParams.set('symbols', watchlist.join(','));
+                        u2.searchParams.set('feed', 'iex');
+                        const r2 = await fetch(u2.toString(), {
+                            headers: { 'APCA-API-KEY-ID': aKey2, 'APCA-API-SECRET-KEY': aSecret2 }
+                        });
+                        if (r2.ok) sd = await r2.json();
+                    }
+                    if (!sd) return;
                     watchlist.forEach(sym => {
                         const sn = sd[sym]; if (!sn) return;
                         const lp = sn.latestTrade?.p ?? null; // real-time during market hours
                         if (!lp || !wlDataCache[sym]) return;
                         const prev = wlDataCache[sym];
-                        const snapTs = sn.latestTrade?.t ? new Date(sn.latestTrade.t).getTime() : 0;
+                        // Polygon lastTrade.t is nanoseconds → convert to ms
+                        const rawTs = sn.lastTrade?.t ?? sn.latestTrade?.t ?? 0;
+                        const snapTs = rawTs > 1e15 ? Math.floor(rawTs / 1e6) : (rawTs > 1e12 ? rawTs : rawTs * 1000);
                         if (prev._snapTs && snapTs <= prev._snapTs) return;
-                        const pc = prev.pc ?? sn.prevDailyBar?.c ?? lp;
+                        const pc = prev.pc ?? sn.prevDailyBar?.c ?? sn.prevDay?.c ?? lp;
                         const chg = lp - pc, pct = pc ? (chg/pc)*100 : 0;
                         const updated = { ...prev, c:lp, d:chg, dp:pct, _snapTs:snapTs };
                         wlDataCache[sym] = updated;
