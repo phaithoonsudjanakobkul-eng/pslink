@@ -8130,25 +8130,19 @@
         async function refreshEodPrices() {
             if (isMarketOpen()) return; // safety guard — never run during market hours
             if (watchlist.length === 0) return;
-            const pgKey = getPolygonKey();
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
-            if (!pgKey && (!aKey || !aSecret)) {
-                // Fallback: trigger Finnhub refreshWatchlist for best available close
-                if (getFinnhubKey()) refreshWatchlist();
-                return;
-            }
+            // ตลาดปิด: ใช้ Finnhub refreshWatchlist — ได้ pc/d/dp ถูกต้องและฟรี
+            if (getFinnhubKey()) { refreshWatchlist(); return; }
+            if (!aKey || !aSecret) return;
+
             // Deduplicate — only refresh once per calendar day
             const todayKey = new Date().toISOString().slice(0, 10);
             if (_eodRefreshed && _eodRefreshDate === todayKey) return;
 
             try {
-                // ── Try Polygon snapshot first ──
+                // Alpaca IEX snapshot — fallback ถ้าไม่มี Finnhub
                 let snap = null;
-                if (pgKey) {
-                    snap = await _polygonSnapshot(watchlist);
-                }
-                // ── Fallback: Alpaca IEX snapshot ──
-                if (!snap && aKey && aSecret) {
+                if (aKey && aSecret) {
                     const url = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
                     url.searchParams.set('symbols', watchlist.join(','));
                     url.searchParams.set('feed', 'iex');
@@ -8163,7 +8157,6 @@
                 watchlist.forEach(sym => {
                     const sn = snap[sym];
                     if (!sn) return;
-                    // Use full _applyPolygonSnap — sets c, d, dp, pc, o, h, l, v correctly
                     wlDataCache[sym] = _applyPolygonSnap(sym, sn, wlDataCache[sym]);
                     updateWatchlistPriceCells(sym, wlDataCache[sym]);
                 });
@@ -8218,18 +8211,13 @@
             if (now - _extLastBatchTs < 15000) return; // max once per 15s
             _extLastBatchTs = now;
 
-            const pgKey = getPolygonKey();
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
-            if (!pgKey && (!aKey || !aSecret)) return; // no keys — skip silently
+            if (!aKey || !aSecret) return;
 
             try {
-                // ── Try Polygon snapshot first ──
+                // Alpaca IEX snapshot for extended hours data
                 let data = null;
-                if (pgKey) {
-                    data = await _polygonSnapshot(watchlist);
-                }
-                // ── Fallback: Alpaca IEX snapshot ──
-                if (!data && aKey && aSecret) {
+                if (aKey && aSecret) {
                     const url = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
                     url.searchParams.set('symbols', watchlist.join(','));
                     url.searchParams.set('feed', 'iex');
@@ -8427,26 +8415,10 @@
             const _alpLive = alpWs && alpWs.readyState  === 1;
             const wsLive   = (_pgLive || _fhLive || _alpLive) && isMarketOpen();
 
-            // ── Pre-fetch: seed OHLV from Polygon + price from cache/Finnhub ──
-            // ตลาดเปิด: Polygon snap ให้ live price + OHLV ครบ
-            // ตลาดปิด: ใช้ existing c/d/dp/pc (จาก Finnhub ที่ cache ไว้), Polygon แค่ OHLV
-            if (pgKey) {
-                try {
-                    const _preSnap = await _polygonSnapshot(watchlist);
-                    if (_preSnap) {
-                        watchlist.forEach(sym => {
-                            const sn = _preSnap[sym];
-                            if (!sn) return;
-                            wlDataCache[sym] = _applyPolygonSnap(sym, sn, wlDataCache[sym]);
-                            // ตลาดปิด: ไม่ set quoteTsCache เพื่อให้ Finnhub ยังรันได้ใน Phase B
-                            if (isMarketOpen()) quoteTsCache[sym] = Date.now();
-                        });
-                        watchlist.forEach(sym => {
-                            if (wlDataCache[sym]) updateWatchlistPriceCells(sym, wlDataCache[sym]);
-                        });
-                    }
-                } catch(e) {}
-            }
+            // Pre-render: แสดงราคาจาก cache ทันที (loadWlCache โหลดไว้แล้ว)
+            watchlist.forEach(sym => {
+                if (wlDataCache[sym]) updateWatchlistPriceCells(sym, wlDataCache[sym]);
+            });
 
             // Phase A: symbols needing full profile (new or >24h stale)
             // Each row renders as soon as its data arrives
@@ -8546,30 +8518,21 @@
                 retryWithBackoff(failedSymbols, 1, 3000); // 3s → 6s → 12s
             };
 
-            // Phase B: refresh prices
-            // Strategy:
-            //   ตลาดปิด: Finnhub quote (c/d/dp/pc ถูกต้อง) → Polygon snap (OHLV overlay)
-            //   ตลาดเปิด: Polygon snap (live price + OHLV) → Finnhub ไม่จำเป็น
-            if (!wsLive) {
-                const pgKey = getPolygonKey();
-
-                // ── Step 1: Finnhub quote ─────────────────────────────────────
-                // ตลาดปิด: MUST run — เพื่อได้ pc (prev close จริง) สำหรับ CHG%
-                // ตลาดเปิด: skip ถ้ามี Polygon (Polygon ให้ live price + todaysChange แล้ว)
-                const needsFinnhub = !isMarketOpen() || !pgKey;
-                if (needsFinnhub && getFinnhubKey()) {
-                    const needsQuote = watchlist.filter(s => {
-                        if (!profileCache[s]) return false;
-                        // ตลาดปิด: bypass interval — ต้องการ pc จาก Finnhub เสมอ
-                        if (!isMarketOpen()) return true;
-                        return (now - (quoteTsCache[s] ?? 0)) > QUOTE_MIN_INTERVAL;
-                    });
+            // Phase B: refresh prices — Finnhub quote (ฟรี, ถูกต้อง)
+            // ตลาดเปิด: skip ถ้า WS live (Alpaca ส่ง tick real-time อยู่แล้ว)
+            // ตลาดปิด: Finnhub quote เสมอ — ได้ pc/d/dp ที่ถูกต้อง
+            if (!wsLive && getFinnhubKey()) {
+                const needsQuote = watchlist.filter(s => {
+                    if (!profileCache[s]) return false;
+                    if (!isMarketOpen()) return true; // ตลาดปิด: bypass interval เสมอ
+                    return (now - (quoteTsCache[s] ?? 0)) > QUOTE_MIN_INTERVAL;
+                });
+                if (needsQuote.length > 0) {
                     const _quoteResults = await Promise.allSettled(needsQuote.map(async (symbol) => {
                         const r = await finnhubFetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${key}`);
                         if (!r.ok) return null;
                         const q = await r.json();
-                        // q.c = last price, q.pc = prev close (2-day ago close), q.d = change, q.dp = %change
-                        if (!q.c || q.c === 0) return null; // skip bad data
+                        if (!q.c || q.c === 0) return null;
                         const existing = wlDataCache[symbol] || {};
                         return { symbol, data: { ...existing, ...profileCache[symbol],
                             c: q.c, d: q.d, dp: q.dp, pc: q.pc,
@@ -8584,25 +8547,7 @@
                     });
                 }
 
-                // ── Step 2: Polygon snapshot ──────────────────────────────────
-                // ตลาดเปิด: อัพเดท c/d/dp + OHLV ทั้งหมด
-                // ตลาดปิด: อัพเดท OHLV เท่านั้น (c/d/dp/pc มาจาก Finnhub ข้างบนแล้ว)
-                if (pgKey) {
-                    try {
-                        const snap = await _polygonSnapshot(watchlist);
-                        if (snap) {
-                            watchlist.forEach(symbol => {
-                                const sn = snap[symbol];
-                                if (!sn) return;
-                                wlDataCache[symbol] = _applyPolygonSnap(symbol, sn, wlDataCache[symbol]);
-                                // ตลาดปิด: quoteTsCache ถูก set โดย Finnhub แล้ว ไม่ต้อง override
-                                if (isMarketOpen()) quoteTsCache[symbol] = Date.now();
-                            });
-                        }
-                    } catch(e) {}
-                }
-
-                // Single render pass — skip symbols ที่ WS เพิ่ง tick มา (< 2s) เพื่อไม่ให้กระตุก
+                // Render — skip symbols ที่ WS เพิ่ง tick (< 2s)
                 const _now2 = Date.now();
                 watchlist.forEach(symbol => {
                     const _d = wlDataCache[symbol];
@@ -8619,7 +8564,7 @@
             saveWlCache(); // persist for instant load next time
             refreshSparklineForTopSymbols(); // Movement sparklines (Webull-like bars)
             // WS already connected at startup — only reconnect if dropped
-            if (isMarketOpen() && !pgWs && !alpWs && !fhWs) connectWs();
+            if (isMarketOpen() && !alpWs && !fhWs) connectWs();
             updateMarketStatus();
         }
 
@@ -14185,14 +14130,11 @@ ${_clip(contextSections, 2600)}`;
 
         // ── WebSocket router: Polygon (primary) → Alpaca IEX → Finnhub ──────
         function connectWs() {
-            const pgKey = getPolygonKey();
-            const aKey  = getAlpacaKey(), aSecret = getAlpacaSecret();
-            // Polygon WS ต้องการ plan Developer $79+ เท่านั้น
-            // Massive $29 มีแค่ REST API → ใช้ Alpaca IEX WS ฟรีแทน (real-time tick)
-            // Polygon ยังใช้ REST สำหรับ Chart/Snapshot/Bars ได้ปกติ
-            if (aKey && aSecret)       connectAlpacaWs(aKey, aSecret);
-            else if (pgKey)            connectPolygonWs(pgKey);  // fallback ถ้าไม่มี Alpaca
-            else                       connectFinnhubWs();
+            const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
+            // WS: Alpaca IEX (free, real-time) → Finnhub fallback
+            // Polygon WS ต้องการ plan $79+ จึงไม่ใช้
+            if (aKey && aSecret) connectAlpacaWs(aKey, aSecret);
+            else                 connectFinnhubWs();
         }
 
         // ── Polygon.io WebSocket ──────────────────────────────────────────────
@@ -16700,18 +16642,12 @@ ${_clip(contextSections, 2600)}`;
             setInterval(async () => {
                 const wlVisible = !document.getElementById('tab-watchlist').classList.contains('hidden');
                 if (!wlVisible || watchlist.length === 0 || !isMarketOpen()) return;
-                const pgKey2  = getPolygonKey();
-                const aKey2   = getAlpacaKey(), aSecret2 = getAlpacaSecret();
-                if (!pgKey2 && (!aKey2 || !aSecret2)) return;
+                const aKey2 = getAlpacaKey(), aSecret2 = getAlpacaSecret();
+                if (!aKey2 || !aSecret2) return;
                 try {
                     let sd = null;
-                    // ── Try Polygon snapshot first ──
-                    if (pgKey2) {
-                        const snap = await _polygonSnapshot(watchlist);
-                        if (snap) sd = snap;
-                    }
-                    // ── Fallback: Alpaca IEX snapshot ──
-                    if (!sd && aKey2 && aSecret2) {
+                    // ── Alpaca IEX snapshot (ฟรี) ──
+                    if (aKey2 && aSecret2) {
                         const u2 = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
                         u2.searchParams.set('symbols', watchlist.join(','));
                         u2.searchParams.set('feed', 'iex');
