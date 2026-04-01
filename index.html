@@ -15803,9 +15803,13 @@ ${_clip(contextSections, 2600)}`;
         async function syncFromGist(isInitialLoad = false) {
             const token = getGistToken();
             if (!token) { document.getElementById('gist-modal').classList.remove('hidden'); return; }
-            // file:// protocol blocks all external fetch — must be served over https://
             if (location.protocol === 'file:') {
                 showGistStatus('⚠ เปิดจาก file:// — ต้อง host บน https:// เพื่อ sync Gist', 'text-amber-400');
+                return;
+            }
+            // ถ้ากำลัง PATCH อยู่ → รอให้ push เสร็จก่อนค่อย sync (ป้องกัน race condition)
+            if (_isSaving) {
+                setTimeout(() => syncFromGist(isInitialLoad), 1500);
                 return;
             }
             showGistStatus('SYNCING...', 'text-blue-500');
@@ -15850,12 +15854,17 @@ ${_clip(contextSections, 2600)}`;
                 const prevRecordsSig = (() => { try { return JSON.stringify(records || []); } catch(e) { return ''; } })();
 
                 // Support both array format (legacy) and object format
+                // ── Race condition guard ──────────────────────────────────────
+                // ถ้ามี local changes ที่ยังไม่ได้ push (hash ต่าง) = อย่า overwrite
+                // เพราะ Gist อาจเป็น version เก่ากว่า local
+                const hasLocalChanges = !isInitialLoad && (_dataHash() !== _lastSavedHash);
+
                 if (Array.isArray(data)) {
-                    records = data;
+                    if (!hasLocalChanges) records = data;
                 } else {
-                    if (Array.isArray(data.records))  records   = data.records;
-                    if (Array.isArray(data.watchlist)) watchlist = data.watchlist;
-                    if (Array.isArray(data.signalLog)) signalLog = data.signalLog;
+                    if (Array.isArray(data.records)  && !hasLocalChanges) records   = data.records;
+                    if (Array.isArray(data.watchlist) && !hasLocalChanges) watchlist = data.watchlist;
+                    if (Array.isArray(data.signalLog) && !hasLocalChanges) signalLog = data.signalLog;
                     if (data.movementCache?.data && typeof data.movementCache.data === 'object') {
                         _applySparklineCacheData(data.movementCache.data, { applyToMemory: false });
                     }
@@ -15898,10 +15907,13 @@ ${_clip(contextSections, 2600)}`;
 
                 // Ensure chronological order before any computation or persistence
                 _sortRecords();
-                // Persist everything to localStorage
-                _lsSave('ps_records',   JSON.stringify(records));
-                _lsSave('ps_watchlist', JSON.stringify(watchlist));
-                _lsSave(SIGNAL_LOG_KEY, JSON.stringify(signalLog));
+                // Persist everything to localStorage — ถ้ามี local changes ให้ save เฉพาะ records
+                // watchlist/signalLog จะถูก save จาก saveWatchlist() / _saveSignalLogLocal() แทน
+                _lsSave('ps_records', JSON.stringify(records));
+                if (!hasLocalChanges) {
+                    _lsSave('ps_watchlist', JSON.stringify(watchlist));
+                    _lsSave(SIGNAL_LOG_KEY, JSON.stringify(signalLog));
+                }
                 const nextRecordsSig = (() => { try { return JSON.stringify(records || []); } catch(e) { return ''; } })();
                 const recordsChanged = prevRecordsSig !== nextRecordsSig;
 
