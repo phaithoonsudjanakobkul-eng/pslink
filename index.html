@@ -859,7 +859,7 @@
             vertical-align: middle;
         }
         /* Sparkline fade-in — ไม่ pop เข้ามา แต่ fade smooth */
-        .wl-sparkline { animation: spark-fadein 0.35s ease forwards; }
+        .wl-sparkline { animation: spark-fadein 0.25s ease forwards; will-change: opacity; }
         @keyframes spark-fadein { from { opacity: 0; } to { opacity: 1; } }
         .wl-mob-spark-skeleton {
             display: block;
@@ -6021,16 +6021,13 @@
                               && entry?.session === currentEtDateKey()
                               && sparklineQuality(entry.prices, base);
                 if (hasFresh) {
-                    // มี real bars → render ทันที
                     updateSparklineCell(sym);
                 } else if (d && (d.pc || d.o || d.c)) {
-                    // ไม่มี real bars → seed OHLC shape ทันที (ไม่ skeleton)
                     seedSparklineFromOHLC(sym, d, d?.c ?? d?.pc ?? null);
                 } else {
-                    // ไม่มีข้อมูลเลย → skeleton เท่านั้น
                     el.innerHTML = '<span class="wl-spark-skeleton"></span>';
                 }
-                requestSparklineRefresh(sym, false);
+                // ไม่เรียก requestSparklineRefresh ที่นี่ — refreshSparklineForTopSymbols จัดการ batch แทน
             });
         }
 
@@ -6817,7 +6814,8 @@
             }
             // Throttle DOM write — max once per 500ms per symbol (data updates every tick, DOM does not)
             const now = Date.now();
-            if (!_sparkDomThrottle[symbol] || now - _sparkDomThrottle[symbol] >= 500) {
+            // throttle DOM write 2s — hash check ใน updateSparklineCell กัน flicker ซ้ำ
+            if (!_sparkDomThrottle[symbol] || now - _sparkDomThrottle[symbol] >= 2000) {
                 _sparkDomThrottle[symbol] = now;
                 updateSparklineCell(symbol);
             }
@@ -6938,6 +6936,12 @@
             const last = prices[prices.length - 1];
             const prevClose = d?.pc ?? d?._prevDailyC ?? base ?? prices[0];
             const isUp = (last != null && prevClose != null) ? (last >= prevClose) : true;
+
+            // ── Hash check: skip DOM write ถ้าข้อมูลไม่เปลี่ยน (ป้องกัน flicker) ──
+            const _hash = `${prices.length}|${last?.toFixed(2)}|${base?.toFixed(2)}|${isUp}`;
+            if (el && el.dataset.sparkHash === _hash) return; // ไม่มีอะไรเปลี่ยน → skip
+            if (el) el.dataset.sparkHash = _hash;
+
             const svgDesktop = (qualityOk && prices.length >= 2) ? renderSparklineSVG(prices, isUp, 72, 16, base) : placeholder;
             const svgMobile  = (qualityOk || mobOk) && prices.length >= 2 ? renderSparklineSVG(prices, isUp, 88, 44, base) : mobPlaceholder;
             if (el) el.innerHTML = svgDesktop;
@@ -9144,9 +9148,8 @@
             } else if (hasSpark && price != null) {
                 pushSparklinePrice(symbol, price);
             }
-            if (canUseRealBars) {
-                requestSparklineRefresh(symbol, false);
-            }
+            // ไม่เรียก requestSparklineRefresh ที่นี่ — ป้องกัน re-fetch loop ที่ทำให้ sparkline กระพริบ
+            // sparkline refresh ใช้ _startSparklineAutoRefresh (90s) + refreshSparklineForTopSymbols แทน
         }
         // --- Quick Chart ---
         let qcChart = null;
