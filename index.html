@@ -14864,6 +14864,11 @@ ${_clip(contextSections, 2600)}`;
         }
 
         let _wsAuthenticated = false;
+        function hasAnyLiveWs() {
+            return (pgWs && pgWs.readyState === 1)
+                || (alpWs && alpWs.readyState === 1)
+                || (fhWs && fhWs.readyState === 1);
+        }
 
         let _mktStatusTimer = null;
         let _mktStatusPending = false;
@@ -14881,7 +14886,8 @@ ${_clip(contextSections, 2600)}`;
             if (!el) return;
             const open = isMarketOpen();
             let txt, bg, col;
-            if (open && _wsAuthenticated) {
+            const wsLive = _wsAuthenticated || hasAnyLiveWs();
+            if (open && wsLive) {
                 txt = '● LIVE'; bg = 'rgba(5,150,105,0.15)'; col = '#059669';
             } else if (open) {
                 txt = '● OPEN'; bg = 'rgba(234,179,8,0.15)'; col = '#ca8a04';
