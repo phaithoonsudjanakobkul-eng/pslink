@@ -14831,28 +14831,33 @@ ${_clip(contextSections, 2600)}`;
         let _wsAuthenticated = false;
 
         let _mktStatusTimer = null;
+        let _mktStatusPending = false;
         function updateMarketStatus(isLive = false) {
-            // debounce 800ms — ป้องกัน OPEN↔LIVE flicker ตอน WS reconnect
-            clearTimeout(_mktStatusTimer);
-            _mktStatusTimer = setTimeout(() => _applyMarketStatus(), isLive ? 0 : 800);
+            // ใช้ microtask แทน setTimeout — ไม่สร้าง timer ซ้อน ไม่ recursive
+            if (_mktStatusPending) return;
+            _mktStatusPending = true;
+            Promise.resolve().then(() => {
+                _mktStatusPending = false;
+                _applyMarketStatus();
+            });
         }
         function _applyMarketStatus() {
             const el = document.getElementById('wl-market-status');
             if (!el) return;
             const open = isMarketOpen();
+            let txt, bg, col;
             if (open && _wsAuthenticated) {
-                el.textContent = '● LIVE';
-                el.style.background = 'rgba(5,150,105,0.15)';
-                el.style.color = '#059669';
+                txt = '● LIVE'; bg = 'rgba(5,150,105,0.15)'; col = '#059669';
             } else if (open) {
-                el.textContent = '● OPEN';
-                el.style.background = 'rgba(234,179,8,0.15)';
-                el.style.color = '#ca8a04';
+                txt = '● OPEN'; bg = 'rgba(234,179,8,0.15)'; col = '#ca8a04';
             } else {
-                el.textContent = '● CLOSED';
-                el.style.background = 'rgba(100,116,139,0.15)';
-                el.style.color = '#64748b';
+                txt = '● CLOSED'; bg = 'rgba(100,116,139,0.15)'; col = '#64748b';
             }
+            // Skip DOM write ถ้าสถานะไม่เปลี่ยน
+            if (el.textContent === txt) return;
+            el.textContent = txt;
+            el.style.background = bg;
+            el.style.color = col;
             // Update Pre-Mkt / After-Hrs label
             const thPre = document.getElementById('wl-th-premkt');
             if (thPre) {
