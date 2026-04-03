@@ -903,6 +903,8 @@
         }
         .wl-logo-wrap.load-error .wl-logo-initials { opacity: 1; }
         @keyframes spark-fadein { from { opacity: 0; } to { opacity: 1; } }
+        /* Sparkline cell fade transition ตอน swap OHLC→real bars */
+        #watchlist-table td.wl-spark-cell { transition: opacity 0.2s ease; }
         .wl-mob-spark-skeleton {
             display: block;
             width: 88px; height: 40px;
@@ -7068,7 +7070,18 @@
 
             const svgDesktop = (qualityOk && prices.length >= 2) ? renderSparklineSVG(prices, isUp, 72, 16, base) : placeholder;
             const svgMobile  = (qualityOk || mobOk) && prices.length >= 2 ? renderSparklineSVG(prices, isUp, 88, 44, base) : mobPlaceholder;
-            if (el) el.innerHTML = svgDesktop;
+            // Fade briefly เมื่อ swap content (ป้องกัน flash ตาเมื่อ OHLC→real)
+            if (el) {
+                const wasOhlc = el.dataset.sparkSrc === 'ohlc';
+                const isReal  = wlSparklineCache[symbol]?.src === 'alpaca';
+                if (wasOhlc && isReal) {
+                    el.style.opacity = '0.3';
+                    requestAnimationFrame(() => { el.innerHTML = svgDesktop; el.style.opacity = ''; });
+                } else {
+                    el.innerHTML = svgDesktop;
+                }
+                el.dataset.sparkSrc = isReal ? 'real' : 'ohlc';
+            }
             if (mobEl) mobEl.innerHTML = svgMobile;
         }
 
@@ -14282,9 +14295,8 @@ ${_clip(contextSections, 2600)}`;
 
         // ── WebSocket router: Polygon (primary) → Alpaca IEX → Finnhub ──────
         function connectWs() {
+            if (!isMarketOpen()) return; // ไม่เชื่อม WS ตอนตลาดปิด/วันหยุด
             const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
-            // WS: Alpaca IEX (free, real-time) → Finnhub fallback
-            // Polygon WS ต้องการ plan $79+ จึงไม่ใช้
             if (aKey && aSecret) connectAlpacaWs(aKey, aSecret);
             else                 connectFinnhubWs();
         }
@@ -14866,15 +14878,40 @@ ${_clip(contextSections, 2600)}`;
             const e = dstEnd.getTime()   + 6*3600*1000;
             return date.getTime() >= s && date.getTime() < e;
         }
+        // NYSE holidays — อัพเดทรายปี
+        function isNyseHoliday(d) {
+            const y = d.getUTCFullYear();
+            const m = d.getUTCMonth() + 1; // 1-based
+            const day = d.getUTCDate();
+            const key = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            // ── NYSE Holidays (Full-day closes) ──────────────────────────────
+            const holidays = new Set([
+                // 2025
+                '2025-01-01','2025-01-20','2025-02-17','2025-04-18',
+                '2025-05-26','2025-06-19','2025-07-04','2025-09-01',
+                '2025-11-27','2025-12-25',
+                // 2026
+                '2026-01-01','2026-01-19','2026-02-16','2026-04-03',
+                '2026-05-25','2026-07-03','2026-09-07','2026-11-26',
+                '2026-12-25',
+                // 2027
+                '2027-01-01','2027-01-18','2027-02-15','2027-03-26',
+                '2027-05-31','2027-06-18','2027-07-05','2027-09-06',
+                '2027-11-25','2027-12-24',
+            ]);
+            return holidays.has(key);
+        }
+
         function isMarketOpen() {
             const now = new Date();
             const day = now.getUTCDay(); // 0=Sun,6=Sat
-            if (day===0||day===6) return false;
+            if (day === 0 || day === 6) return false;
+            if (isNyseHoliday(now)) return false;
             const utcMins = now.getUTCHours()*60+now.getUTCMinutes();
             const dst  = isUSDST(now);
             const open  = dst ? 13*60+30 : 14*60+30; // 9:30 ET in UTC
             const close = dst ? 20*60    : 21*60;     // 16:00 ET in UTC
-            return utcMins>=open && utcMins<close;
+            return utcMins >= open && utcMins < close;
         }
 
         let _wsAuthenticated = false;
