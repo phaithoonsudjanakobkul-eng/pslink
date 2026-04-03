@@ -5119,23 +5119,30 @@
                     if (wlDataCache[s]) updateWatchlistPriceCells(s, wlDataCache[s]);
                 });
 
-                // Step 3: Ensure WS is connected
+                // Step 3: Ensure WS is connected — ไม่ reconnect ถ้า alive อยู่แล้ว
                 if (isMarketOpen()) {
-                    if (fhWs && fhWs.readyState >= 2) fhWs = null;
-                    connectWs();
+                    const _alpAlive = alpWs && alpWs.readyState <= 1;
+                    const _fhAlive  = fhWs  && fhWs.readyState  <= 1;
+                    if (!_alpAlive && !_fhAlive) {
+                        if (fhWs && fhWs.readyState >= 2) fhWs = null;
+                        connectWs();
+                    }
                 }
                 updateMarketStatus();
                 fetchFxRate();
 
-                // Step 4: Background refresh prices (profile + Finnhub quote)
+                // Step 4: Background refresh prices
                 refreshWatchlist();
-                // Step 5: Sparkline fetch — แยกออกจาก refreshWatchlist ป้องกัน batch flash
-                setTimeout(() => {
-                    refreshSparklineForTopSymbols();
-                    if (isMarketOpen()) _startSparklineAutoRefresh();
-                }, 500);
-                // Show cached movement instantly while fresh data is loading
-                requestAnimationFrame(ensureSparklinePlaceholders);
+                // Step 5: Sparkline — แสดง cache ทันที, fetch real bars หลัง wlDataCache พร้อม
+                // ensureSparklinePlaceholders ต้องรอให้ rows render ก่อน (1 rAF)
+                requestAnimationFrame(() => {
+                    ensureSparklinePlaceholders();
+                    // fetch real bars หลัง 200ms — ให้ Finnhub quote load ก่อนเพื่อมี pc สำหรับ sparkline base
+                    setTimeout(() => {
+                        refreshSparklineForTopSymbols();
+                        if (isMarketOpen()) _startSparklineAutoRefresh();
+                    }, 200);
+                });
                 loadMarketScanner(false);
             }
             if (t !== 'watchlist') {
@@ -6060,10 +6067,10 @@
                 // (prevents syncFromGist completing late and clobbering freshly-fetched sparklines)
                 const existing = wlSparklineCache[sym];
                 if (existing && existing.ts && entry.ts && existing.ts > entry.ts) return;
-                // Fix 2 — Session guard: if market is open and this sparkline is from a
-                // different trading session (stale intraday path), skip to memory.
-                // It will be replaced by refreshSparklineForTopSymbols() momentarily.
-                if (isMarketOpen() && entry.session && entry.session !== todayKey) return;
+                // Session guard: กัน stale intraday cache ทั้งตอนเปิดและปิดตลาด
+                // ตลาดเปิด: session ต้องเป็นวันนี้
+                // ตลาดปิด: session ต้องเป็นวันซื้อขายล่าสุด (todayKey หรือ เมื่อวาน)
+                if (entry.session && entry.session !== todayKey) return;
                 wlSparklineCache[sym] = entry;
             });
         }
@@ -6089,30 +6096,29 @@
         function loadSparklineCache(options = {}) {
             try {
                 const allowDuringOpen = !!options.allowDuringOpen;
+                const skipStale       = !!options.skipStale; // กรอง session เก่าออก
                 const mktOpen = isMarketOpen();
-                // Match Webull behavior:
-                // - Market open: redraw movement from fresh data (don't preload old cache)
-                // - Market closed: show cached movement immediately
-                if (mktOpen && !allowDuringOpen) return;
+                // skipStale=true: โหลด cache แต่กรอง stale session ออก → ใช้ตอน initial load
+                // allowDuringOpen=false (default): ไม่โหลด cache ตอนตลาดเปิด (ป้องกัน stale)
+                if (mktOpen && !allowDuringOpen && !skipStale) return;
                 const raw = localStorage.getItem('ps_wl_spark_cache_v5');
                 if (!raw) return;
                 const payload = JSON.parse(raw);
                 const todayKey = currentEtDateKey();
                 const data = payload?.data || {};
 
-                // ── Session guard: only restore bars from today's ET session ──
-                // If cache is from a previous day, skip applying to memory entirely.
-                // Skeleton will show instead → refreshSparklineForTopSymbols fills in fresh bars.
-                // This prevents the "old chart → new chart flicker" on first load.
                 const filteredData = {};
                 Object.keys(data).forEach(sym => {
                     const e = data[sym];
                     if (!e) return;
-                    // Keep if session matches today OR if market is closed and cache is recent (<8h)
                     const sessionOk = e.session && e.session === todayKey;
-                    const recentEnough = e.ts && (Date.now() - e.ts) < 8 * 60 * 60 * 1000;
-                    if (sessionOk || (!mktOpen && recentEnough)) {
-                        filteredData[sym] = e;
+                    if (skipStale) {
+                        // skipStale: เก็บเฉพาะ session วันนี้เท่านั้น
+                        if (sessionOk) filteredData[sym] = e;
+                    } else {
+                        // ปกติ: เก็บถ้า session วันนี้ หรือ cache ไม่เก่าเกิน 8h
+                        const recentEnough = e.ts && (Date.now() - e.ts) < 8 * 60 * 60 * 1000;
+                        if (sessionOk || (!mktOpen && recentEnough)) filteredData[sym] = e;
                     }
                 });
 
@@ -6121,15 +6127,24 @@
         }
         function ensureSparklinePlaceholders() {
             if (!watchlist || !watchlist.length) return;
+            const todayEt = currentEtDateKey();
             watchlist.forEach(sym => {
                 const el = document.getElementById('wl-sparkline-' + sym);
                 if (!el) return;
                 const entry = wlSparklineCache[sym];
                 const d = wlDataCache[sym] || {};
-                const base = entry?.base ?? d?.pc ?? entry?.prices?.[0] ?? null;
-                const hasFresh = entry?.prices?.length >= SPARKLINE_MIN_POINTS
-                              && entry?.session === currentEtDateKey()
-                              && sparklineQuality(entry.prices, base);
+
+                // ล้าง stale intraday cache ทันที — ป้องกัน intraday แว๊บก่อนตอนตลาดปิด
+                if (entry && entry.session && entry.session !== todayEt) {
+                    delete wlSparklineCache[sym];
+                }
+
+                const freshEntry = wlSparklineCache[sym];
+                const base = freshEntry?.base ?? d?.pc ?? freshEntry?.prices?.[0] ?? null;
+                const hasFresh = freshEntry?.prices?.length >= SPARKLINE_MIN_POINTS
+                              && freshEntry?.session === todayEt
+                              && sparklineQuality(freshEntry.prices, base);
+
                 if (hasFresh) {
                     updateSparklineCell(sym);
                 } else if (d && (d.pc || d.o || d.c)) {
@@ -6137,7 +6152,6 @@
                 } else {
                     el.innerHTML = '<span class="wl-spark-skeleton"></span>';
                 }
-                // ไม่เรียก requestSparklineRefresh ที่นี่ — refreshSparklineForTopSymbols จัดการ batch แทน
             });
         }
 
@@ -14864,11 +14878,6 @@ ${_clip(contextSections, 2600)}`;
         }
 
         let _wsAuthenticated = false;
-        function hasAnyLiveWs() {
-            return (pgWs && pgWs.readyState === 1)
-                || (alpWs && alpWs.readyState === 1)
-                || (fhWs && fhWs.readyState === 1);
-        }
 
         let _mktStatusTimer = null;
         let _mktStatusPending = false;
@@ -14886,8 +14895,7 @@ ${_clip(contextSections, 2600)}`;
             if (!el) return;
             const open = isMarketOpen();
             let txt, bg, col;
-            const wsLive = _wsAuthenticated || hasAnyLiveWs();
-            if (open && wsLive) {
+            if (open && _wsAuthenticated) {
                 txt = '● LIVE'; bg = 'rgba(5,150,105,0.15)'; col = '#059669';
             } else if (open) {
                 txt = '● OPEN'; bg = 'rgba(234,179,8,0.15)'; col = '#ca8a04';
@@ -16685,9 +16693,9 @@ ${_clip(contextSections, 2600)}`;
                 _loadLogoDataCacheLocal(); // keep logo cache across F5 before rendering NEWS
                 loadWlCache(); // restore price/profile cache for instant display
                 prewarmWatchlistLogos(80); // warm visible symbols ASAP after refresh
-                // ── Sparkline: always start fresh → skeleton → real bars from batch fetch ──
-                // Never preload old bars into memory — prevents "old chart → new chart" flicker
-                // loadSparklineCache only reads from localStorage for reference, not applied to memory
+                // Load sparkline cache กรอง stale session ออก — ป้องกัน intraday flash ตอนตลาดปิด
+                // skipStale=true: เก็บเฉพาะ session วันนี้ ทิ้ง session เก่า
+                loadSparklineCache({ skipStale: true });
                 _loadLowCache(); // restore 7D/30D low cache from localStorage
                 setTimeout(() => { refreshAllLowData(); scheduleLowRefresh(); }, 2000);
                 // If market already closed when app loads → fetch official EOD close
