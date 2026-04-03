@@ -6114,11 +6114,17 @@
                     const e = data[sym];
                     if (!e) return;
                     const sessionOk = e.session && e.session === todayKey;
+                    const isRealBars = e.src === 'alpaca' || e.src === 'polygon';
                     if (skipStale) {
-                        // skipStale: เก็บเฉพาะ session วันนี้เท่านั้น
-                        if (sessionOk) filteredData[sym] = e;
+                        // skipStale: ตลาดเปิด = session วันนี้เท่านั้น
+                        //            ตลาดปิด = real bars ของ session ล่าสุด (<5 วัน) ก็ได้
+                        if (mktOpen) {
+                            if (sessionOk) filteredData[sym] = e;
+                        } else {
+                            const recentSession = e.ts && (Date.now() - e.ts) < 5 * 24 * 60 * 60 * 1000;
+                            if (isRealBars && recentSession) filteredData[sym] = e;
+                        }
                     } else {
-                        // ปกติ: เก็บถ้า session วันนี้ หรือ cache ไม่เก่าเกิน 8h
                         const recentEnough = e.ts && (Date.now() - e.ts) < 8 * 60 * 60 * 1000;
                         if (sessionOk || (!mktOpen && recentEnough)) filteredData[sym] = e;
                     }
@@ -6130,21 +6136,26 @@
         function ensureSparklinePlaceholders() {
             if (!watchlist || !watchlist.length) return;
             const todayEt = currentEtDateKey();
+            const mktOpen = isMarketOpen();
             watchlist.forEach(sym => {
                 const el = document.getElementById('wl-sparkline-' + sym);
                 if (!el) return;
                 const entry = wlSparklineCache[sym];
                 const d = wlDataCache[sym] || {};
 
-                // ล้าง stale intraday cache ทันที — ป้องกัน intraday แว๊บก่อนตอนตลาดปิด
-                if (entry && entry.session && entry.session !== todayEt) {
+                // ล้าง stale cache เฉพาะตอนตลาดเปิด
+                // ตลาดปิด: เก็บ real bars ของ session ล่าสุดไว้ (อาจเป็น 2-3 วันก่อน)
+                if (mktOpen && entry && entry.session && entry.session !== todayEt) {
                     delete wlSparklineCache[sym];
                 }
 
                 const freshEntry = wlSparklineCache[sym];
                 const base = freshEntry?.base ?? d?.pc ?? freshEntry?.prices?.[0] ?? null;
+
+                // ตลาดเปิด: ต้องเป็น session วันนี้
+                // ตลาดปิด: มี real bars (src=alpaca) ก็พอ ไม่สนว่า session ไหน
                 const hasFresh = freshEntry?.prices?.length >= SPARKLINE_MIN_POINTS
-                              && freshEntry?.session === todayEt
+                              && (mktOpen ? freshEntry?.session === todayEt : freshEntry?.src === 'alpaca')
                               && sparklineQuality(freshEntry.prices, base);
 
                 if (hasFresh) {
@@ -6912,7 +6923,11 @@
                 prices.push(Number(p.toFixed(2)));
             }
 
-            wlSparklineCache[symbol] = { prices, base: baseP };
+            // session ต้องมีเพื่อไม่ถูก ensureSparklinePlaceholders delete ออก
+            wlSparklineCache[symbol] = {
+                prices, base: baseP,
+                src: 'ohlc', session: currentEtDateKey(), ts: Date.now()
+            };
             updateSparklineCell(symbol);
             scheduleSaveSparklineCache();
         }
