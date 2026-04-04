@@ -15,7 +15,7 @@
     </script>
     <title>PSLink</title>
     <!-- v1.6.24 — Chart: RSI panel, Bollinger Bands, Extended hours shading, indicator toggle buttons (VWAP/EMA/BB/RSI/EXT), all persisted in prefs -->
-    <!-- v1.6.24(6) — Fix sparkline flash on tab switch: skip movement cell + preserve mobile sparkline in surgical update -->
+    <!-- v1.6.24(6) — Fix sparkline dual-display: closed-market cache bypass → OHLC seed overwrites real bars causing flash -->
 
     <!-- PWA: iOS / Safari Home Screen -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6434,14 +6434,15 @@
             const entry = wlSparklineCache[symbol];
             const now = Date.now();
             const nowEtDay = currentEtDateKey();
+            const _mktOpen = isMarketOpen();
             const _hasEnoughBars = entry?.prices?.length >= SPARKLINE_MIN_POINTS;
-            const maxAgeMs = isMarketOpen()
+            const maxAgeMs = _mktOpen
                 ? (_hasEnoughBars ? 20 * 1000 : 60 * 1000)
-                : SPARKLINE_TTL_MS;
+                : SPARKLINE_TTL_MS * 24 * 5; // ตลาดปิด: cache นานขึ้น (ไม่ต้อง re-fetch ทุกรอบ)
             if (
                 entry &&
                 (entry.src === 'alpaca' || entry.src === 'polygon') &&
-                entry.session === nowEtDay &&
+                (_mktOpen ? entry.session === nowEtDay : true) && // ตลาดปิด: ไม่ check session — real bars ของวันไหนก็ใช้ได้
                 entry.prices?.length >= 2 &&
                 sparklineQuality(entry.prices, entry.base) &&
                 now - (entry.ts || 0) < maxAgeMs
@@ -6505,12 +6506,13 @@
             if (!key) return null;
             const entry = wlSparklineCache[symbol];
             const now = Date.now();
+            const _fhMaxAge = isMarketOpen() ? SPARKLINE_TTL_MS : SPARKLINE_TTL_MS * 24 * 5;
             if (
                 entry &&
-                entry.src === 'finnhub' &&
+                (entry.src === 'finnhub' || entry.src === 'alpaca' || entry.src === 'polygon') &&
                 entry.prices?.length >= 2 &&
                 sparklineQuality(entry.prices, entry.base) &&
-                now - (entry.ts || 0) < SPARKLINE_TTL_MS
+                now - (entry.ts || 0) < _fhMaxAge
             ) {
                 return entry.prices;
             }
@@ -6872,9 +6874,15 @@
                     if (results[symbol]) {
                         updateSparklineCell(symbol);
                     } else {
-                        // real bars fail → OHLC ยังแสดงอยู่ ไม่ต้องทำอะไรเพิ่ม
-                        const d = wlDataCache[symbol];
-                        if (d) seedSparklineFromOHLC(symbol, d, d?.c ?? d?.pc ?? null);
+                        // fetch fail/skipped — ถ้ามี real bars อยู่แล้วใน cache ให้ render จาก cache ไม่ทับ
+                        const _existing = wlSparklineCache[symbol];
+                        if (_existing && (_existing.src === 'alpaca' || _existing.src === 'polygon') && _existing.prices?.length >= 2) {
+                            updateSparklineCell(symbol); // render real bars ที่มีอยู่
+                        } else {
+                            // ไม่มี real bars เลย → seed OHLC fallback
+                            const d = wlDataCache[symbol];
+                            if (d) seedSparklineFromOHLC(symbol, d, d?.c ?? d?.pc ?? null);
+                        }
                     }
                 });
                 scheduleSaveSparklineCache(true);
@@ -6883,6 +6891,11 @@
 
         // สร้าง "เส้นทางราคา" แบบหยักจาก OHLC + ราคาสด (fallback เฉพาะกรณี Alpaca ใช้ไม่ได้)
         function seedSparklineFromOHLC(symbol, data, price) {
+            // Guard: ห้ามทับ real bars (alpaca/polygon) ที่มีอยู่แล้ว — ป้องกัน flash
+            const _existing = wlSparklineCache[symbol];
+            if (_existing && (_existing.src === 'alpaca' || _existing.src === 'polygon') && _existing.prices?.length >= 2) {
+                return; // มี real bars อยู่แล้ว — ไม่ seed OHLC ทับ
+            }
             const pc    = data?.pc ?? null;
             const open  = data?.o  ?? null;
             const high  = data?.h  ?? null;
@@ -7753,7 +7766,6 @@
                             if (oldCells[i].classList.contains('wl-mobile-card')) {
                                 const oldSpark = oldCells[i].querySelector('.wl-mob-spark');
                                 if (oldSpark && oldSpark.innerHTML && !oldSpark.querySelector('.wl-mob-spark-skeleton')) {
-                                    // Has real sparkline — update other parts but keep sparkline intact
                                     const preservedHtml = oldSpark.outerHTML;
                                     if (oldCells[i].innerHTML !== nc.innerHTML) {
                                         oldCells[i].innerHTML = nc.innerHTML;
