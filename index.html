@@ -1903,6 +1903,49 @@
         }
 
         @media (max-width: 640px) {
+            #btn-utilities  { display: none !important; }
+            #tab-utilities  { display: none !important; }
+        }
+        /* ── Utilities sidebar (Style C — macOS Settings) ── */
+        .util-item {
+            display: flex; align-items: center; gap: 10px;
+            width: calc(100% - 14px); margin: 1px 7px;
+            padding: 7px 9px; border: none; background: transparent; cursor: pointer;
+            text-align: left; border-radius: 9px; transition: background 0.1s;
+        }
+        .util-item:hover { background: var(--bg-card2); }
+        .util-item.util-active {
+            background: var(--bg-card2);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .util-icon {
+            width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .util-item-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+        .util-item-title {
+            font-family: var(--font-main); font-size: 12.5px; font-weight: 600;
+            color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+        .util-item-sub {
+            font-family: var(--font-main); font-size: 10px; color: var(--text-dim);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+        .util-item.util-active .util-item-title { color: var(--accent); }
+        .util-soon {
+            font-family: var(--font-mono); font-size: 7px; font-weight: 800;
+            padding: 2px 5px; border-radius: 4px; flex-shrink: 0;
+            background: var(--bg-main); border: 1px solid var(--border);
+            color: var(--text-dim); letter-spacing: 0.04em;
+        }
+        .util-item.util-active .util-soon { display: none; }
+        .util-cat {
+            padding: 16px 16px 3px; font-family: var(--font-main); font-size: 10px;
+            font-weight: 700; letter-spacing: 0.01em; color: var(--text-dim);
+        }
+        @media (max-width: 640px) {
             /* Mobile: Row 1 → single column (CARD A on top, Profile below) */
             #dash-row1 {
                 grid-template-columns: 1fr !important;
@@ -3852,6 +3895,10 @@
                         News
                         <span id="news-unread-badge" class="hidden text-[8px] font-black px-1.5 py-0.5 rounded-full" style="background:var(--danger);color:#fff;line-height:1">NEW</span>
                     </button>
+                    <button onclick="showTab('utilities')" id="btn-utilities" class="px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all uppercase tracking-wide flex items-center gap-1.5" style="color:var(--text-dim);font-family:var(--font-main)">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        Utilities
+                    </button>
                 </div>
                 <!-- Divider -->
                 <div class="w-px h-5" style="background:var(--border)"></div>
@@ -4061,8 +4108,8 @@
                                 <button onmousedown="event.preventDefault();rteCmd('outdent')" title="Outdent" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><polygon points="13,3.5 10,5.5 13,7.5"/><rect x="0" y="4.5" width="9" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
                                 <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
                                 <!-- Colors + Clear -->
-                                <label onmousedown="rteSaveSelection()" title="Text color" style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:0 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);height:24px;font-size:11px;font-weight:700;color:var(--text-primary);">A <input type="color" onchange="rteRestoreAndApply('foreColor',this.value)" style="width:18px;height:14px;border:none;cursor:pointer;padding:0;"></label>
-                                <label onmousedown="rteSaveSelection()" title="Highlight color" style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:0 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);height:24px;font-size:11px;font-weight:700;color:var(--text-primary);"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style="flex-shrink:0"><rect x="1" y="8" width="10" height="3" rx="1" fill="#fbbf24"/><path d="M3 7L6 1L9 7Z" fill="currentColor" opacity="0.7"/></svg><input type="color" value="#fde68a" onchange="rteRestoreAndApply('hiliteColor',this.value)" style="width:18px;height:14px;border:none;cursor:pointer;padding:0;"></label>
+                                <label onmousedown="rteSaveSelection()" title="Text color" style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:0 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);height:24px;font-size:11px;font-weight:700;color:var(--text-primary);">A <input type="color" oninput="rteRestoreAndApply('foreColor',this.value)" onchange="rteRestoreAndApply('foreColor',this.value)" style="width:18px;height:14px;border:none;cursor:pointer;padding:0;"></label>
+                                <label onmousedown="rteSaveSelection()" title="Highlight color" style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:0 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);height:24px;font-size:11px;font-weight:700;color:var(--text-primary);"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style="flex-shrink:0"><rect x="1" y="8" width="10" height="3" rx="1" fill="#fbbf24"/><path d="M3 7L6 1L9 7Z" fill="currentColor" opacity="0.7"/></svg><input type="color" value="#fde68a" oninput="rteRestoreAndApply('hiliteColor',this.value)" onchange="rteRestoreAndApply('hiliteColor',this.value)" style="width:18px;height:14px;border:none;cursor:pointer;padding:0;"></label>
                                 <button onmousedown="event.preventDefault();rteCmd('removeFormat')" title="Clear formatting" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-dim);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><path d="M2 2L11 11M2 11L11 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/><rect x="0" y="11" width="13" height="2" rx="1" opacity="0.4"/></svg></button>
                                 <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
                                 <!-- Image + More -->
@@ -5038,6 +5085,118 @@
 
         </div>
 
+        <!-- ── UTILITIES TAB ──────────────────────────────────────── -->
+        <div id="tab-utilities" class="hidden animate-in" style="width:100%;margin:0 -16px;">
+            <div style="display:flex;height:calc(100vh - 112px);overflow:hidden;">
+
+                <!-- ── Sidebar ── -->
+                <div style="width:240px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;padding:10px 0 20px;background:var(--bg-card);">
+
+                    <!-- Documents -->
+                    <div class="util-cat">Documents</div>
+                    <button onclick="showUtilTool('pdf-unlock')" id="util-btn-pdf-unlock" class="util-item">
+                        <div class="util-icon" style="background:rgba(239,68,68,0.15)"><svg width="17" height="17" fill="none" stroke="#ef4444" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">PDF Unlock</span><span class="util-item-sub">Password &amp; restrictions</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+                    <button onclick="showUtilTool('pdf-compress')" id="util-btn-pdf-compress" class="util-item">
+                        <div class="util-icon" style="background:rgba(249,115,22,0.15)"><svg width="17" height="17" fill="none" stroke="#f97316" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">PDF Compress</span><span class="util-item-sub">Reduce file size</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+                    <button onclick="showUtilTool('img-compress')" id="util-btn-img-compress" class="util-item">
+                        <div class="util-icon" style="background:rgba(139,92,246,0.15)"><svg width="17" height="17" fill="none" stroke="#8b5cf6" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">Image Compress</span><span class="util-item-sub">JPG · PNG · WebP</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+
+                    <!-- Encode -->
+                    <div class="util-cat">Encode</div>
+                    <button onclick="showUtilTool('base64')" id="util-btn-base64" class="util-item">
+                        <div class="util-icon" style="background:rgba(6,182,212,0.15)"><svg width="17" height="17" fill="none" stroke="#06b6d4" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">Base64</span><span class="util-item-sub">Encode &amp; decode</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+                    <button onclick="showUtilTool('hash')" id="util-btn-hash" class="util-item">
+                        <div class="util-icon" style="background:rgba(6,182,212,0.15)"><svg width="17" height="17" fill="none" stroke="#06b6d4" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">Hash Generator</span><span class="util-item-sub">MD5 · SHA-256 · SHA-512</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+                    <button onclick="showUtilTool('password-gen')" id="util-btn-password-gen" class="util-item">
+                        <div class="util-icon" style="background:rgba(234,179,8,0.15)"><svg width="17" height="17" fill="none" stroke="#eab308" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">Password Gen</span><span class="util-item-sub">Strong &amp; customizable</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+
+                    <!-- Data -->
+                    <div class="util-cat">Data</div>
+                    <button onclick="showUtilTool('json-fmt')" id="util-btn-json-fmt" class="util-item">
+                        <div class="util-icon" style="background:rgba(16,185,129,0.15)"><svg width="17" height="17" fill="none" stroke="#10b981" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">JSON Formatter</span><span class="util-item-sub">Format · Validate · Minify</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+                    <button onclick="showUtilTool('text-diff')" id="util-btn-text-diff" class="util-item">
+                        <div class="util-icon" style="background:rgba(16,185,129,0.15)"><svg width="17" height="17" fill="none" stroke="#10b981" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">Text Diff</span><span class="util-item-sub">Compare &amp; highlight</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+
+                    <!-- Design -->
+                    <div class="util-cat">Design</div>
+                    <button onclick="showUtilTool('qr-gen')" id="util-btn-qr-gen" class="util-item">
+                        <div class="util-icon" style="background:rgba(6,182,212,0.15)"><svg width="17" height="17" fill="none" stroke="#06b6d4" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">QR Generator</span><span class="util-item-sub">URL · Text · WiFi</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+                    <button onclick="showUtilTool('color-tools')" id="util-btn-color-tools" class="util-item">
+                        <div class="util-icon" style="background:rgba(236,72,153,0.15)"><svg width="17" height="17" fill="none" stroke="#ec4899" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">Color Tools</span><span class="util-item-sub">Picker · Palette · Contrast</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+
+                    <!-- Calculate -->
+                    <div class="util-cat">Calculate</div>
+                    <button onclick="showUtilTool('unit-conv')" id="util-btn-unit-conv" class="util-item">
+                        <div class="util-icon" style="background:rgba(100,116,139,0.15)"><svg width="17" height="17" fill="none" stroke="#64748b" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">Unit Converter</span><span class="util-item-sub">Length · Weight · Temp</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+                    <button onclick="showUtilTool('tax-calc')" id="util-btn-tax-calc" class="util-item">
+                        <div class="util-icon" style="background:rgba(100,116,139,0.15)"><svg width="17" height="17" fill="none" stroke="#64748b" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3m-7-4h4m-4 4h2m4-10V3m0 0l-3 3m3-3l3 3"/></svg></div>
+                        <div class="util-item-text"><span class="util-item-title">Thai Tax Calc 🇹🇭</span><span class="util-item-sub">ภาษีเงินได้บุคคลธรรมดา</span></div>
+                        <span class="util-soon">SOON</span>
+                    </button>
+
+                </div>
+
+                <!-- ── Content Panel ── -->
+                <div id="util-content" style="flex:1;overflow-y:auto;padding:32px 36px;background:var(--bg-main);">
+
+                    <!-- Default welcome state -->
+                    <div id="util-panel-default" style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;opacity:0.4;user-select:none;">
+                        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-dim)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text-dim);">เลือก Tool จาก sidebar</div>
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);">runs 100% in browser · no upload · no server</div>
+                    </div>
+
+                    <!-- Tool panels (shown one at a time) -->
+                    <div id="util-panel-pdf-unlock"  class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-pdf-compress" class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-img-compress" class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-base64"       class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-hash"         class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-password-gen" class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-json-fmt"     class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-text-diff"    class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-qr-gen"       class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-color-tools"  class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-unit-conv"    class="util-panel" style="display:none;"></div>
+                    <div id="util-panel-tax-calc"     class="util-panel" style="display:none;"></div>
+
+                </div>
+            </div>
+        </div><!-- end tab-utilities -->
+
     </main>
 
     <!-- ── News Reader Modal ─────────────────────────────── -->
@@ -5180,11 +5339,64 @@
         const sumArr     = (arr) => arr ? arr.reduce((s, i) => s + (parseFloat(i.val) || parseFloat(i.amount) || 0), 0) : 0;
         const sumPaidArr = (arr) => arr ? arr.reduce((s, i) => s + (i.isPaid ? (parseFloat(i.val) || parseFloat(i.amount) || 0) : 0), 0) : 0;
 
+        // ── Utilities tool switcher ──────────────────────────────
+        const _utilTools = {
+            'pdf-unlock':  { label: 'PDF Unlock',      desc: 'Remove password & copy/print restrictions from PDF files' },
+            'pdf-compress':{ label: 'PDF Compress',     desc: 'Reduce PDF file size while preserving quality' },
+            'img-compress':{ label: 'Image Compress',   desc: 'Compress JPG, PNG, and WebP images in-browser' },
+            'base64':      { label: 'Base64',           desc: 'Encode text or files to Base64, and decode back' },
+            'hash':        { label: 'Hash Generator',   desc: 'Generate MD5, SHA-1, SHA-256, SHA-512 hashes' },
+            'password-gen':{ label: 'Password Generator', desc: 'Generate strong, customizable passwords' },
+            'json-fmt':    { label: 'JSON Formatter',   desc: 'Format, validate, and minify JSON data' },
+            'text-diff':   { label: 'Text Diff',        desc: 'Compare two texts and highlight differences' },
+            'qr-gen':      { label: 'QR Generator',     desc: 'Generate QR codes for URLs, text, WiFi, and more' },
+            'color-tools': { label: 'Color Tools',      desc: 'Color picker, palette generator, and contrast checker' },
+            'unit-conv':   { label: 'Unit Converter',   desc: 'Convert length, weight, temperature, area, and more' },
+            'tax-calc':    { label: 'Thai Tax Calculator 🇹🇭', desc: 'คำนวณภาษีเงินได้บุคคลธรรมดา' },
+        };
+        let _activeUtilTool = null;
+        function showUtilTool(id) {
+            // Deactivate previous
+            if (_activeUtilTool) {
+                const prevBtn = document.getElementById('util-btn-' + _activeUtilTool);
+                if (prevBtn) prevBtn.classList.remove('util-active');
+                const prevPanel = document.getElementById('util-panel-' + _activeUtilTool);
+                if (prevPanel) prevPanel.style.display = 'none';
+            }
+            document.getElementById('util-panel-default').style.display = 'none';
+            // Activate new
+            _activeUtilTool = id;
+            const btn = document.getElementById('util-btn-' + id);
+            if (btn) btn.classList.add('util-active');
+            const panel = document.getElementById('util-panel-' + id);
+            if (!panel) return;
+            // Render panel content if empty
+            if (!panel._rendered) {
+                panel._rendered = true;
+                const tool = _utilTools[id] || { label: id, desc: '' };
+                panel.innerHTML = `
+                    <div style="margin-bottom:24px;">
+                        <div style="font-family:var(--font-main);font-size:20px;font-weight:800;color:var(--text-primary);margin-bottom:6px;">${tool.label}</div>
+                        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);">${tool.desc}</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:60px 0;border:2px dashed var(--border);border-radius:12px;opacity:0.5;">
+                        <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-dim)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text-dim);">Coming soon</div>
+                        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);">Tool กำลังจะถูก implement</div>
+                    </div>`;
+            }
+            panel.style.display = 'block';
+            // Reset scroll
+            const content = document.getElementById('util-content');
+            if (content) content.scrollTop = 0;
+        }
+
         function showTab(t, save = true, skipWlRefresh = false) {
             document.getElementById('tab-dashboard').classList.toggle('hidden', t !== 'dashboard');
             document.getElementById('tab-edit').classList.toggle('hidden', t !== 'edit');
             document.getElementById('tab-watchlist').classList.toggle('hidden', t !== 'watchlist');
             document.getElementById('tab-news').classList.toggle('hidden', t !== 'news');
+            document.getElementById('tab-utilities').classList.toggle('hidden', t !== 'utilities');
             // Reset scroll to top on mobile/tablet when switching tabs
             if (window.innerWidth <= 1024) { window.scrollTo({ top: 0, behavior: 'instant' }); }
             // Hide AI FAB + popup on all tabs except watchlist (mobile + desktop)
@@ -5203,6 +5415,7 @@
                 { id: 'btn-edit',      key: 'edit'      },
                 { id: 'btn-watchlist', key: 'watchlist' },
                 { id: 'btn-news',      key: 'news'      },
+                { id: 'btn-utilities', key: 'utilities' },
             ].forEach(({ id, key }) => {
                 const el = document.getElementById(id);
                 if (!el) return;
