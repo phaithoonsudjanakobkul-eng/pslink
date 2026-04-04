@@ -1836,6 +1836,7 @@
             position: relative;
             overflow: hidden;
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
         /* Profile pill style */
         .profile-pill {
             display: inline-flex;
@@ -1860,30 +1861,29 @@
         /* Desktop: lock grid row height so WL Alerts card cannot stretch beyond profile card */
         #dash-row1 { grid-template-rows: calc(256px + 80px); }
         #profile-wl-console { overflow: hidden; }
+        /* PINNED grid columns — CSS custom property so media queries can override inline style */
+        #wl-pinned-list { --pinned-gcols: 68px 65px 68px 46px 76px 52px 48px; }
 
         @media (max-width: 768px) {
-            /* Mobile/iPad: Row 1 = 2 columns side-by-side (WL Alert | Photo) */
+            /* Tablet: Row 1 = 2 columns side-by-side */
             #dash-row1 {
                 grid-template-columns: 1fr 1fr !important;
                 gap: 10px !important;
                 align-items: stretch !important;
             }
-            /* WL Alerts: compact height */
             #profile-wl-console {
                 min-height: 160px !important;
                 max-height: 260px !important;
             }
-            /* Profile card: hide info panel, show only photo */
             #profile-card-main {
                 height: auto !important;
                 min-height: 160px !important;
             }
-            /* Hide info panel + divider on mobile — photo only */
+            /* Hide info panel + divider on tablet — photo only */
             #profile-card-main > div:first-child,
             #profile-card-main > div.flex-shrink-0[style*="width:1px"] {
                 display: none !important;
             }
-            /* Photo fills entire card */
             #profile-photo-wrap {
                 width: 100% !important;
                 height: 100% !important;
@@ -1901,18 +1901,64 @@
                 inset: 0 !important;
             }
         }
-        @media (max-width: 480px) {
-            /* Small phone: stack vertically */
+
+        @media (max-width: 640px) {
+            /* Mobile: Row 1 → single column (CARD A on top, Profile below) */
             #dash-row1 {
                 grid-template-columns: 1fr !important;
+                grid-template-rows: auto auto !important;
                 gap: 10px !important;
             }
+            /* CARD A: stack LOW ALERTS above PINNED vertically */
+            #profile-wl-console {
+                flex-direction: column !important;
+                max-height: none !important;
+                min-height: 260px !important;
+            }
+            /* LOW ALERTS: compact strip at top, no right border */
+            #profile-wl-console > div:first-child {
+                flex: 0 0 auto !important;
+                width: 100% !important;
+                max-height: 80px !important;
+                padding: 8px 12px !important;
+                border-right: none !important;
+                border-bottom: 1px solid color-mix(in srgb,var(--border) 70%,transparent) !important;
+            }
+            /* LOW ALERTS title: smaller margin */
+            #profile-wl-console > div:first-child > div:first-child {
+                margin-bottom: 4px !important;
+            }
+            /* PINNED: full width of CARD A */
+            #profile-wl-console > div:last-child {
+                flex: 1 !important;
+                width: 100% !important;
+                padding: 10px 12px !important;
+            }
+            /* PINNED mobile grid: SYM+logo | TREND | LAST | %CHG (4 cols) */
+            #wl-pinned-list { --pinned-gcols: 58px 1fr 58px 70px; }
+            /* Hide CHG$, HIGH, LOW columns on mobile */
+            .wl-pinned-col-hide { display: none !important; }
+
+            /* Profile card: landscape strip — tall enough to show face, not just hair */
             #profile-card-main {
-                min-height: 220px !important;
+                height: 180px !important;
+                min-height: 180px !important;
             }
             #profile-photo-wrap {
-                aspect-ratio: 4 / 3 !important;
+                aspect-ratio: 16 / 9 !important;
+                min-height: 180px !important;
             }
+            /* Center the photo crop so face is visible, not just top of head */
+            #profilePhotoImg {
+                object-position: center center !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            /* Small phone: same as 640px but fine-tune heights */
+            #dash-row1 { grid-template-columns: 1fr !important; gap: 10px !important; }
+            #profile-wl-console { min-height: 300px !important; }
+            #profile-card-main { height: 160px !important; min-height: 160px !important; }
         }
 
         .dash-card::before {
@@ -3922,81 +3968,9 @@
                                     <div id="profile-display-notes" style="flex:1;overflow-y:auto;font-family:var(--font-main);font-size:12px;font-weight:400;color:var(--text-secondary);line-height:1.6;word-break:break-word;margin-top:2px;"></div>
                                 </div>
                             </div>
-                            <div id="profile-edit" style="display:none;flex-direction:column;height:100%;padding:16px 20px;gap:8px;">
-                                <div style="font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);position:relative;z-index:20;background:var(--bg-card);margin:-16px -20px 0;padding:10px 20px 4px;">แก้ไขโปรไฟล์</div>
-                                <!-- Pill visibility toggles -->
-                                <div id="profile-pill-toggles" style="display:flex;flex-wrap:wrap;gap:4px;flex-shrink:0;position:relative;z-index:20;"></div>
-                                <!-- Rich text toolbar -->
-                                <div style="display:flex;flex-direction:column;flex-shrink:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg-card2);position:relative;z-index:20;">
-                                    <div style="display:flex;flex-wrap:wrap;gap:3px;padding:4px 8px;align-items:center;">
-                                        <!-- Font / Size / Weight -->
-                                        <select onchange="rteCmd('fontName',this.value);this.blur()" title="Font family" style="height:24px;font-size:11px;padding:0 4px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);cursor:pointer;">
-                                            <option value="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">Sans-serif</option>
-                                            <option value="Georgia,'Times New Roman',serif">Serif</option>
-                                            <option value="'Courier New',Courier,monospace">Monospace</option>
-                                            <option value="Impact,Arial Narrow,sans-serif">Impact</option>
-                                            <option value="'Trebuchet MS',Tahoma,sans-serif">Trebuchet</option>
-                                            <option value="cursive">Cursive</option>
-                                        </select>
-                                        <select onchange="rteCmd('fontSize',this.value);this.blur()" title="Font size" style="height:24px;font-size:11px;padding:0 4px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);cursor:pointer;">
-                                            <option value="1">XS</option><option value="2">S</option><option value="3" selected>M</option><option value="4">L</option><option value="5">XL</option><option value="6">2XL</option><option value="7">3XL</option>
-                                        </select>
-                                        <select onchange="rteWrapStyle({fontWeight:this.value});this.value='';this.blur()" title="Font weight" style="height:24px;font-size:11px;padding:0 4px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);cursor:pointer;">
-                                            <option value="">Wt</option><option value="100">100</option><option value="300">300</option><option value="400">400</option><option value="600">600</option><option value="700">700</option><option value="900">900</option>
-                                        </select>
-                                        <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
-                                        <!-- B I U S -->
-                                        <button onmousedown="event.preventDefault();rteCmd('bold')" title="Bold" style="font-weight:900;font-size:13px;min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);">B</button>
-                                        <button onmousedown="event.preventDefault();rteCmd('italic')" title="Italic" style="font-style:italic;font-size:13px;min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);">I</button>
-                                        <button onmousedown="event.preventDefault();rteCmd('underline')" title="Underline" style="text-decoration:underline;font-size:13px;min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);">U</button>
-                                        <button onmousedown="event.preventDefault();rteCmd('strikeThrough')" title="Strikethrough" style="text-decoration:line-through;font-size:13px;min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);">S</button>
-                                        <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
-                                        <!-- Align icons (Word-style SVG) -->
-                                        <button onmousedown="event.preventDefault();rteCmd('justifyLeft')" title="Align left" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><rect y="4.5" width="7" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
-                                        <button onmousedown="event.preventDefault();rteCmd('justifyCenter')" title="Align center" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><rect x="3" y="4.5" width="7" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
-                                        <button onmousedown="event.preventDefault();rteCmd('justifyRight')" title="Align right" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><rect x="6" y="4.5" width="7" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
-                                        <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
-                                        <!-- List icons -->
-                                        <button onmousedown="event.preventDefault();rteCmd('insertUnorderedList')" title="Bullet list" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><circle cx="1.5" cy="1.5" r="1.5"/><rect x="4" y="0.5" width="9" height="2" rx="1"/><circle cx="1.5" cy="5.5" r="1.5"/><rect x="4" y="4.5" width="9" height="2" rx="1"/><circle cx="1.5" cy="9.5" r="1.5"/><rect x="4" y="8.5" width="9" height="2" rx="1"/></svg></button>
-                                        <button onmousedown="event.preventDefault();rteCmd('insertOrderedList')" title="Numbered list" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><text x="0" y="3.5" font-size="4" font-family="monospace">1.</text><rect x="6" y="0.5" width="7" height="2" rx="1"/><text x="0" y="7.5" font-size="4" font-family="monospace">2.</text><rect x="6" y="4.5" width="7" height="2" rx="1"/><text x="0" y="11" font-size="4" font-family="monospace">3.</text><rect x="6" y="8.5" width="7" height="2" rx="1"/></svg></button>
-                                        <!-- Indent icons -->
-                                        <button onmousedown="event.preventDefault();rteCmd('indent')" title="Indent" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><polygon points="0,3.5 3,5.5 0,7.5"/><rect x="4" y="4.5" width="9" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
-                                        <button onmousedown="event.preventDefault();rteCmd('outdent')" title="Outdent" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><polygon points="13,3.5 10,5.5 13,7.5"/><rect x="0" y="4.5" width="9" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
-                                        <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
-                                        <!-- Colors + Clear -->
-                                        <label onmousedown="rteSaveSelection()" title="Text color" style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:0 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);height:24px;font-size:11px;font-weight:700;color:var(--text-primary);">A <input type="color" onchange="rteRestoreAndApply('foreColor',this.value)" style="width:18px;height:14px;border:none;cursor:pointer;padding:0;"></label>
-                                        <label onmousedown="rteSaveSelection()" title="Highlight color" style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:0 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);height:24px;font-size:11px;font-weight:700;color:var(--text-primary);"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style="flex-shrink:0"><rect x="1" y="8" width="10" height="3" rx="1" fill="#fbbf24"/><path d="M3 7L6 1L9 7Z" fill="currentColor" opacity="0.7"/></svg><input type="color" value="#fde68a" onchange="rteRestoreAndApply('hiliteColor',this.value)" style="width:18px;height:14px;border:none;cursor:pointer;padding:0;"></label>
-                                        <button onmousedown="event.preventDefault();rteCmd('removeFormat')" title="Clear formatting" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-dim);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><path d="M2 2L11 11M2 11L11 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/><rect x="0" y="11" width="13" height="2" rx="1" opacity="0.4"/></svg></button>
-                                        <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
-                                        <!-- Image + More -->
-                                        <button onmousedown="event.preventDefault();document.getElementById('rte-img-input').click()" title="Insert image" style="font-size:14px;min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;">🖼</button>
-                                        <input id="rte-img-input" type="file" accept="image/*" style="display:none" onchange="rteHandleImageFile(this)">
-                                        <button id="rte-more-btn" onmousedown="event.preventDefault();rteToggleMore(this)" title="Typography &amp; recent colors" style="margin-left:auto;font-size:15px;min-width:26px;height:24px;padding:0 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-secondary);line-height:1;">⋯</button>
-                                    </div>
-                                    <!-- ⋯ dropdown: Typography + Recent colors only -->
-                                    <div id="profile-rte-more" style="display:none;position:fixed;z-index:9999;flex-direction:column;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);min-width:300px;">
-                                        <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 10px;align-items:center;border-bottom:1px solid var(--border);">
-                                            <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);">Typography</span>
-                                            <label style="display:flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--text-secondary);" title="Font size px">Size<input type="number" min="6" max="200" placeholder="px" onmousedown="rteSaveSelection()" onkeydown="if(event.key==='Enter'){event.preventDefault();rteApplyTypo('fontSize',this.value+'px');this.blur();}" style="width:44px;height:22px;font-size:11px;padding:0 3px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);"></label>
-                                            <label style="display:flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--text-secondary);" title="Letter spacing px">Tracking<input type="number" min="-20" max="50" step="0.5" placeholder="px" onmousedown="rteSaveSelection()" onkeydown="if(event.key==='Enter'){event.preventDefault();rteApplyTypo('letterSpacing',this.value+'px');this.blur();}" style="width:44px;height:22px;font-size:11px;padding:0 3px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);"></label>
-                                            <label style="display:flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--text-secondary);" title="Line height">Leading<input type="number" min="0.5" max="5" step="0.1" placeholder="1.6" onmousedown="rteSaveSelection()" onkeydown="if(event.key==='Enter'){event.preventDefault();rteApplyTypo('lineHeight',this.value);this.blur();}" style="width:44px;height:22px;font-size:11px;padding:0 3px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);"></label>
-                                            <span style="font-size:9px;color:var(--text-dim);font-style:italic;">↵ apply</span>
-                                        </div>
-                                        <div style="display:flex;flex-wrap:wrap;gap:4px;padding:6px 10px;align-items:center;">
-                                            <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);">Recent</span>
-                                            <div id="profile-rte-recent" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Editor canvas: text + free-image layer -->
-                                <div id="profile-rte-canvas" style="position:relative;flex:1;min-height:80px;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
-                                    <div id="profile-input-notes" contenteditable="true" spellcheck="false" onpaste="rteHandlePaste(event)"
-                                        style="position:absolute;inset:0;outline:none;font-family:var(--font-main);font-size:12px;font-weight:400;line-height:1.7;color:var(--text-secondary);background:var(--bg-main);padding:8px 10px;overflow-y:auto;word-break:break-word;"></div>
-                                </div>
-                                <div style="display:flex;gap:6px;flex-shrink:0;position:relative;z-index:20;background:var(--bg-card);margin:0 -20px -16px;padding:8px 20px 12px;">
-                                    <button onclick="saveProfileEdit()" class="flex-1 text-[10px] font-bold py-1.5 rounded-md text-white" style="background:var(--accent);">บันทึก</button>
-                                    <button onclick="cancelProfileEdit()" class="text-[10px] font-bold px-3 py-1.5 rounded-md" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim);">ยกเลิก</button>
-                                </div>
+                            <div id="profile-edit" style="display:none;position:absolute;inset:0;z-index:20;">
+                                <div id="profile-input-notes" contenteditable="true" spellcheck="false" onpaste="rteHandlePaste(event)"
+                                    style="position:absolute;inset:0;outline:none;font-family:var(--font-main);font-size:12px;font-weight:400;line-height:1.7;color:var(--text-secondary);background:transparent;padding:20px 22px;overflow-y:auto;word-break:break-word;"></div>
                             </div>
                             <!-- Front image layer: sits IN FRONT of text (z-index:10, after profile-edit in DOM) -->
                             <div id="profile-img-layer" class="img-free-layer" style="position:absolute;inset:0;pointer-events:none;z-index:10;overflow:hidden;"></div>
@@ -4034,6 +4008,84 @@
                         <div id="rte-rh-tl" style="display:none;position:absolute;z-index:30;width:10px;height:10px;background:var(--bg-card2);border:1.5px solid var(--accent);border-radius:2px;cursor:nwse-resize;pointer-events:auto;"></div>
                     </div>
 
+                </div>
+
+                <!-- Profile Edit Toolbar — shown below card during profile edit (right column only) -->
+                <div id="profile-edit-bar-wrap" style="display:none;grid-template-columns:1fr 1fr;gap:var(--row1-gap,16px);">
+                    <div></div>
+                    <div id="profile-edit-bar" class="dash-card" style="padding:10px 16px 12px;display:flex;flex-direction:column;gap:6px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+                            <div style="font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);">✏️ แก้ไขโปรไฟล์</div>
+                            <div style="display:flex;gap:6px;">
+                                <button onclick="saveProfileEdit()" class="text-[10px] font-bold px-4 py-1.5 rounded-md text-white" style="background:var(--accent);">บันทึก</button>
+                                <button onclick="cancelProfileEdit()" class="text-[10px] font-bold px-3 py-1.5 rounded-md" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim);">ยกเลิก</button>
+                            </div>
+                        </div>
+                        <!-- Pill visibility toggles -->
+                        <div id="profile-pill-toggles" style="display:flex;flex-wrap:wrap;gap:4px;flex-shrink:0;"></div>
+                        <!-- Rich text toolbar -->
+                        <div style="display:flex;flex-direction:column;flex-shrink:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg-card2);">
+                            <div style="display:flex;flex-wrap:wrap;gap:3px;padding:4px 8px;align-items:center;">
+                                <!-- Font / Size / Weight -->
+                                <select onchange="rteCmd('fontName',this.value);this.blur()" title="Font family" style="height:24px;font-size:11px;padding:0 4px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);cursor:pointer;">
+                                    <option value="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">Sans-serif</option>
+                                    <option value="Georgia,'Times New Roman',serif">Serif</option>
+                                    <option value="'Courier New',Courier,monospace">Monospace</option>
+                                    <option value="Impact,Arial Narrow,sans-serif">Impact</option>
+                                    <option value="'Trebuchet MS',Tahoma,sans-serif">Trebuchet</option>
+                                    <option value="cursive">Cursive</option>
+                                </select>
+                                <select onchange="rteCmd('fontSize',this.value);this.blur()" title="Font size" style="height:24px;font-size:11px;padding:0 4px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);cursor:pointer;">
+                                    <option value="1">XS</option><option value="2">S</option><option value="3" selected>M</option><option value="4">L</option><option value="5">XL</option><option value="6">2XL</option><option value="7">3XL</option>
+                                </select>
+                                <select onchange="rteWrapStyle({fontWeight:this.value});this.value='';this.blur()" title="Font weight" style="height:24px;font-size:11px;padding:0 4px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);cursor:pointer;">
+                                    <option value="">Wt</option><option value="100">100</option><option value="300">300</option><option value="400">400</option><option value="600">600</option><option value="700">700</option><option value="900">900</option>
+                                </select>
+                                <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
+                                <!-- B I U S -->
+                                <button onmousedown="event.preventDefault();rteCmd('bold')" title="Bold" style="font-weight:900;font-size:13px;min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);">B</button>
+                                <button onmousedown="event.preventDefault();rteCmd('italic')" title="Italic" style="font-style:italic;font-size:13px;min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);">I</button>
+                                <button onmousedown="event.preventDefault();rteCmd('underline')" title="Underline" style="text-decoration:underline;font-size:13px;min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);">U</button>
+                                <button onmousedown="event.preventDefault();rteCmd('strikeThrough')" title="Strikethrough" style="text-decoration:line-through;font-size:13px;min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);">S</button>
+                                <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
+                                <!-- Align icons -->
+                                <button onmousedown="event.preventDefault();rteCmd('justifyLeft')" title="Align left" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><rect y="4.5" width="7" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
+                                <button onmousedown="event.preventDefault();rteCmd('justifyCenter')" title="Align center" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><rect x="3" y="4.5" width="7" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
+                                <button onmousedown="event.preventDefault();rteCmd('justifyRight')" title="Align right" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><rect x="6" y="4.5" width="7" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
+                                <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
+                                <!-- List icons -->
+                                <button onmousedown="event.preventDefault();rteCmd('insertUnorderedList')" title="Bullet list" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><circle cx="1.5" cy="1.5" r="1.5"/><rect x="4" y="0.5" width="9" height="2" rx="1"/><circle cx="1.5" cy="5.5" r="1.5"/><rect x="4" y="4.5" width="9" height="2" rx="1"/><circle cx="1.5" cy="9.5" r="1.5"/><rect x="4" y="8.5" width="9" height="2" rx="1"/></svg></button>
+                                <button onmousedown="event.preventDefault();rteCmd('insertOrderedList')" title="Numbered list" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><text x="0" y="3.5" font-size="4" font-family="monospace">1.</text><rect x="6" y="0.5" width="7" height="2" rx="1"/><text x="0" y="7.5" font-size="4" font-family="monospace">2.</text><rect x="6" y="4.5" width="7" height="2" rx="1"/><text x="0" y="11" font-size="4" font-family="monospace">3.</text><rect x="6" y="8.5" width="7" height="2" rx="1"/></svg></button>
+                                <!-- Indent icons -->
+                                <button onmousedown="event.preventDefault();rteCmd('indent')" title="Indent" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><polygon points="0,3.5 3,5.5 0,7.5"/><rect x="4" y="4.5" width="9" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
+                                <button onmousedown="event.preventDefault();rteCmd('outdent')" title="Outdent" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-primary);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect y="0" width="13" height="2" rx="1"/><polygon points="13,3.5 10,5.5 13,7.5"/><rect x="0" y="4.5" width="9" height="2" rx="1"/><rect y="9" width="13" height="2" rx="1"/></svg></button>
+                                <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
+                                <!-- Colors + Clear -->
+                                <label onmousedown="rteSaveSelection()" title="Text color" style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:0 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);height:24px;font-size:11px;font-weight:700;color:var(--text-primary);">A <input type="color" onchange="rteRestoreAndApply('foreColor',this.value)" style="width:18px;height:14px;border:none;cursor:pointer;padding:0;"></label>
+                                <label onmousedown="rteSaveSelection()" title="Highlight color" style="display:flex;align-items:center;gap:3px;cursor:pointer;padding:0 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);height:24px;font-size:11px;font-weight:700;color:var(--text-primary);"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style="flex-shrink:0"><rect x="1" y="8" width="10" height="3" rx="1" fill="#fbbf24"/><path d="M3 7L6 1L9 7Z" fill="currentColor" opacity="0.7"/></svg><input type="color" value="#fde68a" onchange="rteRestoreAndApply('hiliteColor',this.value)" style="width:18px;height:14px;border:none;cursor:pointer;padding:0;"></label>
+                                <button onmousedown="event.preventDefault();rteCmd('removeFormat')" title="Clear formatting" style="min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-dim);display:inline-flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><path d="M2 2L11 11M2 11L11 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/><rect x="0" y="11" width="13" height="2" rx="1" opacity="0.4"/></svg></button>
+                                <div style="width:1px;height:16px;background:var(--border);margin:0 1px;flex-shrink:0;"></div>
+                                <!-- Image + More -->
+                                <button onmousedown="event.preventDefault();document.getElementById('rte-img-input').click()" title="Insert image" style="font-size:14px;min-width:26px;height:24px;padding:0 3px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;">🖼</button>
+                                <input id="rte-img-input" type="file" accept="image/*" style="display:none" onchange="rteHandleImageFile(this)">
+                                <button id="rte-more-btn" onmousedown="event.preventDefault();rteToggleMore(this)" title="Typography &amp; recent colors" style="margin-left:auto;font-size:15px;min-width:26px;height:24px;padding:0 4px;border:1px solid var(--border);border-radius:5px;background:var(--bg-card);cursor:pointer;color:var(--text-secondary);line-height:1;">⋯</button>
+                            </div>
+                            <!-- ⋯ dropdown: Typography + Recent colors only -->
+                            <div id="profile-rte-more" style="display:none;position:fixed;z-index:9999;flex-direction:column;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);min-width:300px;">
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 10px;align-items:center;border-bottom:1px solid var(--border);">
+                                    <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);">Typography</span>
+                                    <label style="display:flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--text-secondary);" title="Font size px">Size<input type="number" min="6" max="200" placeholder="px" onmousedown="rteSaveSelection()" onkeydown="if(event.key==='Enter'){event.preventDefault();rteApplyTypo('fontSize',this.value+'px');this.blur();}" style="width:44px;height:22px;font-size:11px;padding:0 3px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);"></label>
+                                    <label style="display:flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--text-secondary);" title="Letter spacing px">Tracking<input type="number" min="-20" max="50" step="0.5" placeholder="px" onmousedown="rteSaveSelection()" onkeydown="if(event.key==='Enter'){event.preventDefault();rteApplyTypo('letterSpacing',this.value+'px');this.blur();}" style="width:44px;height:22px;font-size:11px;padding:0 3px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);"></label>
+                                    <label style="display:flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--text-secondary);" title="Line height">Leading<input type="number" min="0.5" max="5" step="0.1" placeholder="1.6" onmousedown="rteSaveSelection()" onkeydown="if(event.key==='Enter'){event.preventDefault();rteApplyTypo('lineHeight',this.value);this.blur();}" style="width:44px;height:22px;font-size:11px;padding:0 3px;background:var(--bg-card);border:1px solid var(--border);border-radius:5px;outline:none;color:var(--text-primary);"></label>
+                                    <span style="font-size:9px;color:var(--text-dim);font-style:italic;">↵ apply</span>
+                                </div>
+                                <div style="display:flex;flex-wrap:wrap;gap:4px;padding:6px 10px;align-items:center;">
+                                    <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);">Recent</span>
+                                    <div id="profile-rte-recent" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Row 2: 4 Summary Cards -->
@@ -8446,18 +8498,18 @@
                 list.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);opacity:0.4;padding-top:24px;text-align:center;">กด ⊕ เพื่อ pin หุ้น</div>';
                 return;
             }
-            // Single-line grid: all fixed-width cols, justify-content:space-between distributes gap on any screen width
-            const GCOLS = '68px 65px 68px 46px 76px 52px 48px';
-            const GSTYLE = 'display:grid;grid-template-columns:' + GCOLS + ';justify-content:space-evenly;align-items:center;';
+            // GCOLS uses CSS custom property --pinned-gcols (defined on #wl-pinned-list)
+            // so @media queries can override the grid template without touching inline styles
+            const GSTYLE = 'display:grid;grid-template-columns:var(--pinned-gcols);justify-content:space-evenly;align-items:center;';
             const hdStyle = 'font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-secondary);text-transform:uppercase;white-space:nowrap;';
             const header = '<div style="' + GSTYLE + 'padding:0 2px 4px 2px;border-bottom:1px solid color-mix(in srgb,var(--border) 80%,transparent);margin-bottom:2px;">' +
                 '<span style="' + hdStyle + '">SYM</span>' +
                 '<span style="' + hdStyle + '">TREND</span>' +
                 '<span style="' + hdStyle + 'text-align:right;">LAST</span>' +
-                '<span style="' + hdStyle + 'text-align:right;">CHG</span>' +
+                '<span class="wl-pinned-col-hide" style="' + hdStyle + 'text-align:right;">CHG</span>' +
                 '<span style="' + hdStyle + 'text-align:right;">%CHG</span>' +
-                '<span style="' + hdStyle + 'text-align:right;">HIGH</span>' +
-                '<span style="' + hdStyle + 'text-align:right;">LOW</span>' +
+                '<span class="wl-pinned-col-hide" style="' + hdStyle + 'text-align:right;">HIGH</span>' +
+                '<span class="wl-pinned-col-hide" style="' + hdStyle + 'text-align:right;">LOW</span>' +
                 '</div>';
             const rows = pinned.map(function(sym) {
                 const d = wlDataCache[sym] || {};
@@ -8504,16 +8556,16 @@
                     '<div id="wl-pinned-spark-' + sym + '" style="display:flex;align-items:center;justify-content:flex-end;min-width:0;overflow:hidden;">' + (sparkHtml || '') + '</div>' +
                     // LAST
                     '<span id="wl-pinned-price-' + sym + '" style="' + vStyleClip + 'font-weight:600;letter-spacing:-0.02em;color:' + col + ';">' + priceStr + '</span>' +
-                    // CHG
-                    '<span id="wl-pinned-chg-' + sym + '" style="' + vStyleClip + 'color:' + col + ';">' + chgDStr + '</span>' +
+                    // CHG — hidden on mobile (wl-pinned-col-hide)
+                    '<span id="wl-pinned-chg-' + sym + '" class="wl-pinned-col-hide" style="' + vStyleClip + 'color:' + col + ';">' + chgDStr + '</span>' +
                     // %CHG — badge, NO clip so arrow+text never truncate
                     '<div id="wl-pinned-pct-' + sym + '" style="display:flex;justify-content:flex-end;">' +
                         '<span style="font-family:var(--font-main);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;white-space:nowrap;color:' + col + ';background:' + chgPBadgeBg + ';border-radius:4px;padding:1px 5px;">' + chgPStr + '</span>' +
                     '</div>' +
-                    // HIGH
-                    '<span id="wl-pinned-high-' + sym + '" style="' + vStyleClip + 'color:' + colUp + ';">' + highStr + '</span>' +
-                    // LOW
-                    '<span id="wl-pinned-low-' + sym + '" style="' + vStyleClip + 'color:' + colDn + ';">' + lowStr + '</span>' +
+                    // HIGH — hidden on mobile
+                    '<span id="wl-pinned-high-' + sym + '" class="wl-pinned-col-hide" style="' + vStyleClip + 'color:' + colUp + ';">' + highStr + '</span>' +
+                    // LOW — hidden on mobile
+                    '<span id="wl-pinned-low-' + sym + '" class="wl-pinned-col-hide" style="' + vStyleClip + 'color:' + colDn + ';">' + lowStr + '</span>' +
                 '</div>';
             }).join('');
             list.innerHTML = header + rows;
@@ -16418,9 +16470,11 @@ ${_clip(contextSections, 2600)}`;
         }
 
         function _profileImgLayerSetEditable(editable) {
-            // In edit mode: elevate back layer so images are visible/selectable
+            // In edit mode: elevate both layers above the edit overlay (z-index:20) so images are visible/selectable
             const backLayer = document.getElementById('profile-img-layer-back');
-            if (backLayer) backLayer.style.zIndex = editable ? '11' : '';
+            if (backLayer) backLayer.style.zIndex = editable ? '25' : '';
+            const frontLayer = document.getElementById('profile-img-layer');
+            if (frontLayer) frontLayer.style.zIndex = editable ? '25' : '10';
             document.querySelectorAll('.img-free-layer').forEach(layer => {
                 layer.querySelectorAll('img').forEach(img => {
                     if (editable) {
@@ -16823,7 +16877,9 @@ ${_clip(contextSections, 2600)}`;
                 notesEl.innerHTML = plain ? plain.split('\n').map(l => `<div>${l || '<br>'}</div>`).join('') : '';
             }
             view.style.display = 'none';
-            edit.style.display = 'flex';
+            edit.style.display = 'block';
+            const bar = document.getElementById('profile-edit-bar-wrap');
+            if (bar) bar.style.display = 'grid';
             const card = document.getElementById('profile-card-main');
             if (card) card._origH = card.style.height;
             rteRenderRecentColors();
@@ -16866,6 +16922,8 @@ ${_clip(contextSections, 2600)}`;
             rteHideImgControls();
             _profileImgLayerSetEditable(false);
             edit.style.display = 'none';
+            const bar = document.getElementById('profile-edit-bar-wrap');
+            if (bar) bar.style.display = 'none';
             view.style.display = 'flex';
         }
         function handleAvatar(e) {
