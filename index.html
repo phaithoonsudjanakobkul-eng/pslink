@@ -13444,9 +13444,15 @@
             }
             if (mobEl) mobEl.innerHTML = svgMobile;
             // ── Update PINNED sparkline if this symbol is pinned ──
+            // Use renderSparklineSVG (has class="wl-sparkline" → spark-fadein CSS animation)
+            // so the update is visually perceivable. Own hash check avoids redraws when unchanged.
             const pinnedSparkEl = document.getElementById('wl-pinned-spark-' + symbol);
             if (pinnedSparkEl && qualityOk && prices.length >= 2) {
-                pinnedSparkEl.innerHTML = _miniSparkSvg(symbol, 60, 22);
+                const _pSvg = renderSparklineSVG(prices, isUp, 60, 22, base);
+                if (_pSvg && pinnedSparkEl.dataset.sparkHash !== _hash) {
+                    pinnedSparkEl.dataset.sparkHash = _hash;
+                    pinnedSparkEl.innerHTML = _pSvg;
+                }
             }
         }
 
@@ -14688,7 +14694,16 @@
                       '<span class="wl-logo-initials" style="font-size:6px;">' + sym.slice(0,2) + '</span>' +
                       '</div>'
                     : '<div class="wl-logo-wrap load-error" style="width:20px;height:20px;border-radius:6px;border:1px solid var(--border);flex-shrink:0;"><span class="wl-logo-initials" style="font-size:6px;">' + sym.slice(0,2) + '</span></div>';
-                const sparkHtml = _miniSparkSvg(sym, 60, 22);
+                // Render PINNED sparkline with renderSparklineSVG (same renderer as updateSparklineCell)
+                // so initial render and live updates look identical — no flash between shapes.
+                // If quality not ready yet → empty; updateSparklineCell fills in when data arrives.
+                const _sEntry  = wlSparklineCache[sym];
+                const _sBase   = _sEntry?.base ?? wlDataCache[sym]?.pc ?? _sEntry?.prices?.[0];
+                const _sPrices = _sEntry?.prices || [];
+                const _sLast   = _sPrices[_sPrices.length - 1];
+                const _sIsUp   = (_sLast != null && _sBase != null) ? _sLast >= _sBase : true;
+                const sparkHtml = (_sEntry && sparklineQuality(_sPrices, _sBase) && _sPrices.length >= 2)
+                    ? renderSparklineSVG(_sPrices, _sIsUp, 60, 22, _sBase) : '';
                 const vStyle = 'font-family:var(--font-main);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;white-space:nowrap;text-align:right;';
                 const vStyleClip = vStyle + 'overflow:hidden;text-overflow:ellipsis;';
                 return '<div id="wl-pinned-row-' + sym + '" draggable="true" ' +
