@@ -23401,6 +23401,12 @@ ${_clip(contextSections, 2600)}`;
                         if (pc.pinnedWl)    { try { localStorage.setItem('ps_pinned_wl', pc.pinnedWl); } catch(e) {} }
                         _loadProfileCard();
                     }
+                    // chartPrefs: column picker state + chart settings — always restore from Gist
+                    // (UI preference, not trading data — Gist is source of truth across devices)
+                    if (data.chartPrefs) {
+                        try { localStorage.setItem('ps_lwc_prefs', JSON.stringify(data.chartPrefs)); } catch(e){}
+                        if (data.chartPrefs.cols) { _lwcPrefs.cols = data.chartPrefs.cols; _applyWlCols(); }
+                    }
                     // API keys: restore from Gist (base64-encoded) — fill missing keys only
                     // If local already has a key, don't overwrite (user may have changed it)
                     if (data.apiKeys && typeof data.apiKeys === 'object') {
@@ -24523,7 +24529,8 @@ ${_clip(contextSections, 2600)}`;
                 localStorage.getItem('ps_profile_pills_hidden')        || '',
                 localStorage.getItem('ps_pinned_wl')                   || '',
             ].join('|');
-            return rHash + '::wl:' + watchlist.join(',') + '::sig:' + sHash + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash;
+            const lwcHash = localStorage.getItem('ps_lwc_prefs') || '';
+            return rHash + '::wl:' + watchlist.join(',') + '::sig:' + sHash + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash;
         }
         setInterval(() => {
             if (!getGistToken()) return;
