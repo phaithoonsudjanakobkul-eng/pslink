@@ -910,7 +910,7 @@
         /* Sparkline cell fade transition ตอน swap OHLC→real bars */
         #watchlist-table td.wl-spark-cell { transition: opacity 0.2s ease; }
         /* Sparkline wrap — own GPU layer, isolated from parent row's box-shadow flash */
-        #watchlist-table .wl-movement-cell { contain: layout style; }
+        /* NOTE: no contain on .wl-movement-cell — table cells + overflow:visible SVG incompatible */
         #watchlist-table td.wl-spark-cell .wl-sparkline-wrap,
         #watchlist-table .wl-sparkline-wrap { isolation: isolate; transform: translateZ(0); }
         .wl-mob-spark-skeleton {
@@ -11955,6 +11955,7 @@
 
         function updateDashboard() {
             _loadProfileCard();
+            _renderPinnedWl(); // ensure _pinnedGen increments + DOM built before WS ticks arrive
             const validRecords = records.filter(r => r.payday > 0 || (r.fixed && r.fixed.length > 0) || (r.dynamic && r.dynamic.length > 0));
 
             if (validRecords.length === 0) {
@@ -13289,10 +13290,14 @@
                 if (arr.length > 180) arr.splice(0, arr.length - 180);
                 entry.ts = Date.now();
             }
-            // Throttle DOM write — max once per 500ms per symbol (data updates every tick, DOM does not)
+            // Throttle DOM write 2s — stagger per-symbol so all don't fire simultaneously (thundering herd)
             const now = Date.now();
-            // throttle DOM write 2s — hash check ใน updateSparklineCell กัน flicker ซ้ำ
-            if (!_sparkDomThrottle[symbol] || now - _sparkDomThrottle[symbol] >= 2000) {
+            if (!_sparkDomThrottle[symbol]) {
+                // First tick: assign staggered start offset (0–1800ms) so symbols spread across 2s window
+                const _stagger = (symbol.charCodeAt(0) * 37 + (symbol.charCodeAt(1) || 0) * 17) % 1800;
+                _sparkDomThrottle[symbol] = now - (2000 - _stagger); // makes next fire at now+_stagger
+            }
+            if (now - _sparkDomThrottle[symbol] >= 2000) {
                 _sparkDomThrottle[symbol] = now;
                 updateSparklineCell(symbol);
             }
@@ -14630,6 +14635,8 @@
                 pinned = cleaned;
                 localStorage.setItem('ps_pinned_wl', JSON.stringify(pinned));
             }
+            // Always sync _pinnedSymSet so _handleTrade guard is up-to-date even if hash unchanged
+            _pinnedSymSet = new Set(pinned);
             // Hash: symbol list only — prices via _updatePinnedCell, sparklines via updateSparklineCell
             const dataHash = pinned.join('|');
             if (list._pinnedHash === dataHash) return;
@@ -21130,6 +21137,7 @@ ${_clip(contextSections, 2600)}`;
         let _wsBackgroundMode     = false;
         let _dashboardVisible     = false;  // true when Dashboard tab is active
         let _pinnedGen            = 0;      // incremented when pinned DOM rebuilds → force re-cache
+        let _pinnedSymSet         = new Set(); // fast O(1) lookup — avoids getElementById on non-pinned symbols
         let _sigThreshold         = 60;     // signal/rating recompute throttle (pre-computed)
 
         // Inline chart updater — called directly from WS, no rAF
@@ -21218,10 +21226,12 @@ ${_clip(contextSections, 2600)}`;
             _rafPending = false;
             _hasPendingTrades = false;
             if (_wsBackgroundMode) {
-                if (_dashboardVisible) {
+                if (_dashboardVisible && _pinnedSymSet.size > 0) {
                     for (const _s in _pendingTrades) {
-                        const _d = wlDataCache[_s];
-                        if (_d) _updatePinnedCellHot(_s, _d);
+                        if (_pinnedSymSet.has(_s)) {
+                            const _d = wlDataCache[_s];
+                            if (_d) _updatePinnedCellHot(_s, _d);
+                        }
                         delete _pendingTrades[_s];
                     }
                 } else {
@@ -21273,7 +21283,7 @@ ${_clip(contextSections, 2600)}`;
                 d._pinHigh  = document.getElementById('wl-pinned-high-' + sym);
                 d._pinLow   = document.getElementById('wl-pinned-low-' + sym);
             }
-            if (!d._pinPrice) return; // not pinned
+            if (!d._pinPrice) { d._pinGen = -1; return; } // DOM not ready yet — retry next tick
             const price = d.c;
             if (!price) return;
             const isUp = (d.dp || 0) >= 0;
@@ -21471,7 +21481,7 @@ ${_clip(contextSections, 2600)}`;
             }
 
             pushSparklinePrice(sym, newPrice);
-            _updatePinnedCellHot(sym, d);
+            if (_pinnedSymSet.size > 0 && _pinnedSymSet.has(sym)) _updatePinnedCellHot(sym, d);
         }
 
         // Flash cleanup — extracted to avoid closure allocation on hot path
