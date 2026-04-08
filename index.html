@@ -11649,13 +11649,15 @@
                 _wsBackgroundMode = false;
             }
             _dashboardVisible = (t === 'dashboard');
-            // Tab-switch flush: on non-watchlist tabs rAF is never scheduled, so
-            // _pendingTrades may have accumulated while away (e.g. on MARKET tab).
-            // Schedule one flush immediately so PINNED shows latest prices without
-            // waiting for the next WS tick to arrive after switching to Dashboard.
-            if (_dashboardVisible && _pinnedSymSet.size > 0 && !_rafPending) {
-                _rafPending = true;
-                requestAnimationFrame(_rafFlushQuotes);
+            if (_dashboardVisible) {
+                _startPinnedCanvasLoop(); // resume 60fps canvas draw when entering Dashboard
+                // Tab-switch flush: drain any accumulated trades immediately
+                if (_pinnedSymSet.size > 0 && !_rafPending) {
+                    _rafPending = true;
+                    requestAnimationFrame(_rafFlushQuotes);
+                }
+            } else {
+                _stopPinnedCanvasLoop();  // pause canvas loop on other tabs (save CPU/battery)
             }
             if (save) try { localStorage.setItem('ps_tab', t); } catch(e) {}
             if (save) scheduleAutoSave(true); // flush pending save on tab switch (not on initial load)
@@ -13288,11 +13290,11 @@
             }
             const arr = entry.prices;
             const p2  = Number(price.toFixed(2));
-            if (arr.length && arr[arr.length - 1] === p2) return;
-            // Alpaca-sourced: update final point only
             if (entry.src === 'alpaca') {
+                // Update last bar's close with latest WS price (real-time Y movement)
                 if (arr.length > 0) arr[arr.length - 1] = p2;
             } else {
+                if (arr.length && arr[arr.length - 1] === p2) return;
                 arr.push(p2);
                 if (arr.length > 180) arr.splice(0, arr.length - 180);
                 entry.ts = Date.now();
@@ -13443,17 +13445,8 @@
                 el.dataset.sparkSrc = isReal ? 'real' : 'ohlc';
             }
             if (mobEl) mobEl.innerHTML = svgMobile;
-            // ── Update PINNED sparkline if this symbol is pinned ──
-            // Use renderSparklineSVG (has class="wl-sparkline" → spark-fadein CSS animation)
-            // so the update is visually perceivable. Own hash check avoids redraws when unchanged.
-            const pinnedSparkEl = document.getElementById('wl-pinned-spark-' + symbol);
-            if (pinnedSparkEl && qualityOk && prices.length >= 2) {
-                const _pSvg = renderSparklineSVG(prices, isUp, 60, 22, base);
-                if (_pSvg && pinnedSparkEl.dataset.sparkHash !== _hash) {
-                    pinnedSparkEl.dataset.sparkHash = _hash;
-                    pinnedSparkEl.innerHTML = _pSvg;
-                }
-            }
+            // PINNED sparkline is now canvas-based (_drawPinnedSparkCanvas / _startPinnedCanvasLoop).
+            // updateSparklineCell no longer touches the PINNED spark DOM — canvas loop handles it.
         }
 
         function showAddTickerInput() {
@@ -14669,9 +14662,14 @@
                 '</div>';
             const rows = pinned.map(function(sym) {
                 const d = wlDataCache[sym] || {};
-                const price = d.c != null ? d.c : (d.pc != null ? d.pc : null);
-                const chgD  = d.d  != null && d.d  !== 0 ? d.d  : null;
-                const chgP  = d.dp != null && d.dp !== 0 ? d.dp : null;
+                const price      = d.c  != null ? d.c  : (d.pc != null ? d.pc : null);
+                const prevClose  = d.pc != null ? d.pc : (d._prevDailyC != null ? d._prevDailyC : null);
+                // Fallback: compute CHG/CHG% from price - prevClose when d/dp not in cache
+                // (same logic as _updatePinnedCell) so first render shows values without waiting for WS tick
+                const chgD  = d.d  != null && d.d  !== 0 ? d.d
+                            : (price != null && prevClose != null) ? price - prevClose : null;
+                const chgP  = d.dp != null && d.dp !== 0 ? d.dp
+                            : (chgD != null && prevClose) ? chgD / prevClose * 100 : null;
                 const high  = d.h  != null && d.h  > 0   ? d.h  : null;
                 const low   = d.l  != null && d.l  > 0   ? d.l  : null;
                 const isUp  = chgP != null ? chgP >= 0 : null;
@@ -14694,16 +14692,8 @@
                       '<span class="wl-logo-initials" style="font-size:6px;">' + sym.slice(0,2) + '</span>' +
                       '</div>'
                     : '<div class="wl-logo-wrap load-error" style="width:20px;height:20px;border-radius:6px;border:1px solid var(--border);flex-shrink:0;"><span class="wl-logo-initials" style="font-size:6px;">' + sym.slice(0,2) + '</span></div>';
-                // Render PINNED sparkline with renderSparklineSVG (same renderer as updateSparklineCell)
-                // so initial render and live updates look identical — no flash between shapes.
-                // If quality not ready yet → empty; updateSparklineCell fills in when data arrives.
-                const _sEntry  = wlSparklineCache[sym];
-                const _sBase   = _sEntry?.base ?? wlDataCache[sym]?.pc ?? _sEntry?.prices?.[0];
-                const _sPrices = _sEntry?.prices || [];
-                const _sLast   = _sPrices[_sPrices.length - 1];
-                const _sIsUp   = (_sLast != null && _sBase != null) ? _sLast >= _sBase : true;
-                const sparkHtml = (_sEntry && sparklineQuality(_sPrices, _sBase) && _sPrices.length >= 2)
-                    ? renderSparklineSVG(_sPrices, _sIsUp, 60, 22, _sBase) : '';
+                // SPARK: canvas-based for smooth continuous scroll (Webull-style).
+                // _startPinnedCanvasLoop() redraws every rAF frame via _drawPinnedSparkCanvas.
                 const vStyle = 'font-family:var(--font-main);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;white-space:nowrap;text-align:right;';
                 const vStyleClip = vStyle + 'overflow:hidden;text-overflow:ellipsis;';
                 return '<div id="wl-pinned-row-' + sym + '" draggable="true" ' +
@@ -14717,8 +14707,10 @@
                         logoHtml +
                         '<span style="font-family:var(--font-main);font-size:11px;font-weight:700;letter-spacing:0.02em;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + sym + '</span>' +
                     '</div>' +
-                    // SPARK
-                    '<div id="wl-pinned-spark-' + sym + '" style="display:flex;align-items:center;justify-content:flex-end;min-width:0;overflow:hidden;">' + (sparkHtml || '') + '</div>' +
+                    // SPARK — canvas same height as old SVG (22px) to keep row size unchanged
+                    '<div id="wl-pinned-spark-' + sym + '" style="display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;">' +
+                        '<canvas id="wl-pinned-spark-canvas-' + sym + '" width="120" height="44" style="width:60px;height:22px;display:block;margin:0 auto;"></canvas>' +
+                    '</div>' +
                     // LAST
                     '<span id="wl-pinned-price-' + sym + '" style="' + vStyleClip + 'font-weight:600;letter-spacing:-0.02em;color:' + col + ';">' + priceStr + '</span>' +
                     // CHG — hidden on mobile (wl-pinned-col-hide)
@@ -14734,6 +14726,264 @@
                 '</div>';
             }).join('');
             list.innerHTML = header + rows;
+            // ── Start canvas animation loop (Webull-style continuous scroll) ─
+            _startPinnedCanvasLoop();
+            // ── Immediately fill CHG/%CHG/HIGH/LOW from current cache ────────
+            // _renderPinnedWl just wrote innerHTML — DOM is ready; push cached data
+            // through _updatePinnedCell so computed CHG/%CHG show without waiting for a WS tick.
+            requestAnimationFrame(function() {
+                pinned.forEach(function(sym) {
+                    if (wlDataCache[sym]) _updatePinnedCell(sym, wlDataCache[sym]);
+                });
+            });
+            // ── Fetch Alpaca snapshot for real session HIGH / LOW ─────────────
+            // _alpHandleTrades seeds h/l from the first WS tick (= current price, not true H/L).
+            // A one-shot snapshot gives accurate dailyBar.h / dailyBar.l immediately.
+            _fetchPinnedSnapshot(pinned);
+            // ── Trigger sparkline data for each pinned symbol ────────────────
+            // fetchAlpacaSparkline normally only runs when Watchlist tab is visible.
+            // Without this, wlSparklineCache stays empty on Dashboard → pushSparklinePrice
+            // returns early (hasRealSparkSource guard) → sparkline never draws.
+            requestAnimationFrame(function() {
+                pinned.forEach(function(sym) {
+                    const _se = wlSparklineCache[sym];
+                    const _sb = _se?.base ?? wlDataCache[sym]?.pc ?? _se?.prices?.[0];
+                    if (!_se || !sparklineQuality(_se.prices, _sb)) {
+                        requestSparklineRefresh(sym, false); // async fetch → updateSparklineCell when done
+                    } else {
+                        updateSparklineCell(sym); // quality ok — fill container immediately
+                    }
+                });
+            });
+        }
+
+        // ── PINNED sparkline: canvas-based continuous scroll (Webull-style) ──
+        //
+        // Architecture:
+        //   • Each pinned symbol has a <canvas id="wl-pinned-spark-canvas-{sym}">
+        //   • _startPinnedCanvasLoop() runs a requestAnimationFrame loop (60 fps)
+        //     that calls _drawPinnedSparkCanvas(sym) for every pinned symbol.
+        //   • _drawPinnedSparkCanvas reads wlSparklineCache[sym].prices and draws the
+        //     line with a time-based x offset: scrollOffset = (Date.now()/2000 % 1) * pixPerPt
+        //     → the chart advances LEFT by exactly one data-point width every 2 s,
+        //       perfectly matching the pushSparklinePrice throttle.
+        //   • No DOM replacement → zero flicker. Canvas clears + redraws each frame.
+        //   • Loop is paused on non-Dashboard tabs to save CPU/battery.
+
+        let _pinnedCanvasRafId = null;
+
+        function _drawPinnedSparkCanvas(sym) {
+            const canvas = document.getElementById('wl-pinned-spark-canvas-' + sym);
+            if (!canvas) return;
+            const entry = wlSparklineCache[sym];
+            const ctx = canvas.getContext('2d');
+            // DPR-aware: ensure canvas buffer matches display density
+            const DPR = window.devicePixelRatio || 2;
+            const CSS_W = 60, CSS_H = 22;
+            const bufW = Math.round(CSS_W * DPR), bufH = Math.round(CSS_H * DPR);
+            if (canvas.width !== bufW || canvas.height !== bufH) {
+                canvas.width = bufW; canvas.height = bufH;
+            }
+            const W = CSS_W, H = CSS_H;
+
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            ctx.clearRect(0, 0, W, H);
+
+            // Quality gate: ≥12 pts avoids OHLC-seed shape shift
+            if (!entry || !Array.isArray(entry.prices) || entry.prices.length < 12) return;
+
+            // ── Time constants (must be computed BEFORE freshness gate) ──
+            const nowMs     = Date.now();
+            const mktOpen   = typeof isMarketOpen === 'function' ? isMarketOpen() : false;
+            const TOTAL_MIN = 390;
+            const dst       = typeof isUSDST === 'function' ? isUSDST(new Date()) : false;
+            const today     = new Date(nowMs);
+            const openD     = new Date(today); openD.setUTCHours(dst ? 13 : 14, 30, 0, 0);
+            const openMs    = openD.getTime();
+
+            // Freshness gate (market open only):
+            //   • Wrong session (yesterday) → skip
+            //   • Stale cache from earlier today (>2 min old) → skip
+            // Both cases: canvas stays blank until fetchAlpacaSparkline returns (~1-2 s)
+            // with fresh bars, preventing the "wrong shape on first load" flash.
+            if (mktOpen) {
+                if (entry.session && typeof currentEtDateKey === 'function'
+                    && entry.session !== currentEtDateKey()) return;
+                if (entry.ts && (nowMs - entry.ts) > 120000) return;
+            }
+
+            const prices    = entry.prices;
+            // prevClose (pc) is the true reference for up/down color — prioritize over entry.base
+            // which may have been set to intraday open if pc was unavailable at fetch time
+            const base      = wlDataCache[sym]?.pc ?? entry.base ?? prices[0];
+            const livePrice = wlDataCache[sym]?.c ?? prices[prices.length - 1];
+            // Use dp/d from quote cache when available (most accurate); fall back to price vs base
+            const _dSym     = wlDataCache[sym];
+            const isUp      = _dSym?.dp != null ? _dSym.dp >= 0
+                            : _dSym?.d  != null ? _dSym.d  >= 0
+                            : (livePrice != null && base != null) ? livePrice >= base : true;
+            const N         = prices.length;
+            // currentMinute: 0 at open → 390 at close; full width when closed
+            const currentMinute = mktOpen
+                ? Math.max(0, Math.min((nowMs - openMs) / 60000, TOTAL_MIN))
+                : TOTAL_MIN;
+
+            // dataMinute: how many minutes of session bars cover
+            const dataMinute = mktOpen
+                ? Math.max(1, Math.min(((entry.ts || nowMs) - openMs) / 60000, TOTAL_MIN))
+                : TOTAL_MIN;
+
+            // mapX: trading minute → canvas pixel
+            const mapX = m => (m / TOTAL_MIN) * W;
+
+            // Each bar covers an equal fraction of the data portion
+            const minutePerBar = N > 1 ? dataMinute / (N - 1) : 1;
+            const barX = i => mapX(i * minutePerBar);
+
+            // Live cursor: at current real time (extends beyond last bar while data ages)
+            const cursorX = mapX(currentMinute);
+            const cursorY_raw = livePrice; // mapped below after Y setup
+
+            // ── Y range: actual min/max so line fills full height (Webull-style) ──
+            let yLo = prices[0], yHi = prices[0];
+            for (let i = 1; i < N; i++) {
+                if (prices[i] < yLo) yLo = prices[i];
+                if (prices[i] > yHi) yHi = prices[i];
+            }
+            if (livePrice < yLo) yLo = livePrice;
+            if (livePrice > yHi) yHi = livePrice;
+            // Small padding so extremes don't touch canvas edge
+            const range = yHi - yLo || Math.abs(base || 1) * 0.001;
+            yLo -= range * 0.08; yHi += range * 0.08;
+            const PAD = 1;
+            const mapY = p => PAD + (H - PAD * 2) * (1 - (p - yLo) / (yHi - yLo));
+
+            const color   = isUp ? '#089981' : '#F23645';
+            const fillClr = isUp ? 'rgba(8,153,129,0.13)' : 'rgba(242,54,69,0.13)';
+            const cursorY = mapY(livePrice);
+
+            ctx.save();
+            ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
+
+            // ── Base line spans full canvas (prevClose reference for full day) ──
+            const baseY = mapY(base);
+            ctx.strokeStyle = 'rgba(128,128,128,0.2)';
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([1.5, 1.5]);
+            ctx.beginPath(); ctx.moveTo(0, baseY); ctx.lineTo(W, baseY); ctx.stroke();
+            ctx.setLineDash([]);
+
+            // ── Area fill (bars + live cursor) ──
+            ctx.beginPath();
+            ctx.moveTo(barX(0), mapY(prices[0]));
+            for (let i = 1; i < N; i++) ctx.lineTo(barX(i), mapY(prices[i]));
+            if (mktOpen) ctx.lineTo(cursorX, cursorY); // extend to live time
+            // Close to base line (area = deviation from prevClose)
+            ctx.lineTo(mktOpen ? cursorX : barX(N - 1), baseY);
+            ctx.lineTo(barX(0), baseY);
+            ctx.closePath();
+            ctx.fillStyle = fillClr;
+            ctx.fill();
+
+            // ── Line stroke (bars + live cursor) ──
+            ctx.beginPath();
+            ctx.moveTo(barX(0), mapY(prices[0]));
+            for (let i = 1; i < N; i++) ctx.lineTo(barX(i), mapY(prices[i]));
+            if (mktOpen) ctx.lineTo(cursorX, cursorY); // live drawing head
+            ctx.strokeStyle = color;
+            ctx.lineWidth   = 1.5;
+            ctx.lineJoin    = 'round';
+            ctx.lineCap     = 'round';
+            ctx.stroke();
+
+            // ── Live dot at cursor — breathing pulse + glow (Webull-style) ──
+            if (mktOpen && currentMinute > 0) {
+                // Breathing cycle: 0→1→0 over 1.5s (smooth sinusoidal)
+                const pulse = (Math.sin(nowMs / 750 * Math.PI) + 1) / 2; // 0‥1
+                const dotR  = 1.5 + pulse * 1.2;   // radius 1.5→2.7px
+                const glowR = 3.5 + pulse * 2.5;   // outer halo 3.5→6px
+
+                // Outer glow (radial gradient corona)
+                const glow = ctx.createRadialGradient(cursorX, cursorY, dotR, cursorX, cursorY, glowR);
+                glow.addColorStop(0, isUp ? 'rgba(8,153,129,0.35)' : 'rgba(242,54,69,0.35)');
+                glow.addColorStop(1, isUp ? 'rgba(8,153,129,0)'    : 'rgba(242,54,69,0)');
+                ctx.beginPath();
+                ctx.arc(cursorX, cursorY, glowR, 0, Math.PI * 2);
+                ctx.fillStyle = glow;
+                ctx.fill();
+
+                // Solid core dot
+                ctx.beginPath();
+                ctx.arc(cursorX, cursorY, dotR, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function _startPinnedCanvasLoop() {
+            if (_pinnedCanvasRafId) return; // already running
+            (function _loop() {
+                if (!_dashboardVisible || _pinnedSymSet.size === 0) {
+                    _pinnedCanvasRafId = null;
+                    return; // self-terminates when dashboard hidden
+                }
+                try { _pinnedSymSet.forEach(_drawPinnedSparkCanvas); } catch(e) { console.warn('[PinnedCanvas]', e.message); }
+                _pinnedCanvasRafId = requestAnimationFrame(_loop);
+            })();
+        }
+
+        function _stopPinnedCanvasLoop() {
+            if (_pinnedCanvasRafId) { cancelAnimationFrame(_pinnedCanvasRafId); _pinnedCanvasRafId = null; }
+        }
+
+        // ── One-shot Alpaca snapshot fetch for PINNED symbols ───────────────
+        // Fetches dailyBar.h / dailyBar.l (accurate session H/L) + pc/d/dp
+        // so PINNED shows real HIGH/LOW on first Dashboard render without waiting
+        // for individual WS ticks (which only seed h=l=current price, not true H/L).
+        let _fetchPinnedSnapshotTs = 0;
+        async function _fetchPinnedSnapshot(pinnedList) {
+            if (!pinnedList || pinnedList.length === 0) return;
+            if (!isMarketOpen()) return; // H/L only meaningful during session
+            const aKey = getAlpacaKey(), aSecret = getAlpacaSecret();
+            if (!aKey || !aSecret) return;
+            // Throttle: at most once every 30 s (re-render on re-pin won't spam API)
+            const now = Date.now();
+            if (now - _fetchPinnedSnapshotTs < 30000) return;
+            _fetchPinnedSnapshotTs = now;
+            try {
+                const url = new URL('https://data.alpaca.markets/v2/stocks/snapshots');
+                url.searchParams.set('symbols', pinnedList.join(','));
+                url.searchParams.set('feed', 'iex');
+                const res = await fetch(url.toString(), {
+                    headers: { 'APCA-API-KEY-ID': aKey, 'APCA-API-SECRET-KEY': aSecret },
+                    signal: AbortSignal.timeout(8000)
+                });
+                if (!res.ok) return;
+                const snap = await res.json();
+                pinnedList.forEach(function(sym) {
+                    const sn = snap[sym];
+                    if (!sn) return;
+                    const existing = wlDataCache[sym] || {};
+                    const dailyH = sn.dailyBar?.h ?? null;
+                    const dailyL = sn.dailyBar?.l ?? null;
+                    const dailyC = sn.dailyBar?.c ?? null;  // latest close (intraday c)
+                    const prevC  = sn.prevDailyBar?.c ?? existing.pc ?? existing._prevDailyC ?? null;
+                    // Don't overwrite h/l if WS tick is fresher than snapshot (< 5 s)
+                    const wsRecent = existing._wsTs && (now - existing._wsTs) < 5000;
+                    const updated = Object.assign({}, existing);
+                    if (dailyH != null && (!wsRecent || existing.h == null)) updated.h = dailyH;
+                    if (dailyL != null && (!wsRecent || existing.l == null)) updated.l = dailyL;
+                    if (prevC  != null) { updated.pc = prevC; updated._prevDailyC = updated._prevDailyC || prevC; }
+                    if (dailyC != null && !wsRecent) {
+                        updated.c = dailyC;
+                        if (prevC) { updated.d = dailyC - prevC; updated.dp = updated.d / prevC * 100; }
+                    }
+                    wlDataCache[sym] = updated;
+                    _updatePinnedCell(sym, updated);
+                });
+            } catch(e) {}
         }
 
         // ── PINNED drag-and-drop reorder ─────────────────────────────────────
@@ -14783,9 +15033,15 @@
         // ── Real-time PINNED cell update (bypasses full re-render) ───────────
         function _updatePinnedCell(symbol, data) {
             if (!data) data = wlDataCache[symbol] || {};
-            const price   = data.c != null ? data.c : (data.pc != null ? data.pc : null);
-            const chgD    = data.d  != null && data.d  !== 0 ? data.d  : null;
-            const chgP    = data.dp != null && data.dp !== 0 ? data.dp : null;
+            const price      = data.c != null ? data.c : (data.pc != null ? data.pc : null);
+            const prevClose  = data.pc != null ? data.pc : (data._prevDailyC != null ? data._prevDailyC : null);
+            // Use d/dp from cache first; fall back to computing from price - prevClose
+            // (same pattern as updateWatchlistPriceCells) so PINNED shows values even
+            // before the first WS tick arrives for a symbol.
+            const chgD    = data.d  != null && data.d  !== 0 ? data.d
+                          : (price != null && prevClose != null) ? price - prevClose : null;
+            const chgP    = data.dp != null && data.dp !== 0 ? data.dp
+                          : (chgD != null && prevClose) ? chgD / prevClose * 100 : null;
             const high    = data.h  != null && data.h  > 0   ? data.h  : null;
             const low     = data.l  != null && data.l  > 0   ? data.l  : null;
             const isUp    = chgP != null ? chgP >= 0 : chgD != null ? chgD >= 0 : null;
@@ -15785,6 +16041,11 @@
 
         function updateWatchlistPriceCells(symbol, data) {
             if (data) wlDataCache[symbol] = data;
+            // Always update PINNED cells if this symbol is pinned — even when the
+            // watchlist row isn't rendered (e.g. Dashboard tab is active). This
+            // ensures CHG/%CHG/HIGH/LOW populate on first load without needing a
+            // tab-switch to trigger the watchlist DOM.
+            if (_pinnedSymSet.has(symbol)) _updatePinnedCell(symbol, data || wlDataCache[symbol]);
             const row = document.getElementById('wl-row-' + symbol);
             if (!row) return;
             const cells = row.querySelectorAll('td');
@@ -15959,8 +16220,7 @@
             }
             // ── 7D/30D Low badge ──
             if (price != null) _applyLowBadge(symbol, price);
-            // ── PINNED real-time update (direct DOM, same tick as main watchlist) ──
-            _updatePinnedCell(symbol, data);
+            // (PINNED update already called at top of this function, before early-return)
             // Seed Movement sparkline from OHLC — only if no Alpaca (real bars will come from batch)
             const hasSpark = wlSparklineCache[symbol] && Array.isArray(wlSparklineCache[symbol].prices) && wlSparklineCache[symbol].prices.length >= 2;
             const canUseRealBars = hasRealSparkSource();
@@ -18758,7 +19018,13 @@ ${sourceText}`;
             _sparklineRefreshTimer = setInterval(() => {
                 if (!isMarketOpen()) { _stopSparklineAutoRefresh(); return; }
                 const wlTab = document.getElementById('tab-watchlist');
-                if (wlTab && !wlTab.classList.contains('hidden')) refreshSparklineForTopSymbols();
+                if (wlTab && !wlTab.classList.contains('hidden')) {
+                    refreshSparklineForTopSymbols();
+                } else if (_dashboardVisible && _pinnedSymSet.size > 0) {
+                    // Refresh sparklines for pinned symbols when on Dashboard
+                    // (normal auto-refresh skips non-watchlist tabs)
+                    _pinnedSymSet.forEach(function(sym) { requestSparklineRefresh(sym, false); });
+                }
             }, 90_000); // 90s — balances freshness vs Alpaca rate limit
         }
         function _stopSparklineAutoRefresh() {
@@ -21303,6 +21569,11 @@ ${_clip(contextSections, 2600)}`;
                 d._pinRow   = document.getElementById('wl-pinned-row-' + sym);
                 d._pinHigh  = document.getElementById('wl-pinned-high-' + sym);
                 d._pinLow   = document.getElementById('wl-pinned-low-' + sym);
+                // Seed cached text from current DOM so the NEXT tick sees a real "prev" value
+                // and correctly fires the flash animation (prevTxt would otherwise be undefined).
+                if (d._pinPrice) { const t = d._pinPrice.innerText; if (t && t !== '—') d._pinPriceTxt = t; }
+                if (d._pinHigh)  { const t = d._pinHigh.innerText;  if (t && t !== '—') d._pinHighTxt  = t; }
+                if (d._pinLow)   { const t = d._pinLow.innerText;   if (t && t !== '—') d._pinLowTxt   = t; }
             }
             if (!d._pinPrice) { d._pinGen = -1; return; } // DOM not ready yet — retry next tick
             const price = d.c;
