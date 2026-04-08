@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
@@ -1697,22 +1697,24 @@
         #watchlist-table col:nth-child(23) { width: 42px;  } /* delete */
         #watchlist-table td:last-child { text-align: center; overflow: visible; }
         #watchlist-table .wl-delete-btn {
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             border-radius: 6px;
-            color: color-mix(in srgb, var(--text-dim) 78%, #ef4444 22%);
-            opacity: 0.72;
-            transition: opacity .14s ease, color .14s ease, background-color .14s ease;
+            border: none; background: none;
+            color: var(--text-dim);
+            opacity: 0.45;
+            transition: opacity .18s ease, color .18s ease, background-color .18s ease, transform .18s ease;
         }
         #watchlist-table .wl-delete-btn:hover {
             opacity: 1;
-            color: #fb7185;
-            background: color-mix(in srgb, #ef4444 12%, transparent);
+            color: #ef4444;
+            background: color-mix(in srgb, #ef4444 10%, transparent);
+            transform: scale(1.08);
         }
-        #watchlist-table tr.wl-row:hover .wl-delete-btn { opacity: 0.95; }
+        #watchlist-table tr.wl-row:hover .wl-delete-btn { opacity: 0.65; }
         #watchlist-table .wl-delete-btn:focus-visible {
             outline: 2px solid color-mix(in srgb, var(--accent) 60%, white 40%);
             outline-offset: 1px;
@@ -3262,6 +3264,129 @@
         /* ── Watchlist column picker: nav row far-right, dropdown position:fixed ── */
         #wl-col-picker-wrap { display: flex; align-items: center; flex-shrink: 0; }
         @media (max-width: 1200px) { #wl-col-picker-wrap, #wl-col-picker-btn { display: none !important; } }
+
+        /* ── Premium Column Picker ── */
+        .wl-cpk-btn {
+            width: 32px; height: 32px; padding: 0; border-radius: 8px;
+            border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+            background: var(--bg-card2);
+            color: var(--text-dim); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s ease; position: relative;
+        }
+        .wl-cpk-btn:hover { border-color: var(--accent); color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 6%, var(--bg-card2)); }
+        .wl-cpk-btn svg { width: 14px; height: 14px; flex-shrink: 0; transition: transform 0.2s ease; }
+        .wl-cpk-btn:hover svg { transform: rotate(8deg); }
+        .wl-cpk-btn.wl-cpk-active { border-color: var(--accent); color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 8%, var(--bg-card2));
+            box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent); }
+        .wl-col-badge {
+            display: none; position: absolute; top: -5px; right: -5px;
+            min-width: 15px; height: 15px; padding: 0 3px;
+            border-radius: 8px; background: var(--accent); color: #fff;
+            font-size: 8px; font-weight: 800; line-height: 15px; text-align: center;
+            font-family: var(--font-mono); letter-spacing: 0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+        }
+        .wl-col-badge.has-count { display: inline-block; }
+
+        .wl-cpk-panel {
+            display: none; position: fixed; z-index: 9999;
+            background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+            backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4);
+            border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+            border-radius: 14px; padding: 16px; min-width: 300px;
+            box-shadow: 0 12px 48px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.04) inset;
+            opacity: 0; transform: translateY(-6px); pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .wl-cpk-panel.wl-cpk-open {
+            display: block; opacity: 1; transform: translateY(0); pointer-events: auto;
+        }
+        html:not(.dark) .wl-cpk-panel {
+            background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+            box-shadow: 0 12px 48px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06) inset;
+        }
+
+        .wl-cpk-header {
+            font-family: var(--font-mono); font-size: 8px; font-weight: 800;
+            letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 12px;
+            text-transform: uppercase; display: flex; align-items: center; justify-content: space-between;
+        }
+        .wl-cpk-header-count { color: var(--accent); font-size: 9px; }
+
+        .wl-cpk-preset-bar {
+            display: flex; gap: 5px; margin-bottom: 14px;
+            padding-bottom: 12px; border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+        }
+        .wl-cpk-preset {
+            flex: 1; padding: 5px 0; border-radius: 6px; border: 1px solid var(--border);
+            background: var(--bg-card2); color: var(--text-dim);
+            font-family: var(--font-mono); font-size: 8px; font-weight: 700;
+            letter-spacing: 0.05em; text-align: center; cursor: pointer;
+            transition: all 0.15s ease; text-transform: uppercase;
+        }
+        .wl-cpk-preset:hover { border-color: var(--accent); color: var(--text-primary); }
+        .wl-cpk-preset.active {
+            background: color-mix(in srgb, var(--accent) 15%, var(--bg-card2));
+            border-color: var(--accent); color: var(--accent); font-weight: 800;
+        }
+
+        .wl-cpk-cat { margin-bottom: 10px; }
+        .wl-cpk-cat:last-child { margin-bottom: 0; }
+        .wl-cpk-cat-hdr {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 7px; padding-bottom: 4px;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 35%, transparent);
+        }
+        .wl-cpk-cat-label {
+            font-family: var(--font-mono); font-size: 8px; font-weight: 800;
+            letter-spacing: 0.08em; color: var(--text-dim); text-transform: uppercase;
+        }
+        .wl-cpk-cat-toggle {
+            font-family: var(--font-mono); font-size: 7.5px; font-weight: 700;
+            letter-spacing: 0.04em; color: var(--accent); cursor: pointer;
+            background: none; border: none; padding: 0; opacity: 0.7;
+            transition: opacity 0.15s;
+        }
+        .wl-cpk-cat-toggle:hover { opacity: 1; }
+
+        .wl-cpk-items { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 14px; }
+        .wl-cpk-item {
+            display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;
+            padding: 2px 0;
+        }
+        .wl-cpk-sw {
+            width: 30px; height: 16px; border-radius: 8px; flex-shrink: 0;
+            cursor: pointer; transition: all 0.2s ease; position: relative;
+            background: var(--bg-card2); border: 1px solid var(--border);
+        }
+        .wl-cpk-sw.on { background: var(--accent); border-color: var(--accent); }
+        .wl-cpk-sw-knob {
+            position: absolute; top: 2px; left: 2px;
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--text-dim); transition: all 0.2s ease;
+        }
+        .wl-cpk-sw.on .wl-cpk-sw-knob { left: 16px; background: #fff; }
+        .wl-cpk-lbl {
+            font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+            color: var(--text-dim); letter-spacing: 0.04em; transition: color 0.15s;
+        }
+        .wl-cpk-item.on .wl-cpk-lbl { color: var(--text-primary); }
+
+        .wl-cpk-footer {
+            margin-top: 12px; padding-top: 10px;
+            border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+            display: flex; justify-content: flex-end;
+        }
+        .wl-cpk-reset {
+            font-family: var(--font-mono); font-size: 8px; font-weight: 700;
+            letter-spacing: 0.06em; color: var(--text-dim); background: none;
+            border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .wl-cpk-reset:hover { border-color: var(--accent); color: var(--accent); }
 
         /* ── Watchlist extra columns: hidden by default — collapse via padding (no display:none to avoid table-layout:fixed freeze bug) ── */
         #watchlist-table .wl-col-hide { padding-left: 0 !important; padding-right: 0 !important; }
@@ -5662,22 +5787,20 @@
 
                     <!-- Column Picker — far right of nav row, dropdown position:fixed -->
                     <div id="wl-col-picker-wrap" style="margin-left:auto;flex-shrink:0;">
-                        <button id="wl-col-picker-btn" onclick="_toggleColPicker()"
-                            style="height:34px;padding:0 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card2);color:var(--text-dim);font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.08em;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:all 0.15s;"
-                            onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
-                            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">
-                            <svg style="width:11px;height:11px;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/></svg>
-                            COLUMNS
+                        <button id="wl-col-picker-btn" class="wl-cpk-btn" onclick="_toggleColPicker()" title="Columns">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/></svg>
+                            <span id="wl-col-badge" class="wl-col-badge"></span>
                         </button>
                         <!-- position:fixed — not clipped by glass-card overflow:hidden -->
-                        <div id="wl-col-picker-panel" style="display:none;position:fixed;z-index:9999;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 8px 32px rgba(0,0,0,0.22);min-width:220px;">
-                            <div style="font-family:var(--font-mono);font-size:8px;font-weight:800;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;">แสดง / ซ่อน คอลัมน์</div>
-                            <div id="wl-col-picker-list" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;"></div>
-                            <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
-                                <button onclick="event.stopPropagation();_wlColReset()"
-                                    style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;color:var(--text-dim);background:none;border:1px solid var(--border);border-radius:6px;padding:3px 9px;cursor:pointer;">
-                                    RESET
-                                </button>
+                        <div id="wl-col-picker-panel" class="wl-cpk-panel">
+                            <div class="wl-cpk-header">
+                                <span>COLUMNS</span>
+                                <span id="wl-cpk-header-count" class="wl-cpk-header-count"></span>
+                            </div>
+                            <div id="wl-cpk-preset-bar" class="wl-cpk-preset-bar"></div>
+                            <div id="wl-col-picker-list"></div>
+                            <div class="wl-cpk-footer">
+                                <button onclick="event.stopPropagation();_wlColReset()" class="wl-cpk-reset">RESET</button>
                             </div>
                         </div>
                     </div>
@@ -11649,6 +11772,7 @@
                 _wsBackgroundMode = false;
             }
             _dashboardVisible = (t === 'dashboard');
+            _watchlistVisible = (t === 'watchlist');
             if (_dashboardVisible) {
                 _startPinnedCanvasLoop(); // resume 60fps canvas draw when entering Dashboard
                 // Force _updatePinnedCellHot to re-cache DOM refs on every Dashboard entry.
@@ -11662,6 +11786,11 @@
                 }
             } else {
                 _stopPinnedCanvasLoop();  // pause canvas loop on other tabs (save CPU/battery)
+            }
+            if (_watchlistVisible) {
+                _startMainCanvasLoop(); // resume 60fps canvas sparklines on Watchlist tab
+            } else {
+                _stopMainCanvasLoop();  // pause main sparkline canvas loop (save CPU/battery)
             }
             if (save) try { localStorage.setItem('ps_tab', t); } catch(e) {}
             if (save) scheduleAutoSave(true); // flush pending save on tab switch (not on initial load)
@@ -12627,17 +12756,16 @@
                     const sessionOk = e.session && e.session === todayKey;
                     const isRealBars = e.src === 'alpaca';
                     if (skipStale) {
-                        // skipStale: ตลาดเปิด = session วันนี้เท่านั้น
-                        //            ตลาดปิด = real bars ของ session ล่าสุด (<5 วัน) ก็ได้
+                        // skipStale: require fetchTs to ensure complete API data (not pre-fix truncated data)
                         if (mktOpen) {
-                            if (sessionOk) filteredData[sym] = e;
+                            if (sessionOk && e.fetchTs) filteredData[sym] = e;
                         } else {
                             const recentSession = e.ts && (Date.now() - e.ts) < 5 * 24 * 60 * 60 * 1000;
-                            if (isRealBars && recentSession) filteredData[sym] = e;
+                            if (isRealBars && recentSession && e.fetchTs) filteredData[sym] = e;
                         }
                     } else {
                         const recentEnough = e.ts && (Date.now() - e.ts) < 8 * 60 * 60 * 1000;
-                        if (sessionOk || (!mktOpen && recentEnough)) filteredData[sym] = e;
+                        if ((sessionOk || (!mktOpen && recentEnough)) && e.fetchTs) filteredData[sym] = e;
                     }
                 });
 
@@ -12794,16 +12922,19 @@
             const nowEtDay = currentEtDateKey();
             const _mktOpen = isMarketOpen();
             const _hasEnoughBars = entry?.prices?.length >= SPARKLINE_MIN_POINTS;
-            const maxAgeMs = _mktOpen
-                ? (_hasEnoughBars ? 20 * 1000 : 60 * 1000)
-                : SPARKLINE_TTL_MS * 24 * 5; // ตลาดปิด: cache นานขึ้น (ไม่ต้อง re-fetch ทุกรอบ)
+            // Use fetchTs (API call time) for re-fetch gating — NOT ts which WS trades keep fresh.
+            // This ensures periodic re-fetches bring in newly available bars (e.g., early-session bars
+            // that weren't available on the first fetch due to IEX feed lag).
+            const maxFetchAgeMs = _mktOpen
+                ? (_hasEnoughBars ? 120 * 1000 : 30 * 1000) // re-fetch every 2min (has data) or 30s (no data)
+                : SPARKLINE_TTL_MS * 24 * 5;
             if (
                 entry &&
                 (entry.src === 'alpaca') &&
-                (_mktOpen ? entry.session === nowEtDay : true) && // ตลาดปิด: ไม่ check session — real bars ของวันไหนก็ใช้ได้
+                (_mktOpen ? entry.session === nowEtDay : true) &&
                 entry.prices?.length >= 2 &&
                 sparklineQuality(entry.prices, entry.base) &&
-                now - (entry.ts || 0) < maxAgeMs
+                now - (entry.fetchTs || 0) < maxFetchAgeMs
             ) {
                 return entry.prices;
             }
@@ -12851,7 +12982,7 @@
                 closes = sampleWebullLike(closes, SPARKLINE_POINTS_TARGET);
                 const open = Number(dayBars[0]?.o ?? closes[0]);
                 const base = Number(wlDataCache[symbol]?.pc ?? wlDataCache[symbol]?._prevDailyC ?? open ?? closes[0]);
-                wlSparklineCache[symbol] = { prices: closes, ts: now, src: 'alpaca', base, open, session: latestDay };
+                wlSparklineCache[symbol] = { prices: closes, ts: now, fetchTs: now, src: 'alpaca', base, open, session: latestDay };
                 scheduleSaveSparklineCache();
                 return closes;
             } catch(e) {
@@ -12864,13 +12995,13 @@
             if (!key) return null;
             const entry = wlSparklineCache[symbol];
             const now = Date.now();
-            const _fhMaxAge = isMarketOpen() ? SPARKLINE_TTL_MS : SPARKLINE_TTL_MS * 24 * 5;
+            const _fhMaxAge = isMarketOpen() ? 120 * 1000 : SPARKLINE_TTL_MS * 24 * 5;
             if (
                 entry &&
                 (entry.src === 'finnhub' || entry.src === 'alpaca') &&
                 entry.prices?.length >= 2 &&
                 sparklineQuality(entry.prices, entry.base) &&
-                now - (entry.ts || 0) < _fhMaxAge
+                now - (entry.fetchTs || 0) < _fhMaxAge
             ) {
                 return entry.prices;
             }
@@ -12907,7 +13038,7 @@
                 closes = sampleWebullLike(closes, SPARKLINE_POINTS_TARGET);
                 const open = Number(dayBars[0]?.o ?? closes[0]);
                 const base = Number(wlDataCache[symbol]?.pc ?? wlDataCache[symbol]?._prevDailyC ?? open ?? closes[0]);
-                wlSparklineCache[symbol] = { prices: closes, ts: Date.now(), src: 'finnhub', base, open, session: latestDay };
+                wlSparklineCache[symbol] = { prices: closes, ts: Date.now(), fetchTs: Date.now(), src: 'finnhub', base, open, session: latestDay };
                 scheduleSaveSparklineCache();
                 return closes;
             } catch(e) {
@@ -13301,7 +13432,7 @@
             } else {
                 if (arr.length && arr[arr.length - 1] === p2) return;
                 arr.push(p2);
-                if (arr.length > 180) arr.splice(0, arr.length - 180);
+                if (arr.length > 400) arr.splice(0, arr.length - 400);
                 entry.ts = Date.now();
             }
             // Throttle DOM write 2s — hash check ใน updateSparklineCell กัน flicker ซ้ำ
@@ -13380,7 +13511,6 @@
             const loading = hasAlpacaSparkSource()
                 ? '<span class="wl-spark-skeleton"></span>'
                 : '<span class="wl-sparkline-placeholder" style="font-size:9px;color:var(--text-dim)">…</span>';
-            // คำนวณทิศทางจากข้อมูลที่มีก่อน เพื่อ placeholder มีสีที่ถูกต้อง
             const _prices = entry?.prices;
             const _d = wlDataCache[symbol] || {};
             const _base = _d?.pc ?? _d?._prevDailyC ?? entry?.base ?? _prices?.[0];
@@ -13393,12 +13523,14 @@
                 ? '<span class="wl-mob-spark-skeleton"></span>'
                 : renderSparklinePlaceholderSVG(88, 44, _isUp);
             if (!entry) {
+                _mainSparkSymSet.delete(symbol);
                 if (el) el.innerHTML = placeholder;
                 if (mobEl) mobEl.innerHTML = mobPlaceholder;
                 return;
             }
             let prices = entry.prices;
             if (!prices || prices.length === 0) {
+                _mainSparkSymSet.delete(symbol);
                 if (el) el.innerHTML = placeholder;
                 if (mobEl) mobEl.innerHTML = mobPlaceholder;
                 return;
@@ -13406,55 +13538,53 @@
             const d = wlDataCache[symbol] || {};
             const base = (d?.pc ?? d?._prevDailyC ?? entry?.base ?? prices[0]);
             const qualityOk = sparklineQuality(prices, base);
-            // Mobile: แสดง sparkline เมื่อมีข้อมูลเพียงพอ (≥12 จุด) แม้ quality ไม่ผ่าน — ตาม Webull
             const mobOk = mobEl && prices.length >= SPARKLINE_MIN_POINTS;
-            if (!qualityOk && !mobOk) {
-                // If we have some bars but not enough quality yet (market just opened),
-                // seed from OHLC immediately so something renders — avoid skeleton loop
-                const d2 = wlDataCache[symbol];
-                if (!prices || prices.length < 2) {
-                    if (el) el.innerHTML = loading;
-                    if (mobEl) mobEl.innerHTML = mobPlaceholder;
-                    // Only request refresh if we have no bars — not on every render
-                    if (!_sparkInflight[symbol]) requestSparklineRefresh(symbol, false);
+
+            // ── Desktop: canvas-based (same logic as Pinned sparkline) ──
+            const mktOpen = typeof isMarketOpen === 'function' ? isMarketOpen() : false;
+            const isRealSrc = entry.src === 'alpaca' || entry.src === 'finnhub';
+            const canvasReady = isRealSrc && prices.length >= 2 && (!mktOpen || prices.length >= 12);
+            if (el) {
+                if (canvasReady) {
+                    // Ensure canvas element exists; canvas loop handles drawing
+                    if (!document.getElementById('wl-spark-canvas-' + symbol)) {
+                        el.innerHTML = '<canvas id="wl-spark-canvas-' + symbol + '" width="144" height="32" style="width:72px;height:16px;display:block;margin:0 auto;"></canvas>';
+                    }
+                    _mainSparkSymSet.add(symbol);
+                    if (_watchlistVisible && !_mainCanvasRafId) _startMainCanvasLoop();
                 } else {
-                    // Have bars but quality low — show OHLC-seeded fallback, don't loop
-                    if (d2) seedSparklineFromOHLC(symbol, d2, d2?.c ?? d2?.pc ?? null);
-                    else {
-                        if (el) el.innerHTML = loading;
-                        if (mobEl) mobEl.innerHTML = mobPlaceholder;
+                    _mainSparkSymSet.delete(symbol);
+                    if (!isRealSrc || !prices || prices.length < 2) {
+                        el.innerHTML = loading;
+                        if (!_sparkInflight[symbol]) requestSparklineRefresh(symbol, false);
+                    } else if (!qualityOk) {
+                        el.innerHTML = loading;
+                        if (!_sparkInflight[symbol]) requestSparklineRefresh(symbol, false);
                     }
                 }
-                return;
             }
-            if (prices.length === 1) prices = [prices[0], prices[0]];
-            const last = prices[prices.length - 1];
-            const prevClose = d?.pc ?? d?._prevDailyC ?? base ?? prices[0];
-            // Use dp/d from quote data when available (most accurate for color)
-            const isUp = d?.dp != null ? d.dp >= 0
-                       : d?.d  != null ? d.d  >= 0
-                       : (last != null && prevClose != null) ? (last >= prevClose) : true;
 
-            // ── Hash check: skip DOM write ถ้าข้อมูลไม่เปลี่ยน (ป้องกัน flicker) ──
-            const _hash = `${prices.length}|${last?.toFixed(2)}|${base?.toFixed(2)}|${isUp}`;
-            if (el && el.dataset.sparkHash === _hash) return; // ไม่มีอะไรเปลี่ยน → skip
-            if (el) el.dataset.sparkHash = _hash;
-
-            const svgDesktop = (qualityOk && prices.length >= 2) ? renderSparklineSVG(prices, isUp, 72, 16, base) : placeholder;
-            const svgMobile  = (qualityOk || mobOk) && prices.length >= 2 ? renderSparklineSVG(prices, isUp, 88, 44, base) : mobPlaceholder;
-            // Fade briefly เมื่อ swap content (ป้องกัน flash ตาเมื่อ OHLC→real)
-            if (el) {
-                const wasOhlc = el.dataset.sparkSrc === 'ohlc';
-                const isReal  = wlSparklineCache[symbol]?.src === 'alpaca';
-                if (wasOhlc && isReal) {
-                    el.style.opacity = '0.3';
-                    requestAnimationFrame(() => { el.innerHTML = svgDesktop; el.style.opacity = ''; });
+            // ── Mobile: still SVG-based (unchanged) ──
+            if (mobEl) {
+                if (!qualityOk && !mobOk) {
+                    if (!prices || prices.length < 2) {
+                        mobEl.innerHTML = mobPlaceholder;
+                    } else {
+                        const d2 = wlDataCache[symbol];
+                        if (d2) seedSparklineFromOHLC(symbol, d2, d2?.c ?? d2?.pc ?? null);
+                        else mobEl.innerHTML = mobPlaceholder;
+                    }
                 } else {
-                    el.innerHTML = svgDesktop;
+                    if (prices.length === 1) prices = [prices[0], prices[0]];
+                    const last = prices[prices.length - 1];
+                    const prevClose = d?.pc ?? d?._prevDailyC ?? base ?? prices[0];
+                    const isUp = d?.dp != null ? d.dp >= 0
+                               : d?.d  != null ? d.d  >= 0
+                               : (last != null && prevClose != null) ? (last >= prevClose) : true;
+                    const svgMobile = (qualityOk || mobOk) && prices.length >= 2 ? renderSparklineSVG(prices, isUp, 88, 44, base) : mobPlaceholder;
+                    mobEl.innerHTML = svgMobile;
                 }
-                el.dataset.sparkSrc = isReal ? 'real' : 'ohlc';
             }
-            if (mobEl) mobEl.innerHTML = svgMobile;
             // PINNED sparkline is now canvas-based (_drawPinnedSparkCanvas / _startPinnedCanvasLoop).
             // updateSparklineCell no longer touches the PINNED spark DOM — canvas loop handles it.
         }
@@ -13833,6 +13963,7 @@
 
         function removeTicker(symbol) {
             watchlist = watchlist.filter(s => s !== symbol);
+            _mainSparkSymSet.delete(symbol);
             _sigThreshold = watchlist.length > 50 ? watchlist.length * 3 : watchlist.length > 20 ? watchlist.length * 2 : 60;
             saveWatchlist();
             renderWatchlistRow(symbol, null, true);
@@ -14031,11 +14162,20 @@
                     <td style="text-align:center">${d ? `<span id="wl-signal-${symbol}" class="wl-signal-badge ${signal.cls}" title="Confidence ${signal.confidence}%">${signal.label}</span>` : (sk(44) ?? '')}</td>
                     <td style="text-align:center">${d ? `<span id="wl-rating-${symbol}" class="wl-signal-badge ${analyst.cls}" title="Analyst rating (API)">${analyst.label}</span>` : (sk(50) ?? '')}</td>
                     <td class="wl-movement-cell" style="text-align:center;vertical-align:middle"><div id="wl-sparkline-${symbol}" class="wl-sparkline-wrap">${
-                        (d && wlSparklineCache[symbol]?.prices && sparklineQuality(wlSparklineCache[symbol].prices, (d?.pc ?? d?._prevDailyC ?? wlSparklineCache[symbol]?.base ?? wlSparklineCache[symbol]?.prices?.[0])))
-                            ? renderSparklineSVG(wlSparklineCache[symbol].prices, isUp, 72, 16, (d?.pc ?? d?._prevDailyC ?? wlSparklineCache[symbol]?.base ?? wlSparklineCache[symbol]?.prices?.[0]))
-                            : d && hasAlpacaSparkSource()
+                        (() => {
+                            const _sp = wlSparklineCache[symbol]?.prices;
+                            const _b = d?.pc ?? d?._prevDailyC ?? wlSparklineCache[symbol]?.base ?? _sp?.[0];
+                            const _mktO = typeof isMarketOpen === 'function' ? isMarketOpen() : false;
+                            const _srcOk = wlSparklineCache[symbol]?.src === 'alpaca' || wlSparklineCache[symbol]?.src === 'finnhub';
+                            const _ready = d && _sp && _srcOk && _sp.length >= 2 && (!_mktO || _sp.length >= 12);
+                            if (_ready) {
+                                _mainSparkSymSet.add(symbol);
+                                return '<canvas id="wl-spark-canvas-' + symbol + '" width="144" height="32" style="width:72px;height:16px;display:block;margin:0 auto;"></canvas>';
+                            }
+                            return d && hasAlpacaSparkSource()
                                 ? '<span class="wl-spark-skeleton"></span>'
-                                : (d ? '<span class="wl-sparkline-placeholder" style="font-size:9px;color:var(--text-dim)">…</span>' : (sk(70) ?? ''))
+                                : (d ? '<span class="wl-sparkline-placeholder" style="font-size:9px;color:var(--text-dim)">…</span>' : (sk(70) ?? ''));
+                        })()
                     }</div></td>
                     <td class="price-cell ${priceColor}" style="text-align:right;color:${price===null?'var(--wl-text-dim)':isUp?'var(--wl-up)':'var(--wl-dn)'}">${sk(52) ?? (price !== null ? '$' + fmt(price) : '—')}</td>
                     <td class="num-cell ${changeColor}" style="text-align:right;font-size:11px;color:${change===null?'var(--wl-text-dim)':isUp?'var(--wl-up)':'var(--wl-dn)'}">${sk(40) ?? (change !== null ? (isUp ? '+' : '') + fmt(change) : '—')}</td>
@@ -14058,7 +14198,7 @@
                     <td class="wl-col-hide wlc-div" style="text-align:right;font-size:11px;color:var(--wl-text-secondary)">${sk(32) ?? (d?.divYield   != null ? d.divYield.toFixed(2)+'%': '—')}</td>
                     <td style="text-align:right">
                         <button onclick="event.stopPropagation();removeTicker('${symbol}')" class="wl-delete-btn" title="Remove ${symbol}" aria-label="Remove ${symbol} from watchlist">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-.867 12.142A2 2 0 0116.138 20H7.862a2 2 0 01-1.995-1.858L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>
                         </button>
                     </td>
                     ${mobileCard}
@@ -14793,6 +14933,8 @@
             const canvas = document.getElementById('wl-pinned-spark-canvas-' + sym);
             if (!canvas) return;
             const entry = wlSparklineCache[sym];
+            // Only draw real market data — never OHLC seed (prevents fake shape flash on load)
+            if (entry && entry.src === 'ohlc') return;
             const ctx = canvas.getContext('2d');
             // DPR-aware: ensure canvas buffer matches display density
             const DPR = window.devicePixelRatio || 2;
@@ -14956,6 +15098,152 @@
 
         function _stopPinnedCanvasLoop() {
             if (_pinnedCanvasRafId) { cancelAnimationFrame(_pinnedCanvasRafId); _pinnedCanvasRafId = null; }
+        }
+
+        // ── Main Watchlist canvas sparkline (same logic as Pinned) ───────────
+        let _mainCanvasRafId = null;
+
+        function _drawMainSparkCanvas(sym) {
+            const canvas = document.getElementById('wl-spark-canvas-' + sym);
+            if (!canvas) return;
+            const entry = wlSparklineCache[sym];
+            // Only draw real market data — never OHLC seed (prevents fake shape flash on load)
+            if (entry && entry.src === 'ohlc') return;
+            const ctx = canvas.getContext('2d');
+            const DPR = window.devicePixelRatio || 2;
+            const CSS_W = 72, CSS_H = 16;
+            const bufW = Math.round(CSS_W * DPR), bufH = Math.round(CSS_H * DPR);
+            if (canvas.width !== bufW || canvas.height !== bufH) {
+                canvas.width = bufW; canvas.height = bufH;
+            }
+            const W = CSS_W, H = CSS_H;
+
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            ctx.clearRect(0, 0, W, H);
+
+            const nowMs   = Date.now();
+            const mktOpen = typeof isMarketOpen === 'function' ? isMarketOpen() : false;
+
+            if (!entry || !Array.isArray(entry.prices) || entry.prices.length < 2) return;
+            if (mktOpen && entry.prices.length < 12) return;
+            const TOTAL_MIN = 390;
+            const dst       = typeof isUSDST === 'function' ? isUSDST(new Date()) : false;
+            const today     = new Date(nowMs);
+            const openD     = new Date(today); openD.setUTCHours(dst ? 13 : 14, 30, 0, 0);
+            const openMs    = openD.getTime();
+
+            if (mktOpen) {
+                if (entry.session && typeof currentEtDateKey === 'function'
+                    && entry.session !== currentEtDateKey()) return;
+                if (entry.ts && (nowMs - entry.ts) > 120000) return;
+            }
+
+            const prices    = entry.prices;
+            const base      = wlDataCache[sym]?.pc ?? wlDataCache[sym]?._prevDailyC ?? entry.base ?? prices[0];
+            const livePrice = wlDataCache[sym]?.c ?? prices[prices.length - 1];
+            const _dSym     = wlDataCache[sym];
+            const isUp      = _dSym?.dp != null ? _dSym.dp >= 0
+                            : _dSym?.d  != null ? _dSym.d  >= 0
+                            : (livePrice != null && base != null) ? livePrice >= base : true;
+            const N         = prices.length;
+            const currentMinute = mktOpen
+                ? Math.max(0, Math.min((nowMs - openMs) / 60000, TOTAL_MIN))
+                : TOTAL_MIN;
+            const dataMinute = mktOpen
+                ? Math.max(1, Math.min(((entry.ts || nowMs) - openMs) / 60000, TOTAL_MIN))
+                : TOTAL_MIN;
+
+            const mapX = m => (m / TOTAL_MIN) * W;
+            const minutePerBar = N > 1 ? dataMinute / (N - 1) : 1;
+            const barX = i => mapX(i * minutePerBar);
+            const cursorX = mapX(currentMinute);
+
+            let yLo = prices[0], yHi = prices[0];
+            for (let i = 1; i < N; i++) {
+                if (prices[i] < yLo) yLo = prices[i];
+                if (prices[i] > yHi) yHi = prices[i];
+            }
+            if (livePrice < yLo) yLo = livePrice;
+            if (livePrice > yHi) yHi = livePrice;
+            const range = yHi - yLo || Math.abs(base || 1) * 0.001;
+            yLo -= range * 0.08; yHi += range * 0.08;
+            const PAD = 1;
+            const mapY = p => PAD + (H - PAD * 2) * (1 - (p - yLo) / (yHi - yLo));
+
+            const color   = isUp ? '#089981' : '#F23645';
+            const fillClr = isUp ? 'rgba(8,153,129,0.13)' : 'rgba(242,54,69,0.13)';
+            const cursorY = mapY(livePrice);
+
+            ctx.save();
+            ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
+
+            // Base line (prevClose reference)
+            const baseY = mapY(base);
+            ctx.strokeStyle = 'rgba(128,128,128,0.2)';
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([1.5, 1.5]);
+            ctx.beginPath(); ctx.moveTo(0, baseY); ctx.lineTo(W, baseY); ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Area fill
+            ctx.beginPath();
+            ctx.moveTo(barX(0), mapY(prices[0]));
+            for (let i = 1; i < N; i++) ctx.lineTo(barX(i), mapY(prices[i]));
+            if (mktOpen) ctx.lineTo(cursorX, cursorY);
+            ctx.lineTo(mktOpen ? cursorX : barX(N - 1), baseY);
+            ctx.lineTo(barX(0), baseY);
+            ctx.closePath();
+            ctx.fillStyle = fillClr;
+            ctx.fill();
+
+            // Line stroke
+            ctx.beginPath();
+            ctx.moveTo(barX(0), mapY(prices[0]));
+            for (let i = 1; i < N; i++) ctx.lineTo(barX(i), mapY(prices[i]));
+            if (mktOpen) ctx.lineTo(cursorX, cursorY);
+            ctx.strokeStyle = color;
+            ctx.lineWidth   = 1.5;
+            ctx.lineJoin    = 'round';
+            ctx.lineCap     = 'round';
+            ctx.stroke();
+
+            // Live dot — breathing pulse + glow
+            if (mktOpen && currentMinute > 0) {
+                const pulse = (Math.sin(nowMs / 750 * Math.PI) + 1) / 2;
+                const dotR  = 1.2 + pulse * 0.8;
+                const glowR = 2.5 + pulse * 1.8;
+
+                const glow = ctx.createRadialGradient(cursorX, cursorY, dotR, cursorX, cursorY, glowR);
+                glow.addColorStop(0, isUp ? 'rgba(8,153,129,0.35)' : 'rgba(242,54,69,0.35)');
+                glow.addColorStop(1, isUp ? 'rgba(8,153,129,0)'    : 'rgba(242,54,69,0)');
+                ctx.beginPath();
+                ctx.arc(cursorX, cursorY, glowR, 0, Math.PI * 2);
+                ctx.fillStyle = glow;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(cursorX, cursorY, dotR, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function _startMainCanvasLoop() {
+            if (_mainCanvasRafId) return;
+            (function _loop() {
+                if (!_watchlistVisible || _mainSparkSymSet.size === 0) {
+                    _mainCanvasRafId = null;
+                    return;
+                }
+                try { _mainSparkSymSet.forEach(_drawMainSparkCanvas); } catch(e) { console.warn('[MainSparkCanvas]', e.message); }
+                _mainCanvasRafId = requestAnimationFrame(_loop);
+            })();
+        }
+
+        function _stopMainCanvasLoop() {
+            if (_mainCanvasRafId) { cancelAnimationFrame(_mainCanvasRafId); _mainCanvasRafId = null; }
         }
 
         // ── One-shot Alpaca snapshot fetch for PINNED symbols ───────────────
@@ -16472,6 +16760,18 @@
             { key:'pe',      label:'P/E',      colIdx:20, colW:'52px'  },
             { key:'div',     label:'DIV%',     colIdx:21, colW:'52px'  },
         ];
+        const WL_COL_CATEGORIES = [
+            { key: 'market', label: 'MARKET DATA',   cols: ['premkt','open','pcls','high','low'] },
+            { key: 'ref',    label: 'REFERENCE',     cols: ['52wh','52wl'] },
+            { key: 'fund',   label: 'FUNDAMENTALS',  cols: ['mcap','vol10d','beta','pe','div'] },
+        ];
+        const WL_COL_PRESETS = {
+            basic: { label: 'Basic',       keys: [] },
+            tech:  { label: 'Technical',   keys: ['open','pcls','high','low','52wh','52wl'] },
+            fund:  { label: 'Fundamental', keys: ['mcap','vol10d','beta','pe','div'] },
+            all:   { label: 'All',         keys: WL_COL_DEFS.map(d => d.key) },
+        };
+        const _colDefMap = Object.fromEntries(WL_COL_DEFS.map(d => [d.key, d]));
         function _applyWlCols() {
             const table = document.getElementById('watchlist-table');
             if (!table) return;
@@ -16514,6 +16814,7 @@
                 if (show) usedW += w;
             });
             if (colEls[22]) colEls[22].style.width = Math.max(36, containerW - usedW) + 'px';
+            _updateColBadge();
         }
         function _wlToggleCol(key, on) {
             _lwcPrefs.cols = _lwcPrefs.cols || {};
@@ -17284,38 +17585,125 @@
 
         // ── Column Picker UI ─────────────────────────────────────────────────
         let _colPickerOpen = false;
+        let _cpkCloseTimer = null;
+
         function _toggleColPicker() {
             _colPickerOpen = !_colPickerOpen;
             const panel = document.getElementById('wl-col-picker-panel');
             const btn   = document.getElementById('wl-col-picker-btn');
             if (!panel || !btn) return;
+            if (_cpkCloseTimer) { clearTimeout(_cpkCloseTimer); _cpkCloseTimer = null; }
             if (_colPickerOpen) {
-                // Position fixed dropdown relative to viewport using button's rect
                 const r = btn.getBoundingClientRect();
                 panel.style.top   = (r.bottom + 6) + 'px';
                 panel.style.right = (window.innerWidth - r.right) + 'px';
                 panel.style.left  = 'auto';
                 panel.style.display = 'block';
+                btn.classList.add('wl-cpk-active');
+                void panel.offsetHeight; // force reflow for CSS transition
+                panel.classList.add('wl-cpk-open');
                 _renderColPicker();
             } else {
-                panel.style.display = 'none';
+                _closeColPicker();
             }
         }
+
+        function _closeColPicker() {
+            _colPickerOpen = false;
+            const panel = document.getElementById('wl-col-picker-panel');
+            const btn   = document.getElementById('wl-col-picker-btn');
+            if (panel) {
+                panel.classList.remove('wl-cpk-open');
+                _cpkCloseTimer = setTimeout(() => { panel.style.display = 'none'; _cpkCloseTimer = null; }, 220);
+            }
+            if (btn) btn.classList.remove('wl-cpk-active');
+        }
+
+        function _updateColBadge() {
+            const badge = document.getElementById('wl-col-badge');
+            if (!badge) return;
+            const count = Object.values(_lwcPrefs.cols || {}).filter(Boolean).length;
+            badge.textContent = count || '';
+            badge.classList.toggle('has-count', count > 0);
+            // Update header count if panel is open
+            const hc = document.getElementById('wl-cpk-header-count');
+            if (hc) hc.textContent = count > 0 ? count + ' / ' + WL_COL_DEFS.length + ' active' : '';
+        }
+
+        function _detectActivePreset() {
+            const cols = _lwcPrefs.cols || {};
+            const activeKeys = Object.keys(cols).filter(k => cols[k]).sort().join(',');
+            for (const [name, preset] of Object.entries(WL_COL_PRESETS)) {
+                if (preset.keys.slice().sort().join(',') === activeKeys) return name;
+            }
+            return null;
+        }
+
+        function _applyColPreset(name) {
+            const preset = WL_COL_PRESETS[name];
+            if (!preset) return;
+            _lwcPrefs.cols = {};
+            preset.keys.forEach(k => { _lwcPrefs.cols[k] = true; });
+            _applyWlCols();
+            _saveLwcPrefs();
+            if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+            _renderColPicker();
+        }
+
+        function _toggleColCategory(catKey, on) {
+            const cat = WL_COL_CATEGORIES.find(c => c.key === catKey);
+            if (!cat) return;
+            _lwcPrefs.cols = _lwcPrefs.cols || {};
+            cat.cols.forEach(k => { _lwcPrefs.cols[k] = on; });
+            _applyWlCols();
+            _saveLwcPrefs();
+            if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
+            _renderColPicker();
+        }
+
         function _renderColPicker() {
             const list = document.getElementById('wl-col-picker-list');
+            const presetBar = document.getElementById('wl-cpk-preset-bar');
             if (!list) return;
             const cols = _lwcPrefs.cols || {};
-            list.innerHTML = WL_COL_DEFS.map(({ key, label }) => {
-                const on = !!cols[key];
-                return `<label style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;">
-                    <div onclick="event.stopPropagation();_wlToggleCol('${key}', ${!on});_renderColPicker()"
-                        style="width:28px;height:16px;border-radius:8px;flex-shrink:0;cursor:pointer;transition:background 0.2s;background:${on ? 'var(--accent)' : 'var(--bg-card2)'};border:1px solid ${on ? 'var(--accent)' : 'var(--border)'};position:relative;">
-                        <div style="position:absolute;top:2px;${on ? 'right:2px' : 'left:2px'};width:10px;height:10px;border-radius:50%;background:${on ? '#fff' : 'var(--text-dim)'};transition:all 0.2s;"></div>
+            const activePreset = _detectActivePreset();
+
+            // Render preset bar
+            if (presetBar) {
+                presetBar.innerHTML = Object.entries(WL_COL_PRESETS).map(([name, p]) =>
+                    `<button class="wl-cpk-preset${activePreset === name ? ' active' : ''}" onclick="event.stopPropagation();_applyColPreset('${name}')">${p.label}</button>`
+                ).join('');
+            }
+
+            // Render category sections
+            list.innerHTML = WL_COL_CATEGORIES.map(cat => {
+                const allOn = cat.cols.every(k => !!cols[k]);
+                const anyOn = cat.cols.some(k => !!cols[k]);
+                const toggleLabel = allOn ? 'HIDE ALL' : 'SHOW ALL';
+                const toggleVal = !allOn;
+
+                const items = cat.cols.map(key => {
+                    const def = _colDefMap[key];
+                    if (!def) return '';
+                    const on = !!cols[key];
+                    return `<div class="wl-cpk-item${on ? ' on' : ''}" onclick="event.stopPropagation();_wlToggleCol('${key}',${!on});_renderColPicker()">
+                        <div class="wl-cpk-sw${on ? ' on' : ''}"><div class="wl-cpk-sw-knob"></div></div>
+                        <span class="wl-cpk-lbl">${def.label}</span>
+                    </div>`;
+                }).join('');
+
+                return `<div class="wl-cpk-cat">
+                    <div class="wl-cpk-cat-hdr">
+                        <span class="wl-cpk-cat-label">${cat.label}</span>
+                        <button class="wl-cpk-cat-toggle" onclick="event.stopPropagation();_toggleColCategory('${cat.key}',${toggleVal})">${toggleLabel}</button>
                     </div>
-                    <span style="font-family:var(--font-mono);font-size:9px;font-weight:700;color:${on ? 'var(--text-primary)' : 'var(--text-dim)'};letter-spacing:0.04em;">${label}</span>
-                </label>`;
+                    <div class="wl-cpk-items">${items}</div>
+                </div>`;
             }).join('');
+
+            _updateColBadge();
         }
+
         function _wlColReset() {
             _lwcPrefs.cols = {};
             _applyWlCols();
@@ -17323,12 +17711,11 @@
             if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
             _renderColPicker();
         }
+
         // Close picker when clicking outside
         document.addEventListener('click', e => {
             if (_colPickerOpen && !document.getElementById('wl-col-picker-wrap')?.contains(e.target)) {
-                _colPickerOpen = false;
-                const panel = document.getElementById('wl-col-picker-panel');
-                if (panel) panel.style.display = 'none';
+                _closeColPicker();
             }
         });
 
@@ -21472,8 +21859,10 @@ ${_clip(contextSections, 2600)}`;
         let _hasPendingTrades     = false;
         let _wsBackgroundMode     = false;
         let _dashboardVisible     = false;  // true when Dashboard tab is active
+        let _watchlistVisible     = false;  // true when Watchlist tab is active
         let _pinnedGen            = 0;      // incremented when pinned DOM rebuilds → force re-cache
         let _pinnedSymSet         = new Set(); // fast O(1) lookup — avoids getElementById on non-pinned symbols
+        let _mainSparkSymSet      = new Set(); // symbols with canvas sparklines in main watchlist
         let _sigThreshold         = 60;     // signal/rating recompute throttle (pre-computed)
 
         // Inline chart updater — called directly from WS, no rAF
@@ -24553,6 +24942,7 @@ ${_clip(contextSections, 2600)}`;
                 if (isMarketOpen()) {
                     _wsBackgroundMode = (savedTab !== 'watchlist');
                     _dashboardVisible = (savedTab === 'dashboard');
+                    _watchlistVisible = (savedTab === 'watchlist');
                     connectWs();
                 }
                 _startWsWatchdog();
@@ -24574,6 +24964,7 @@ ${_clip(contextSections, 2600)}`;
                         if (isMarketOpen()) {
                             _wsBackgroundMode = (savedTab !== 'watchlist');
                             _dashboardVisible = (savedTab === 'dashboard');
+                            _watchlistVisible = (savedTab === 'watchlist');
                             connectWs();
                         }
                         _startWsWatchdog();
