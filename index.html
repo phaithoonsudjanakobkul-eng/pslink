@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
@@ -13297,6 +13297,7 @@
             if (entry.src === 'alpaca') {
                 // Update last bar's close with latest WS price (real-time Y movement)
                 if (arr.length > 0) arr[arr.length - 1] = p2;
+                entry.ts = Date.now(); // keep freshness gate alive while WS trades flow
             } else {
                 if (arr.length && arr[arr.length - 1] === p2) return;
                 arr.push(p2);
