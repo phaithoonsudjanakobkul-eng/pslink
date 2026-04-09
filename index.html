@@ -147,6 +147,12 @@
         @keyframes mobPriceFlDn { 0% { box-shadow:inset 0 0 0 9999px rgba(239,83,80,0.34);  } 100% { box-shadow:inset 0 0 0 9999px rgba(239,83,80,0);  } }
         .mob-price-fl-up { animation: mobPriceFlUp 0.2s ease-out; border-radius:3px; will-change: box-shadow; }
         .mob-price-fl-dn { animation: mobPriceFlDn 0.2s ease-out; border-radius:3px; will-change: box-shadow; }
+        /* LOW ALERTS current price — slow terminal pulse */
+        @keyframes alertPricePulse {
+            0%,100% { opacity: 1; }
+            50%      { opacity: 0.35; }
+        }
+        .alert-price-pulse { animation: alertPricePulse 1.6s ease-in-out infinite; will-change: opacity; }
         #watchlist-table .wl-mob-price { will-change: box-shadow; }
         /* GPU compositing — browser paints each row on own layer, no full-table repaint per tick */
         .wl-row { will-change: box-shadow; contain: layout style; }
@@ -1047,7 +1053,7 @@
         }
         /* Watchlist symbol search shell/input */
         #wl-search-wrap {
-            background: rgba(26, 115, 232, 0.08);
+            background: transparent;
             border: 1.5px solid var(--border);
             border-radius: 10px;
             overflow: visible; /* must be visible so dropdown is not clipped */
@@ -1056,7 +1062,7 @@
         #wl-search-wrap > :not(#ticker-dropdown) { overflow: hidden; border-radius: 10px; }
         #wl-search-wrap:focus-within {
             border-color: var(--accent);
-            background: rgba(26, 115, 232, 0.12);
+            background: transparent;
         }
         /* Desktop dropdown */
         #ticker-dropdown {
@@ -1108,7 +1114,7 @@
             transition: background-color 9999s ease-out 0s !important;
         }
         [data-theme="tv"] #wl-search-wrap {
-            background: rgba(26, 115, 232, 0.10) !important;
+            background: transparent !important;
         }
         #ai-popup-input::placeholder {
             color: color-mix(in srgb, var(--text-dim) 86%, transparent);
@@ -1873,7 +1879,7 @@
         #dash-row1 { grid-template-rows: calc(256px + 80px); }
         #profile-wl-console { overflow: hidden; }
         /* PINNED grid columns — CSS custom property so media queries can override inline style */
-        #wl-pinned-list { --pinned-gcols: 68px 65px 68px 46px 76px 52px 48px; }
+        #wl-pinned-list { --pinned-gcols: 68px 60px 50px 38px 68px 48px 44px; }
 
         @media (max-width: 768px) {
             /* Tablet: Row 1 = 2 columns side-by-side */
@@ -3105,9 +3111,9 @@
             line-height: 1;
         }
         .rec-stat-value {
-            font-family: var(--font-mono);
+            font-family: var(--font-main);
             font-size: clamp(20px, 3.5vw, 28px);
-            font-weight: 800;
+            font-weight: 700;
             color: var(--text-primary);
             line-height: 1;
             background: transparent;
@@ -3115,17 +3121,20 @@
             outline: none;
             width: 100%;
             font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
         }
         .rec-saving-rate {
             display: inline-block;
-            font-family: var(--font-mono);
+            font-family: var(--font-main);
             font-size: 11px;
-            font-weight: 800;
+            font-weight: 700;
             padding: 2px 10px;
-            border-radius: 999px;
+            border-radius: 4px;
             background: color-mix(in srgb, var(--accent) 12%, transparent);
             color: var(--accent);
             width: fit-content;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.01em;
         }
 
         /* ── List Cards ── */
@@ -5079,7 +5088,7 @@
                         <!-- LEFT: LOW Alerts (36%) -->
                         <div style="flex:0 0 36%;display:flex;flex-direction:column;padding:14px 10px 10px 14px;min-width:0;border-right:1px solid color-mix(in srgb,var(--border) 70%,transparent);">
                             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0;">
-                                <div style="font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)">📉 Low Alerts</div>
+                                <div style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)"><svg width="9" height="9" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;opacity:0.75"><polyline points="1,3 5,8 8,5 13,11" stroke="var(--danger,#f23645)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><polyline points="10,11 13,11 13,8" stroke="var(--danger,#f23645)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>LOW ALERTS</div>
                                 <div id="wl-console-ts" style="font-family:var(--font-mono);font-size:8px;color:var(--text-dim);opacity:0.6"></div>
                             </div>
                             <div id="wl-console-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0;">
@@ -5089,15 +5098,15 @@
                         <!-- RIGHT: Pinned Watchlist (64%) -->
                         <div style="flex:1;display:flex;flex-direction:column;padding:14px 14px 10px 12px;min-width:0;position:relative;">
                             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0;">
-                                <div style="font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)">📌 Pinned</div>
-                                <button onmousedown="event.preventDefault();_wlPinnedPickerToggle()" style="font-family:var(--font-mono);font-size:13px;font-weight:800;color:var(--accent);background:none;border:none;cursor:pointer;padding:0 4px;line-height:1;" title="เลือกหุ้น">⊕</button>
+                                <div style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)"><svg width="8" height="9" viewBox="0 0 10 13" fill="none" style="flex-shrink:0;opacity:0.75"><path d="M1 1h8v8L5 12 1 9V1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="color-mix(in srgb,currentColor 15%,transparent)"/><line x1="5" y1="5" x2="5" y2="3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>PINNED</div>
+                                <button onmousedown="event.preventDefault();_wlPinnedPickerToggle()" style="display:flex;align-items:center;justify-content:center;width:14px;height:14px;color:var(--accent);background:none;border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:3px;cursor:pointer;padding:0;flex-shrink:0;transition:background 0.15s,border-color 0.15s;" title="เลือกหุ้น" onmouseover="this.style.background='color-mix(in srgb,var(--accent) 12%,transparent)';this.style.borderColor='color-mix(in srgb,var(--accent) 65%,transparent)'" onmouseout="this.style.background='none';this.style.borderColor='color-mix(in srgb,var(--accent) 35%,transparent)'"><svg width="7" height="7" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg></button>
                             </div>
                             <div id="wl-pinned-list" style="flex:1;overflow-y:auto;min-height:0;"></div>
                             <!-- Picker overlay -->
                             <div id="wl-pin-picker" style="display:none;position:absolute;inset:0;background:var(--bg-card);border-radius:inherit;z-index:20;flex-direction:column;padding:12px;">
                                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0;">
-                                    <span style="font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim)">เลือกหุ้น Pin</span>
-                                    <button onmousedown="event.preventDefault();_wlPinnedPickerToggle()" style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text-dim);background:none;border:none;cursor:pointer;padding:2px 6px;">✕</button>
+                                    <span style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim)"><svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="4"/><line x1="2" y1="2" x2="8" y2="8"/><line x1="11" y1="9" x2="11" y2="13"/><line x1="9" y1="11" x2="13" y2="11"/></svg>SELECT PIN</span>
+                                    <button onmousedown="event.preventDefault();_wlPinnedPickerToggle()" style="display:flex;align-items:center;justify-content:center;width:14px;height:14px;color:var(--text-dim);background:none;border:1px solid color-mix(in srgb,var(--border) 60%,transparent);border-radius:3px;cursor:pointer;padding:0;" title="ปิด"><svg width="7" height="7" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg></button>
                                 </div>
                                 <div id="wl-pin-picker-list" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;align-content:start;"></div>
                             </div>
@@ -5111,7 +5120,7 @@
                             <!-- Back image layer: sits BEHIND text (z-index:auto, before profile-view in DOM) -->
                             <div id="profile-img-layer-back" class="img-free-layer" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>
                             <div id="profile-view" style="height:100%;display:flex;flex-direction:column;padding:20px 22px;overflow:hidden;position:relative;">
-                                <button onclick="openProfileEdit()" title="Edit profile" style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;opacity:0.5;transition:opacity 0.15s;z-index:20;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.5'">✏️</button>
+                                <button onclick="openProfileEdit()" title="Edit profile" style="position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:4px;background:none;border:1px solid color-mix(in srgb,var(--border) 60%,transparent);color:var(--text-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;opacity:0.45;transition:opacity 0.15s,background 0.15s,border-color 0.15s;z-index:20;" onmouseenter="this.style.opacity='1';this.style.background='color-mix(in srgb,var(--accent) 10%,transparent)';this.style.borderColor='color-mix(in srgb,var(--accent) 50%,transparent)';this.style.color='var(--accent)'" onmouseleave="this.style.opacity='0.45';this.style.background='none';this.style.borderColor='color-mix(in srgb,var(--border) 60%,transparent)';this.style.color='var(--text-dim)'"><svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2.5l2 2L5 11H3v-2l6.5-6.5z"/><line x1="8" y1="4" x2="10" y2="6"/></svg></button>
                                 <div style="display:flex;flex-direction:column;gap:6px;min-height:0;flex:1;overflow:hidden;">
                                     <!-- Pills -->
                                     <div id="profile-pills" class="flex flex-wrap gap-2" style="flex-shrink:0;"></div>
@@ -5246,7 +5255,7 @@
                     <div id="surplus-card-main" class="dash-card p-5">
                         <div class="dash-label mb-2">Current Balance</div>
                         <div id="dash-surplus" class="dash-value text-3xl dash-green mb-1">0.00</div>
-                        <div id="mom-change" class="hidden" style="font-family:var(--font-mono);font-size:10px;color:var(--text-secondary);margin-bottom:8px;"></div>
+                        <div id="mom-change" class="hidden" style="font-family:var(--font-mono);font-size:10px;margin-bottom:8px;"></div>
                         <div class="border-t dash-divider pt-3 flex justify-between items-center">
                             <span id="status-text" style="font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--accent2);">—</span>
                             <span id="current-month-label" style="font-family:var(--font-mono);font-size:10px;color:var(--text-secondary);">—</span>
@@ -5533,16 +5542,16 @@
                     <div style="width:1px;height:16px;background:var(--border);flex-shrink:0;"></div>
                     <!-- Pull Last Data — icon-only on mobile, text on desktop -->
                     <button onclick="clonePreviousMonth()" id="btn-pull" title="Pull Last Data"
-                        style="font-family:var(--font-mono);font-size:8.5px;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;padding:5px 10px;border-radius:9px;border:none;cursor:pointer;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);transition:background 0.15s;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:4px;"
-                        onmouseover="this.style.background='color-mix(in srgb,var(--accent) 20%,transparent)'" onmouseout="this.style.background='color-mix(in srgb,var(--accent) 12%,transparent)'">
+                        style="font-family:var(--font-mono);font-size:8.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:4px 10px;border-radius:4px;border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);cursor:pointer;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--accent);transition:background 0.15s;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:4px;"
+                        onmouseover="this.style.background='color-mix(in srgb,var(--accent) 16%,transparent)'" onmouseout="this.style.background='color-mix(in srgb,var(--accent) 8%,transparent)'">
                         <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
                         <span class="toolbar-btn-label">Pull Last Data</span>
                     </button>
                     <!-- Clear Month + Unlock (inline) -->
                     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
                         <button id="clear-btn" onclick="requestClear()" title="Clear Month"
-                            style="font-family:var(--font-mono);font-size:8.5px;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;padding:5px 10px;border-radius:9px;border:none;cursor:pointer;background:color-mix(in srgb,var(--danger) 10%,transparent);color:var(--danger);transition:background 0.15s;display:flex;align-items:center;gap:4px;white-space:nowrap;"
-                            onmouseover="this.style.background='color-mix(in srgb,var(--danger) 18%,transparent)'" onmouseout="this.style.background='color-mix(in srgb,var(--danger) 10%,transparent)'">
+                            style="font-family:var(--font-mono);font-size:8.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:4px 10px;border-radius:4px;border:1px solid color-mix(in srgb,var(--danger) 45%,transparent);cursor:pointer;background:color-mix(in srgb,var(--danger) 8%,transparent);color:var(--danger);transition:background 0.15s;display:flex;align-items:center;gap:4px;white-space:nowrap;"
+                            onmouseover="this.style.background='color-mix(in srgb,var(--danger) 16%,transparent)'" onmouseout="this.style.background='color-mix(in srgb,var(--danger) 8%,transparent)'">
                             <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             <span class="toolbar-btn-label">Clear Month</span>
                         </button>
@@ -5565,14 +5574,14 @@
                         <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:color-mix(in srgb,var(--accent) 12%,transparent);filter:blur(28px);pointer-events:none;"></div>
                         <p style="font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:3px;opacity:0.85;">Monthly Income <span style="opacity:0.6;font-weight:600;">(รายรับ)</span></p>
                         <div style="display:flex;align-items:baseline;gap:5px;margin-top:6px;">
-                            <span style="font-family:var(--font-mono);font-size:clamp(20px,2.2vw,28px);font-weight:800;color:var(--accent);line-height:1;flex-shrink:0;">฿</span>
+                            <span style="font-family:var(--font-main);font-size:clamp(20px,2.2vw,28px);font-weight:700;color:var(--accent);line-height:1;flex-shrink:0;letter-spacing:-0.01em;">฿</span>
                             <input type="text" autocomplete="off" id="paydayDisplay"
                                 oninput="handleCurrencyInput(this, 'paydayVal')"
                                 onpaste="handlePaste(event, this, 'paydayVal')"
                                 onblur="handleBlur(this, 'paydayVal')"
                                 class="ps-income-input"
                                 placeholder="0.00"
-                                style="font-family:var(--font-mono);font-size:clamp(20px,2.2vw,28px);font-weight:800;color:var(--accent);background:transparent;border:none;outline:none;width:100%;font-variant-numeric:tabular-nums;line-height:1;">
+                                style="font-family:var(--font-main);font-size:clamp(20px,2.2vw,28px);font-weight:700;color:var(--accent);background:transparent;border:none;outline:none;width:100%;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">
                             <input type="hidden" id="paydayVal">
                         </div>
                     </div>
@@ -5580,7 +5589,7 @@
                     <div style="padding:18px 24px;border-right:1px solid var(--border);">
                         <p style="font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:3px;">Total Expenses <span style="opacity:0.7;font-weight:600;">(รายจ่าย)</span></p>
                         <div style="display:flex;align-items:baseline;gap:5px;margin-top:6px;">
-                            <div id="sum-total-exp" style="font-family:var(--font-mono);font-size:clamp(20px,2.2vw,28px);font-weight:800;color:var(--danger);font-variant-numeric:tabular-nums;line-height:1;">0.00</div>
+                            <div id="sum-total-exp" style="font-family:var(--font-main);font-size:clamp(20px,2.2vw,28px);font-weight:700;color:var(--danger);font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">0.00</div>
                         </div>
                     </div>
                     <!-- Balance + Rate -->
@@ -5588,12 +5597,12 @@
                         <div>
                             <p style="font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:3px;opacity:0.8;">Balance <span style="opacity:0.7;font-weight:600;">(คงเหลือ)</span></p>
                             <div style="display:flex;align-items:baseline;gap:5px;margin-top:6px;">
-                                <div id="record-balance-val" style="font-family:var(--font-mono);font-size:clamp(20px,2.2vw,28px);font-weight:800;color:var(--text-primary);font-variant-numeric:tabular-nums;line-height:1;">0.00</div>
+                                <div id="record-balance-val" style="font-family:var(--font-main);font-size:clamp(20px,2.2vw,28px);font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">0.00</div>
                             </div>
                         </div>
                         <div style="text-align:right;">
                             <p style="font-family:var(--font-mono);font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:3px;opacity:0.8;">Saving Rate</p>
-                            <div id="current-saving-rate" style="font-family:var(--font-mono);font-size:20px;font-weight:800;color:var(--accent);margin-top:6px;">0%</div>
+                            <div id="current-saving-rate" style="font-family:var(--font-main);font-size:20px;font-weight:700;color:var(--accent);margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;">0%</div>
                         </div>
                     </div>
                 </div>
@@ -5715,7 +5724,7 @@
                         <div class="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style="color:var(--text-dim)">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         </div>
-                        <input type="text" id="ticker-input" placeholder="ADD SYMBOL"
+                        <input type="text" id="ticker-input" placeholder="ADD"
                             class="w-full pl-8 pr-3 outline-none text-[11px] font-semibold rounded-lg"
                             style="color:var(--text-primary);font-family:var(--font-main);height:34px;text-transform:uppercase;letter-spacing:0.03em"
                             oninput="onTickerInput(this.value)" onkeydown="onTickerKeydown(event)" autocomplete="off">
@@ -5735,7 +5744,7 @@
                         <div class="flex flex-col justify-center px-2.5 py-1 rounded-xl border"
                             style="background:var(--bg-card2);border-color:var(--border);height:34px;width:auto;padding-left:10px;padding-right:10px;flex-shrink:0;white-space:nowrap">
                             <div class="flex items-center gap-1">
-                                <span class="text-[8px] font-semibold leading-none" style="color:var(--text-dim)">USD → THB</span>
+                                <span class="leading-none flex items-center" style="gap:2px;line-height:1"><img src="https://flagcdn.com/16x12/us.png" width="14" height="10" style="display:inline;vertical-align:middle;border-radius:1px;flex-shrink:0" alt="US"><span style="font-size:8px;color:var(--text-dim);font-family:var(--font-mono);opacity:0.7">→</span><img src="https://flagcdn.com/16x12/th.png" width="14" height="10" style="display:inline;vertical-align:middle;border-radius:1px;flex-shrink:0" alt="TH"></span>
                                 <span id="fx-src-badge" class="text-[7px] font-bold px-1 rounded" style="background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);display:none"></span>
                             </div>
                             <div class="flex items-baseline gap-1 mt-0.5" style="overflow:hidden">
@@ -5748,7 +5757,7 @@
                         <div class="flex flex-col justify-center px-2.5 py-1 rounded-xl border"
                             style="background:var(--bg-card2);border-color:var(--border);height:34px;width:auto;padding-left:10px;padding-right:10px;flex-shrink:0;white-space:nowrap">
                             <div class="flex items-center gap-1">
-                                <span class="text-[8px] font-semibold leading-none" style="color:var(--text-dim)">THB → USD</span>
+                                <span class="leading-none flex items-center" style="gap:2px;line-height:1"><img src="https://flagcdn.com/16x12/th.png" width="14" height="10" style="display:inline;vertical-align:middle;border-radius:1px;flex-shrink:0" alt="TH"><span style="font-size:8px;color:var(--text-dim);font-family:var(--font-mono);opacity:0.7">→</span><img src="https://flagcdn.com/16x12/us.png" width="14" height="10" style="display:inline;vertical-align:middle;border-radius:1px;flex-shrink:0" alt="US"></span>
                                 <span id="fx-src-badge2" class="text-[7px] font-bold px-1 rounded" style="background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);display:none"></span>
                             </div>
                             <div class="flex items-baseline gap-1 mt-0.5" style="overflow:hidden">
@@ -5770,19 +5779,17 @@
 
                     <!-- AI Chatbox — half width -->
                     <div class="flex items-center gap-2 rounded-xl px-3 border" style="background:var(--bg-card2);border-color:var(--border);height:34px;min-width:0;max-width:320px;flex:1">
-                        <div class="w-4 h-4 rounded flex items-center justify-center flex-shrink-0" style="background:#2a2e39">
-                            <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+                        <div class="w-4 h-4 rounded flex items-center justify-center flex-shrink-0" style="border:1px solid color-mix(in srgb,#1a73e8 55%,transparent);background:color-mix(in srgb,#1a73e8 8%,transparent)">
+                            <svg class="w-2.5 h-2.5" style="color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
                         </div>
                         <input id="ai-input" type="text" autocomplete="off" placeholder="ถาม AI… เช่น แนวรับ NVDA"
                             class="flex-1 min-w-0 text-xs outline-none bg-transparent"
                             style="color:var(--text-primary);font-family:var(--font-main)"
                             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAiMessage()}">
                         <button onclick="sendAiMessage()" id="ai-send-btn"
-                            class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
-                            style="background:#2a2e39;color:#d1d4dc">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                            ส่ง
-                        </button>
+                            class="flex items-center justify-center flex-shrink-0"
+                            style="padding:0 13px;height:22px;border-radius:4px;background:color-mix(in srgb,var(--bg-card) 90%,#1a73e8 10%);border-top:1px solid color-mix(in srgb,#1a73e8 45%,transparent);border-left:1px solid color-mix(in srgb,#1a73e8 45%,transparent);border-right:1px solid color-mix(in srgb,#1a73e8 45%,transparent);border-bottom:2px solid color-mix(in srgb,#1a73e8 70%,transparent);font-family:var(--font-mono);font-size:14px;line-height:1;color:#1a73e8"
+                            title="ส่ง (Enter)">↵</button>
                     </div>
 
                     <!-- Column Picker — far right of nav row, dropdown position:fixed -->
@@ -11774,11 +11781,24 @@
             _dashboardVisible = (t === 'dashboard');
             _watchlistVisible = (t === 'watchlist');
             if (_dashboardVisible) {
-                _startPinnedCanvasLoop(); // resume 60fps canvas draw when entering Dashboard
+                _startPinnedCanvasLoop(); // resume canvas draw when entering Dashboard
                 // Force _updatePinnedCellHot to re-cache DOM refs on every Dashboard entry.
                 // Refs can become stale (detached elements, plain objects) after tab switches
                 // because other code paths (updateDashboard, _updatePinnedCell) may rebuild DOM.
                 _pinnedGen++;
+                // ── Seamless sync: push wlDataCache → pinned DOM immediately ──
+                // When coming from Edit/News tabs, _rafFlushQuotes in background mode
+                // drops trades without updating pinned cells (dashboard wasn't visible).
+                // wlDataCache.c has the latest WS price, but pinned DOM is stale.
+                // Fix: explicitly sync ALL pinned symbols from cache on Dashboard entry.
+                if (_pinnedSymSet.size > 0) {
+                    requestAnimationFrame(function() {
+                        _pinnedSymSet.forEach(function(_s) {
+                            const _d = wlDataCache[_s];
+                            if (_d) _updatePinnedCellHot(_s, _d);
+                        });
+                    });
+                }
                 // Tab-switch flush: drain any accumulated trades immediately
                 if (_pinnedSymSet.size > 0 && !_rafPending) {
                     _rafPending = true;
@@ -12144,6 +12164,7 @@
                 const prevSurplus = prev.payday - (sumArr(prev.fixed) + sumArr(prev.dynamic));
                 const diff = surplus - prevSurplus;
                 momEl.innerText = (diff >= 0 ? '▲ ' : '▼ ') + formatNumber(Math.abs(diff)) + ' vs ' + prev.id;
+                momEl.style.color = diff >= 0 ? 'var(--wl-up, #0d9488)' : 'var(--wl-dn, #e11d48)';
                 momEl.classList.remove('hidden');
             } else if (momEl) { momEl.classList.add('hidden'); }
 
@@ -14717,11 +14738,11 @@
                     const lowVal = e && longest ? e[longest.key] : null;
                     const lowStr = lowVal != null ? lowVal.toFixed(2) : '';
                     return '<div style="display:grid;grid-template-columns:42px 72px 1fr;align-items:center;gap:6px;padding:5px 4px;border-bottom:1px solid color-mix(in srgb,var(--border) 35%,transparent);">' +
-                        '<span style="font-family:var(--font-mono);font-size:11px;font-weight:800;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + sym + '</span>' +
+                        '<span style="font-family:var(--font-main);font-size:11px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + sym + '</span>' +
                         '<span style="font-family:var(--font-mono);font-size:8px;font-weight:700;color:' + col + ';background:' + col + '18;padding:2px 5px;border-radius:3px;white-space:nowrap;">' + info.label + '</span>' +
-                        '<div style="display:flex;align-items:center;gap:5px;min-width:0;">' +
-                            '<span style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--text-primary);white-space:nowrap;">' + priceStr + '</span>' +
-                            (lowStr ? '<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;color:' + col + ';opacity:0.9;white-space:nowrap;">▼$' + lowStr + '</span>' : '') +
+                        '<div style="display:flex;align-items:center;gap:12px;min-width:0;">' +
+                            '<span class="alert-price-pulse" style="font-family:var(--font-main);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;color:var(--text-primary);white-space:nowrap;">' + priceStr + '</span>' +
+                            (lowStr ? '<span style="font-family:var(--font-main);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;color:' + col + ';opacity:0.9;white-space:nowrap;">▼$' + lowStr + '</span>' : '') +
                         '</div>' +
                     '</div>';
                 };
@@ -14731,10 +14752,10 @@
                     const col = colorMap[info.cls] || 'var(--text-dim)';
                     const priceStr = price != null ? '$' + price.toFixed(2) : '—';
                     return '<div style="display:grid;grid-template-columns:36px 1fr;align-items:center;gap:4px;padding:4px 3px;border-bottom:1px solid color-mix(in srgb,var(--border) 30%,transparent);">' +
-                        '<span style="font-family:var(--font-mono);font-size:10px;font-weight:800;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + sym + '</span>' +
+                        '<span style="font-family:var(--font-main);font-size:11px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + sym + '</span>' +
                         '<div style="display:flex;align-items:center;gap:3px;min-width:0;">' +
                             '<span style="font-family:var(--font-mono);font-size:7px;font-weight:700;color:' + col + ';background:' + col + '18;padding:1px 3px;border-radius:3px;white-space:nowrap;flex-shrink:0;">' + info.label + '</span>' +
-                            '<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + priceStr + '</span>' +
+                            '<span style="font-family:var(--font-main);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + priceStr + '</span>' +
                         '</div>' +
                     '</div>';
                 };
@@ -14803,16 +14824,16 @@
             }
             // GCOLS uses CSS custom property --pinned-gcols (defined on #wl-pinned-list)
             // so @media queries can override the grid template without touching inline styles
-            const GSTYLE = 'display:grid;grid-template-columns:var(--pinned-gcols);justify-content:space-evenly;align-items:center;';
-            const hdStyle = 'font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-secondary);text-transform:uppercase;white-space:nowrap;';
+            const GSTYLE = 'display:grid;grid-template-columns:var(--pinned-gcols);justify-content:center;column-gap:5px;align-items:center;';
+            const hdStyle = 'font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-secondary);text-transform:uppercase;white-space:nowrap;text-align:center;display:block;';
             const header = '<div style="' + GSTYLE + 'padding:0 2px 4px 2px;border-bottom:1px solid color-mix(in srgb,var(--border) 80%,transparent);margin-bottom:2px;">' +
-                '<span style="' + hdStyle + '">SYM</span>' +
+                '<span style="' + hdStyle + 'text-align:left;">SYM</span>' +
                 '<span style="' + hdStyle + '">TREND</span>' +
-                '<span style="' + hdStyle + 'text-align:right;">LAST</span>' +
-                '<span class="wl-pinned-col-hide" style="' + hdStyle + 'text-align:right;">CHG</span>' +
-                '<span style="' + hdStyle + 'text-align:right;">%CHG</span>' +
-                '<span class="wl-pinned-col-hide" style="' + hdStyle + 'text-align:right;">HIGH</span>' +
-                '<span class="wl-pinned-col-hide" style="' + hdStyle + 'text-align:right;">LOW</span>' +
+                '<span style="' + hdStyle + '">LAST</span>' +
+                '<span class="wl-pinned-col-hide" style="' + hdStyle + '">CHG</span>' +
+                '<span style="' + hdStyle + '">%CHG</span>' +
+                '<span class="wl-pinned-col-hide" style="' + hdStyle + '">HIGH</span>' +
+                '<span class="wl-pinned-col-hide" style="' + hdStyle + '">LOW</span>' +
                 '</div>';
             const rows = pinned.map(function(sym) {
                 const d = wlDataCache[sym] || {};
@@ -20282,12 +20303,12 @@ ${sourceText}`;
         function clearAiChat() {
             aiChatHistory = [];
             document.getElementById('ai-popup-messages').innerHTML = `
-                <div class="flex items-start gap-3">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#1a73e8,#34a853)">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+                <div class="flex items-start gap-2.5">
+                    <div class="flex items-center justify-center flex-shrink-0" style="width:24px;height:24px;border-radius:4px;border:1px solid color-mix(in srgb,#1a73e8 55%,transparent);background:color-mix(in srgb,#1a73e8 8%,transparent)">
+                        <svg style="width:12px;height:12px;color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
                     </div>
                     <div class="flex-1">
-                        <div class="text-[10px] font-bold mb-1.5" style="color:#4285f4">AI ANALYST</div>
+                        <div class="mb-1" style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1a73e8">AI ANALYST</div>
                         <div class="text-sm leading-relaxed ai-msg-body">สวัสดีครับ ถามได้เลยเรื่องแนวรับ/แนวต้าน, ข่าวล่าสุด หรือ outlook ของหุ้นใดก็ได้ครับ</div>
                     </div>
                 </div>`;
@@ -20304,12 +20325,12 @@ ${sourceText}`;
                     <span class="text-[9px]" style="color:var(--text-dim)">${ts}</span>
                    </div>`
                 : `<div id="${id}" class="flex items-start gap-3">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style="background:linear-gradient(135deg,#1a73e8,#34a853)">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+                    <div class="flex items-center justify-center flex-shrink-0 mt-0.5" style="width:24px;height:24px;border-radius:4px;border:1px solid color-mix(in srgb,#1a73e8 55%,transparent);background:color-mix(in srgb,#1a73e8 8%,transparent)">
+                        <svg style="width:12px;height:12px;color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1.5">
-                            <span class="text-[10px] font-bold" style="color:#4285f4">AI ANALYST</span>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1a73e8">AI ANALYST</span>
                             <span class="text-[9px]" style="color:var(--text-dim)">${ts}</span>
                         </div>
                         <div class="ai-msg-body text-sm leading-relaxed" style="white-space:pre-wrap">${isLoading ? '<span class="ai-typing">กำลังวิเคราะห์<span class="dots">...</span></span>' : escHtml(text)}</div>
@@ -22566,13 +22587,37 @@ ${_clip(contextSections, 2600)}`;
                 }
             }
 
-            // ── Source 3: ECB fallback ────────────────────────────────────────
+            // ── Source 3: open.er-api — free, no key, daily ──────────────────
             if (!midRate) {
                 try {
-                    const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=THB', { cache: 'no-store' });
+                    const r = await fetch('https://open.er-api.com/v6/latest/USD', { cache: 'no-store' });
                     if (r.ok) {
                         const j = await r.json();
-                        if (sane(j.rates?.THB)) { midRate = j.rates.THB; src = 'ECB'; }
+                        if (sane(j.rates?.THB)) { midRate = j.rates.THB; src = 'OpenER'; }
+                    }
+                } catch(e) {}
+            }
+
+            // ── Source 4: fawazahmed0 via jsDelivr CDN — free, no key ─────────
+            if (!midRate) {
+                try {
+                    const r = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', { cache: 'no-store' });
+                    if (r.ok) {
+                        const j = await r.json();
+                        if (sane(j.usd?.thb)) { midRate = j.usd.thb; src = 'fawaz'; }
+                    }
+                } catch(e) {}
+            }
+
+            // ── prevMid fallback: yesterday via fawazahmed0 ───────────────────
+            if (!prevMid && (src === 'OpenER' || src === 'fawaz')) {
+                try {
+                    const d = new Date(); d.setDate(d.getDate() - 1);
+                    const ds = d.toISOString().slice(0,10);
+                    const r = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${ds}/v1/currencies/usd.json`, { cache: 'no-store' });
+                    if (r.ok) {
+                        const j = await r.json();
+                        if (sane(j.usd?.thb)) prevMid = j.usd.thb;
                     }
                 } catch(e) {}
             }
@@ -25979,11 +26024,11 @@ ${_clip(contextSections, 2600)}`;
          style="bottom:24px;right:24px;cursor:grab"
          onclick="restoreAiPopup()">
         <!-- Desktop: pill with text -->
-        <div class="ai-fab-pill flex items-center gap-2 px-4 py-3 rounded-md shadow-2xl"
-             style="background:linear-gradient(135deg,#1a73e8,#34a853);color:white;min-width:120px">
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
-            <span class="text-[11px] font-black uppercase tracking-widest">AI Analyst</span>
-            <span id="ai-fab-badge" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-auto"></span>
+        <div class="ai-fab-pill flex items-center gap-1.5 px-2.5 py-1.5 rounded shadow-lg"
+             style="background:color-mix(in srgb,var(--bg-card,#111) 92%,#1a73e8 8%);border:1px solid color-mix(in srgb,#1a73e8 55%,transparent);color:var(--text-primary,#e0e0e0);">
+            <svg class="w-3 h-3 flex-shrink-0" style="color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+            <span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-primary,#e0e0e0)">AI ANALYST</span>
+            <span id="ai-fab-badge" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5"></span>
         </div>
         <!-- Mobile: circle icon-only -->
         <div class="ai-fab-circle items-center justify-center rounded-full shadow-2xl" style="width:52px;height:52px;background:linear-gradient(135deg,#1a73e8,#34a853);color:white;position:relative;">
@@ -25996,32 +26041,32 @@ ${_clip(contextSections, 2600)}`;
     <div id="ai-popup" class="hidden fixed z-[200] select-none"
          style="bottom:24px;right:24px;width:520px;max-width:calc(100vw - 32px)">
         <div id="ai-popup-panel"
-             class="flex flex-col rounded-md shadow-2xl overflow-hidden"
-             style="height:min(76vh,720px);min-height:620px;background:var(--bg-card);border:1px solid var(--border);overscroll-behavior:contain"
+             class="flex flex-col rounded-md overflow-hidden"
+             style="height:min(76vh,720px);min-height:620px;background:var(--bg-card);border:1px solid color-mix(in srgb,#1a73e8 40%,var(--border));box-shadow:0 8px 32px rgba(0,0,0,0.45);overscroll-behavior:contain"
              onwheel="event.stopPropagation()">
 
             <!-- Header (drag handle) -->
             <div id="ai-popup-header"
-                 class="flex items-center justify-between px-4 py-2.5 flex-shrink-0 border-b cursor-grab active:cursor-grabbing"
-                 style="background:var(--bg-card2);border-color:var(--border);user-select:none">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#1a73e8,#34a853)">
-                        <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+                 class="flex items-center justify-between px-3 py-2 flex-shrink-0 border-b cursor-grab active:cursor-grabbing"
+                 style="background:color-mix(in srgb,var(--bg-card2) 94%,#1a73e8 6%);border-color:color-mix(in srgb,#1a73e8 30%,var(--border));user-select:none">
+                <div class="flex items-center gap-2">
+                    <div class="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style="background:transparent;border:1px solid color-mix(in srgb,#1a73e8 55%,transparent)">
+                        <svg class="w-3 h-3" style="color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
                     </div>
-                    <span class="font-black text-xs uppercase tracking-widest" style="color:var(--text-primary)">AI Stock Analyst</span>
-                    <span id="ai-popup-badge" class="text-[8px] font-bold px-1.5 py-0.5 rounded-full" style="background:rgba(26,115,232,0.12);color:#4285f4">Auto Free</span>
+                    <span style="font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-primary)">AI STOCK ANALYST</span>
+                    <span id="ai-popup-badge" style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;padding:1px 6px;border-radius:3px;border:1px solid color-mix(in srgb,#1a73e8 45%,transparent);color:#1a73e8;background:color-mix(in srgb,#1a73e8 8%,transparent)">AUTO FREE</span>
                 </div>
-                <div class="flex items-center gap-1.5">
-                    <button id="ai-glossary-btn" onclick="toggleAiGlossary()" aria-expanded="false" class="text-[9px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide transition-all" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim)">คู่มือคำศัพท์</button>
-                    <button onclick="openSignalHistoryModal()" class="text-[9px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide transition-all" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim)">Signal History</button>
-                    <button onclick="clearAiChat()" class="text-[9px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide transition-all" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim)">ล้างแชท</button>
+                <div class="flex items-center gap-1">
+                    <button id="ai-glossary-btn" onclick="toggleAiGlossary()" aria-expanded="false" class="transition-all" style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:transparent;border:1px solid var(--border);color:var(--text-dim)">คู่มือ</button>
+                    <button onclick="openSignalHistoryModal()" class="transition-all" style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:transparent;border:1px solid var(--border);color:var(--text-dim)">SIGNALS</button>
+                    <button onclick="clearAiChat()" class="transition-all" style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:transparent;border:1px solid var(--border);color:var(--text-dim)">CLR</button>
                     <!-- Minimize -->
-                    <button onclick="minimizeAiPopup()" class="w-6 h-6 flex items-center justify-center rounded-lg transition-all hover:scale-110" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary)" title="ย่อ">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"/></svg>
+                    <button onclick="minimizeAiPopup()" class="flex items-center justify-center transition-all" style="width:20px;height:20px;border-radius:3px;background:transparent;border:1px solid var(--border);color:var(--text-dim)" title="ย่อ">
+                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"/></svg>
                     </button>
                     <!-- Close -->
-                    <button onclick="minimizeAiPopup()" class="w-6 h-6 flex items-center justify-center rounded-lg transition-all hover:scale-110" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary)" title="ปิด">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <button onclick="minimizeAiPopup()" class="flex items-center justify-center transition-all" style="width:20px;height:20px;border-radius:3px;background:transparent;border:1px solid var(--border);color:var(--text-dim)" title="ปิด">
+                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
             </div>
@@ -26053,34 +26098,34 @@ ${_clip(contextSections, 2600)}`;
             <!-- Messages -->
             <div id="ai-popup-messages" class="flex-1 overflow-y-auto flex flex-col gap-3 p-4" onwheel="event.stopPropagation()">
                 <div class="flex items-start gap-2.5">
-                    <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#1a73e8,#34a853)">
-                        <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+                    <div class="flex items-center justify-center flex-shrink-0" style="width:24px;height:24px;border-radius:4px;border:1px solid color-mix(in srgb,#1a73e8 55%,transparent);background:color-mix(in srgb,#1a73e8 8%,transparent)">
+                        <svg style="width:12px;height:12px;color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
                     </div>
                     <div class="flex-1">
-                        <div class="text-[10px] font-bold mb-1" style="color:#4285f4">AI ANALYST</div>
+                        <div class="mb-1" style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1a73e8">AI ANALYST</div>
                         <div class="text-sm leading-relaxed ai-msg-body">สวัสดีครับ ถามได้เลยเรื่องแนวรับ/แนวต้าน, ข่าวล่าสุด หรือ outlook ของหุ้นใดก็ได้ครับ</div>
                     </div>
                 </div>
             </div>
 
             <!-- Input -->
-            <div id="ai-popup-input-row" class="flex items-center gap-2 px-3 py-2.5 flex-shrink-0 border-t" style="border-color:var(--border)">
-                <div id="ai-popup-input-shell" class="flex-1 rounded-xl px-3 py-2">
+            <div id="ai-popup-input-row" class="flex items-center gap-2 px-3 py-2 flex-shrink-0 border-t" style="border-color:color-mix(in srgb,#1a73e8 25%,var(--border));background:color-mix(in srgb,var(--bg-card2) 94%,#1a73e8 6%)">
+                <div id="ai-popup-input-shell" class="flex-1 px-3 py-1.5" style="border-radius:4px;border:1px solid var(--border);background:transparent">
                     <input id="ai-popup-input" type="text" autocomplete="off" placeholder="ถามต่อได้เลย..."
-                        class="w-full text-xs outline-none"
-                        style="color:var(--text-primary)"
+                        class="w-full outline-none"
+                        style="font-family:var(--font-main);font-size:12px;color:var(--text-primary);background:transparent"
                         onkeydown="if(event.key==='Enter')sendAiMessage()">
                 </div>
                 <button onclick="sendAiMessage()" id="ai-popup-send-btn"
-                    class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
-                    style="background:linear-gradient(135deg,#1a73e8,#34a853);color:white">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                    ส่ง
+                    class="flex items-center gap-1.5 flex-shrink-0"
+                    style="padding:4px 14px;border-radius:4px;background:color-mix(in srgb,var(--bg-card) 90%,#1a73e8 10%);border-top:1px solid color-mix(in srgb,#1a73e8 45%,transparent);border-left:1px solid color-mix(in srgb,#1a73e8 45%,transparent);border-right:1px solid color-mix(in srgb,#1a73e8 45%,transparent);border-bottom:2px solid color-mix(in srgb,#1a73e8 70%,transparent);color:#1a73e8">
+                    <span style="font-family:var(--font-mono);font-size:15px;line-height:1">↵</span>
+                    <span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">SEND</span>
                 </button>
                 <button onclick="stopAiMessage()" id="ai-popup-stop-btn"
-                    class="hidden flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
-                    style="background:#ef4444;color:white">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" stroke-width="2" fill="currentColor"/></svg>
+                    class="hidden flex items-center gap-1 flex-shrink-0"
+                    style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:5px 10px;border-radius:4px;background:transparent;border:1px solid color-mix(in srgb,#ef4444 55%,transparent);color:#ef4444">
+                    <svg style="width:10px;height:10px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" stroke-width="2" fill="currentColor"/></svg>
                     หยุด
                 </button>
             </div>
