@@ -22578,8 +22578,11 @@ ${_clip(contextSections, 2600)}`;
             const _midCacheHit  = _midAge < 60 * 60 * 1000 && sane(_midCachedVal); // 1 hour
 
             // ── Source 1: Finnhub OANDA — realtime interbank (~15s updates) ──
-            // Always poll Finnhub when key available — it's realtime and doesn't count against ERAPI quota
-            if (fKey) {
+            // Cache 403/failure for 24h to avoid hammering the endpoint every poll
+            const _fhFxFailKey = 'ps_fx_fh_fail';
+            const _fhFxFailAge = Date.now() - parseInt(localStorage.getItem(_fhFxFailKey) || '0', 10);
+            const _fhFxBlocked = _fhFxFailAge < 24 * 60 * 60 * 1000;
+            if (fKey && !_fhFxBlocked) {
                 try {
                     const r = await fetch(
                         `https://finnhub.io/api/v1/quote?symbol=OANDA:USD_THB&token=${fKey}&_=${Date.now()}`,
@@ -22587,21 +22590,25 @@ ${_clip(contextSections, 2600)}`;
                     );
                     if (r.ok) {
                         const j = await r.json();
-                        console.log('[FX] Finnhub raw:', JSON.stringify(j));
                         if (sane(j.c))  { midRate = j.c;  src = 'Finnhub'; }
-                        else console.warn('[FX] Finnhub j.c failed sane():', j.c);
+                        else {
+                            console.warn('[FX] Finnhub j.c invalid:', j.c, '→ blocked 24h');
+                            localStorage.setItem(_fhFxFailKey, Date.now().toString());
+                        }
                         if (sane(j.pc) && !prevMid) {
                             prevMid = j.pc;
                             localStorage.setItem(_prevKey, prevMid.toString());
                         }
                     } else {
-                        console.warn('[FX] Finnhub HTTP', r.status);
+                        console.warn('[FX] Finnhub HTTP', r.status, '→ blocked 24h');
+                        localStorage.setItem(_fhFxFailKey, Date.now().toString());
                     }
                 } catch(e) { console.warn('[FX] Finnhub err:', e.message); }
             }
 
             // ── Source 2: ERAPI — only if Finnhub failed, and use cache (1h) ──
             // Free tier: 1,500 req/month → cache aggressively, never call on every poll
+            console.log('[FX] erapiKey present:', !!erapiKey, '| midRate so far:', midRate);
             if (erapiKey && !midRate) {
                 if (_midCacheHit && _midCachedSrc === 'ExchangeRate-API') {
                     midRate = _midCachedVal;
