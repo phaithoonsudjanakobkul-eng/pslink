@@ -66,7 +66,7 @@
             --sab-min: max(env(safe-area-inset-bottom, 0px), 20px);
         }
         /* Force portrait — hide content in landscape, show rotate prompt */
-        @media screen and (orientation: landscape) and (max-width: 1024px) {
+        @media screen and (orientation: landscape) and (max-width: 1023px) {
             body > *:not(#pslink-rotate-msg) { display: none !important; }
             #pslink-rotate-msg {
                 display: flex !important;
@@ -78,7 +78,7 @@
                 font-family: var(--font-main, system-ui);
             }
         }
-        @media screen and (orientation: portrait), screen and (min-width: 1025px) {
+        @media screen and (orientation: portrait), screen and (min-width: 1024px) {
             #pslink-rotate-msg {
                 display: none !important;
                 pointer-events: none !important;
@@ -1072,7 +1072,7 @@
             min-height: 40px;
         }
         /* Mobile dropdown — fixed to viewport, escaped from overflow constraints */
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             #ticker-dropdown {
                 position: fixed !important;
                 left: 10px !important; right: 10px !important;
@@ -1126,7 +1126,7 @@
         @media (min-width: 1800px) {
             #nm-ai-result { font-size: 14.5px; line-height: 1.82; }
         }
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             #nm-ai-result { font-size: 13px; line-height: 1.7; }
         }
 
@@ -1781,11 +1781,11 @@
         .wl-toast.show { opacity: 1; transform: translateY(0); }
         .wl-toast.wl-toast-ok .wl-toast-dot { color: var(--wl-up); background: color-mix(in srgb, var(--wl-up) 78%, #fff 22%); }
         .wl-toast.wl-toast-warn .wl-toast-dot { color: #f59e0b; background: color-mix(in srgb, #f59e0b 78%, #fff 22%); }
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             #wl-toast-wrap { top: 70px; right: 10px; left: 10px; }
             .wl-toast { min-width: 0; max-width: none; width: 100%; }
         }
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             .wl-col-hide { display: none !important; }
             #watchlist-table col:nth-child(3) { width: auto; }
             /* On mobile allow symbol+name to stack */
@@ -1807,12 +1807,12 @@
                 display: block;
             }
         }
-        @media (min-width: 769px) {
+        @media (min-width: 768px) {
             #watchlist-table .sym-name-stack .name-sub { display: none; }
         }
 
-        /* Watchlist column distribution — tablet/narrow viewport (769–1024px) */
-        @media (min-width: 769px) and (max-width: 1024px) {
+        /* Watchlist column distribution — tablet/narrow viewport (768–1023px) */
+        @media (min-width: 768px) and (max-width: 1023px) {
             #watchlist-table col:nth-child(1)  { width: 28px;  }
             #watchlist-table col:nth-child(2)  { width: 100px; }
             #watchlist-table col:nth-child(3)  { width: 100px; }
@@ -1827,7 +1827,7 @@
             #wl-th-analyst .wl-th-mobile  { display: inline; }
             #watchlist-table thead th { white-space: nowrap; }
         }
-        @media (min-width: 1025px) {
+        @media (min-width: 1024px) {
             #wl-th-analyst .wl-th-desktop { display: inline; }
             #wl-th-analyst .wl-th-mobile  { display: none; }
         }
@@ -1881,8 +1881,18 @@
         /* PINNED grid columns — minmax() adapts from 1280px up to 1440p 125%DPI (~2048px CSS) with no media query */
         /* min = current×0.9 (no overflow even at 1280px), max = fills ~614px panel at 125% 1440p DPI */
         #wl-pinned-list { --pinned-gcols: minmax(61px,105px) minmax(54px,93px) minmax(45px,78px) minmax(34px,59px) minmax(61px,105px) minmax(43px,74px) minmax(40px,69px); }
+        /* PINNED WL — tablet (768–1023px): hide CHG/HIGH/LOW, 4-col layout fills panel */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .wl-pinned-col-hide { display: none !important; }
+            #wl-pinned-list { --pinned-gcols: 70px 1fr 64px 80px; }
+        }
+        /* PINNED WL — iPad landscape / small desktop (1024–1279px): 4-col (containers too narrow for 7) */
+        @media (min-width: 1024px) and (max-width: 1279px) {
+            .wl-pinned-col-hide { display: none !important; }
+            #wl-pinned-list { --pinned-gcols: minmax(68px,95px) minmax(60px,82px) minmax(52px,1fr) minmax(68px,94px); }
+        }
 
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             /* Tablet: Row 1 = 2 columns side-by-side */
             #dash-row1 {
                 grid-template-columns: 1fr 1fr !important;
@@ -3039,6 +3049,8 @@
             border: 1px solid rgba(0,0,0,0.08);
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            min-width: 0;
+            overflow: hidden;
         }
 
         .dash-select {
@@ -3727,7 +3739,7 @@
            v2 — แก้ครบ: nav fixed, symbol col, scanner grid, header,
                          horizontal fade, session tabs, touch feedback
         ============================================================ */
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
 
             /* 1. Nav: ซ่อน desktop nav ทั้งหมด แสดง mobile top bar แทน */
             nav > div { display: none !important; }
@@ -4134,8 +4146,8 @@
             }
         }
 
-        /* ── iPad Mini 7 / wider phones (600 px – 768 px): extra breathing room ── */
-        @media (min-width: 600px) and (max-width: 768px) {
+        /* ── iPad Mini 7 / wider phones (600 px – 767 px): extra breathing room ── */
+        @media (min-width: 600px) and (max-width: 767px) {
             main {
                 padding-left: 16px !important;
                 padding-right: 16px !important;
@@ -4182,6 +4194,13 @@
             transform: scale(1.025) !important; border-radius: 4px !important; overflow: hidden !important;
         }
 
+        /* Pinned WL: no tap highlight */
+        [id^="wl-pinned-row-"] {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+
         /* ══════════════════════════════════════════════════════════════
            iPad / Tablet layout  (769 px – 1024 px)
            Targets: iPad 10th-gen (810), iPad Air (820), iPad Pro 11" (834)
@@ -4189,7 +4208,7 @@
            iPad Mini 7 portrait (744 px) already falls in ≤768 px mobile.
            All iPads in landscape (≥1025 px) fall through to desktop.
            ══════════════════════════════════════════════════════════════ */
-        @media (min-width: 769px) and (max-width: 1024px) {
+        @media (min-width: 768px) and (max-width: 1023px) {
 
             /* 1. Nav — hide desktop sidebar, show mobile top/bottom bars */
             nav > div { display: none !important; }
@@ -4667,7 +4686,7 @@
            The ≤1200px block already uses display:flex on card-inner — keep flex
            and just tune widths + show extra columns hidden on phone.
            wl-mob-signal is now a DIRECT flex child (HTML restructured).        */
-        @media (min-width: 769px) and (max-width: 1024px) {
+        @media (min-width: 768px) and (max-width: 1023px) {
             #watchlist-table .wl-mobile-card  { min-height: 0 !important; }
             #watchlist-table .wl-mob-card-inner {
                 display: flex !important;
@@ -4784,7 +4803,7 @@
         /* FAB: pill on desktop, circle on mobile */
         .ai-fab-circle { display: none; }
         .ai-fab-pill   { display: flex; }
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             .ai-fab-pill   { display: none !important; }
             .ai-fab-circle { display: flex !important; }
         }
@@ -5297,7 +5316,7 @@
                     </div>
                     <div class="dash-chart-card p-5">
                         <div class="dash-section-title mb-5 text-center">Distribution</div>
-                        <div class="h-64 flex justify-center items-center"><canvas id="distChart"></canvas></div>
+                        <div class="h-64" style="position:relative;width:100%;"><canvas id="distChart"></canvas></div>
                     </div>
                 </div>
             </div>
@@ -5756,7 +5775,7 @@
                                 <span id="fx-src-badge" class="text-[7px] font-bold px-1 rounded" style="background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);display:none"></span>
                             </div>
                             <div class="flex items-baseline gap-1 mt-0.5" style="overflow:hidden">
-                                <span id="fx-change" class="text-[9px] font-bold flex-shrink-0" style="color:#22c55e;font-family:var(--font-mono)">↑ 0.00%</span>
+                                <span id="fx-change" class="text-[9px] font-bold flex-shrink-0" style="color:#22c55e;font-family:var(--font-mono)">▲ 0.00%</span>
                                 <span id="fx-rate" class="text-[11px] font-black leading-none flex-shrink-0" style="color:var(--text-primary);font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-0.03em">—</span>
                                 <span class="text-[8px] font-semibold flex-shrink-0" style="color:var(--text-dim)">THB</span>
                             </div>
@@ -5769,8 +5788,9 @@
                                 <span id="fx-src-badge2" class="text-[7px] font-bold px-1 rounded" style="background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);display:none"></span>
                             </div>
                             <div class="flex items-baseline gap-1 mt-0.5" style="overflow:hidden">
-                                <span id="fx-change-inv" class="text-[9px] font-bold flex-shrink-0" style="color:#22c55e;font-family:var(--font-mono)">↑ 0.00%</span>
+                                <span id="fx-change-inv" class="text-[9px] font-bold flex-shrink-0" style="color:#22c55e;font-family:var(--font-mono)">▲ 0.00%</span>
                                 <span id="fx-rate-inv" class="text-[11px] font-black leading-none flex-shrink-0" style="color:var(--text-primary);font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-0.03em">—</span>
+                                <span class="text-[8px] font-semibold flex-shrink-0" style="color:var(--text-dim)">THB</span>
                             </div>
                         </div>
                     </div>
@@ -12227,7 +12247,7 @@
                             backgroundColor: isDark ? ['#448aff','#ff6d00','#b388ff'] : ['#2563eb','#f97316','#10b981'], borderWidth: 0 }]
                     },
                     options: {
-                        cutout: '78%', maintainAspectRatio: false,
+                        responsive: true, cutout: '78%', maintainAspectRatio: false,
                         plugins: {
                             legend: { position: 'bottom', labels: { color: legendCol, font: { weight:'bold', size:10 }, boxWidth:10 } },
                             tooltip: { backgroundColor: tooltipBg, borderColor: tooltipBdr, borderWidth:1, bodyColor: tooltipBdy, titleColor: legendCol }
@@ -14887,7 +14907,9 @@
                 const vStyleClip = vStyle + 'overflow:hidden;text-overflow:ellipsis;';
                 return '<div id="wl-pinned-row-' + sym + '" draggable="true" ' +
                     'ondragstart="_pinnedDragStart(event,\'' + sym + '\')" ' +
-                    'ondragover="_pinnedDragOver(event,\'' + sym + '\')" ' +
+                    'ondragover="_pinnedDragOver(event)" ' +
+                    'ondragenter="_pinnedDragEnter(event)" ' +
+                    'ondragleave="_pinnedDragLeave(event)" ' +
                     'ondrop="_pinnedDrop(event,\'' + sym + '\')" ' +
                     'ondragend="_pinnedDragEnd(event)" ' +
                     'style="' + GSTYLE + 'padding:5px 2px;cursor:grab;border-bottom:1px solid color-mix(in srgb,var(--border) 45%,transparent);">' +
@@ -15347,38 +15369,36 @@
             const row = document.getElementById('wl-pinned-row-' + sym);
             if (row) setTimeout(function() { row.style.opacity = '0.35'; }, 0);
         }
-        function _pinnedDragOver(e, sym) {
+        function _pinnedDragOver(e) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-            document.querySelectorAll('[id^="wl-pinned-row-"]').forEach(function(r) { r.style.borderTop = ''; });
-            if (sym !== _pinnedDragSym) {
-                const row = document.getElementById('wl-pinned-row-' + sym);
-                if (row) row.style.borderTop = '2px solid var(--accent)';
-            }
         }
+        function _pinnedDragEnter(e) { e.currentTarget.classList.add('bg-teal-50'); }
+        function _pinnedDragLeave(e) { e.currentTarget.classList.remove('bg-teal-50'); }
         function _pinnedDrop(e, tgtSym) {
             e.preventDefault();
+            e.currentTarget.classList.remove('bg-teal-50');
             if (!_pinnedDragSym || _pinnedDragSym === tgtSym) return;
             const pinned = JSON.parse(localStorage.getItem('ps_pinned_wl') || '[]');
             const si = pinned.indexOf(_pinnedDragSym), ti = pinned.indexOf(tgtSym);
             if (si < 0 || ti < 0 || si === ti) return;
             pinned.splice(si, 1);
-            const insertAt = si < ti ? ti - 1 : ti;
-            pinned.splice(insertAt, 0, _pinnedDragSym);
+            pinned.splice(ti, 0, _pinnedDragSym);
             localStorage.setItem('ps_pinned_wl', JSON.stringify(pinned));
             // DOM reorder only — no HTML rebuild, logos stay cached
             const list = document.getElementById('wl-pinned-list');
             const dragRow = document.getElementById('wl-pinned-row-' + _pinnedDragSym);
             const tgtRow  = document.getElementById('wl-pinned-row-' + tgtSym);
             if (list && dragRow && tgtRow) {
-                list.insertBefore(dragRow, tgtRow);
+                if (si > ti) list.insertBefore(dragRow, tgtRow);
+                else list.insertBefore(dragRow, tgtRow.nextSibling);
                 list._pinnedHash = pinned.join('|');
             }
             scheduleAutoSave(true);
         }
         function _pinnedDragEnd(e) {
             document.querySelectorAll('[id^="wl-pinned-row-"]').forEach(function(r) {
-                r.style.opacity = ''; r.style.borderTop = '';
+                r.style.opacity = ''; r.classList.remove('bg-teal-50');
             });
             _pinnedDragSym = null;
         }
@@ -16890,6 +16910,8 @@
             })); } catch(e){}
         };
         const _lwcPrefs = (() => { try { return JSON.parse(localStorage.getItem('ps_lwc_prefs')||'{}'); } catch(e){return{};} })();
+        // Default: all columns ON when no saved preference
+        if (_lwcPrefs.cols == null) _lwcPrefs.cols = Object.fromEntries(WL_COL_DEFS.map(d => [d.key, true]));
         let _lwcChart = null, _lwcSymbol = null, _lwcLiveDotFn = null;
         let _lwcRange = '1D';
         let _lwcType  = _lwcPrefs.type  || 'candle';
@@ -17763,7 +17785,7 @@
         }
 
         function _wlColReset() {
-            _lwcPrefs.cols = {};
+            _lwcPrefs.cols = Object.fromEntries(WL_COL_DEFS.map(d => [d.key, true]));
             _applyWlCols();
             _saveLwcPrefs();
             if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
@@ -22526,10 +22548,11 @@ ${_clip(contextSections, 2600)}`;
 
             const sane = v => typeof v === 'number' && isFinite(v) && v > 28 && v < 45;
 
-            // Retail spread constants (mid-market → Thai retail bank rate)
-            // ERAPI/Finnhub give mid-market; Thai banks add ~0.77% sell spread
-            const SELL_SPREAD = 1.0;
-            const BUY_SPREAD  = 1.0;
+            // Retail spread constants calibrated to Dime! app (±0.25% from mid)
+            // USD→THB: you sell USD, bank buys at lower rate → you get ~0.25% less THB
+            // THB→USD: you buy USD, bank sells at higher rate → you pay ~0.25% more THB
+            const SELL_SPREAD = 0.9975;   // USD→THB (fx-rate)
+            const BUY_SPREAD  = 1.0025;   // THB→USD (fx-rate-inv)
 
             let midRate = null;
             let prevMid = null;
@@ -22537,10 +22560,26 @@ ${_clip(contextSections, 2600)}`;
 
             const fKey     = getFinnhubKey();
             const erapiKey = getErapiKey();
+            const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+            // ── Cache helpers — keyed by date so it auto-expires next day ────
+            // prevMid: yesterday's close — only fetch once per calendar day
+            const _prevKey = 'ps_fx_prev_' + todayStr;
+            const _prevCached = parseFloat(localStorage.getItem(_prevKey) || '0');
+            if (sane(_prevCached)) prevMid = _prevCached;
+
+            // midRate: non-Finnhub sources update max once/hour → cache 60 min
+            const _midKey   = 'ps_fx_mid_ts';
+            const _midVal   = 'ps_fx_mid_val';
+            const _midSrc   = 'ps_fx_mid_src';
+            const _midAge   = Date.now() - parseInt(localStorage.getItem(_midKey) || '0', 10);
+            const _midCachedVal = parseFloat(localStorage.getItem(_midVal) || '0');
+            const _midCachedSrc = localStorage.getItem(_midSrc) || '';
+            const _midCacheHit  = _midAge < 60 * 60 * 1000 && sane(_midCachedVal); // 1 hour
 
             // ── Source 1: Finnhub OANDA — realtime interbank (~15s updates) ──
-            // Best for intraday movement. j.c = current, j.pc = prev close
-            if (fKey && !midRate) {
+            // Always poll Finnhub when key available — it's realtime and doesn't count against ERAPI quota
+            if (fKey) {
                 try {
                     const r = await fetch(
                         `https://finnhub.io/api/v1/quote?symbol=OANDA:USD_THB&token=${fKey}&_=${Date.now()}`,
@@ -22548,20 +22587,30 @@ ${_clip(contextSections, 2600)}`;
                     );
                     if (r.ok) {
                         const j = await r.json();
+                        console.log('[FX] Finnhub raw:', JSON.stringify(j));
                         if (sane(j.c))  { midRate = j.c;  src = 'Finnhub'; }
-                        if (sane(j.pc)) { prevMid = j.pc; }
+                        else console.warn('[FX] Finnhub j.c failed sane():', j.c);
+                        if (sane(j.pc) && !prevMid) {
+                            prevMid = j.pc;
+                            localStorage.setItem(_prevKey, prevMid.toString());
+                        }
+                    } else {
+                        console.warn('[FX] Finnhub HTTP', r.status);
                     }
                 } catch(e) { console.warn('[FX] Finnhub err:', e.message); }
             }
 
-            // ── Source 3: ERAPI — use for yesterday close (more accurate % change) ──
-            // Free tier updates once/day but history endpoint gives exact yesterday close
-            if (erapiKey) {
-                if (!midRate) {
-                    // Use as current rate only if Finnhub failed
+            // ── Source 2: ERAPI — only if Finnhub failed, and use cache (1h) ──
+            // Free tier: 1,500 req/month → cache aggressively, never call on every poll
+            if (erapiKey && !midRate) {
+                if (_midCacheHit && _midCachedSrc === 'ExchangeRate-API') {
+                    midRate = _midCachedVal;
+                    src = 'ExchangeRate-API';
+                    console.log('[FX] ERAPI mid (cached):', midRate.toFixed(4));
+                } else {
                     try {
                         const r = await fetch(
-                            `https://v6.exchangerate-api.com/v6/${erapiKey}/latest/USD?_=${Date.now()}`,
+                            `https://v6.exchangerate-api.com/v6/${erapiKey}/latest/USD`,
                             { cache: 'no-store' }
                         );
                         if (r.ok) {
@@ -22571,13 +22620,16 @@ ${_clip(contextSections, 2600)}`;
                             } else if (sane(j.conversion_rates?.THB)) {
                                 midRate = j.conversion_rates.THB;
                                 src = 'ExchangeRate-API';
-                                console.log('[FX] ERAPI mid:', midRate?.toFixed(4));
+                                localStorage.setItem(_midKey, Date.now().toString());
+                                localStorage.setItem(_midVal, midRate.toString());
+                                localStorage.setItem(_midSrc, src);
+                                console.log('[FX] ERAPI mid (fresh):', midRate.toFixed(4));
                             }
                         }
                     } catch(e) { console.warn('[FX] ERAPI err:', e.message); }
                 }
 
-                // Always try to get yesterday close from ERAPI for accurate % change
+                // Yesterday close — fetch once per day via ERAPI, cache in localStorage
                 if (!prevMid) {
                     try {
                         const d = new Date();
@@ -22591,36 +22643,59 @@ ${_clip(contextSections, 2600)}`;
                             const j2 = await r2.json();
                             if (sane(j2.conversion_rates?.THB)) {
                                 prevMid = j2.conversion_rates.THB;
-                                console.log('[FX] ERAPI yesterday mid:', prevMid?.toFixed(4));
+                                localStorage.setItem(_prevKey, prevMid.toString());
+                                console.log('[FX] ERAPI yesterday mid (fresh):', prevMid.toFixed(4));
                             }
                         }
                     } catch(e) {}
                 }
             }
 
-            // ── Source 3: open.er-api — free, no key, daily ──────────────────
+            // ── Source 3: open.er-api — free, no key, daily — cache 1h ──────
             if (!midRate) {
-                try {
-                    const r = await fetch('https://open.er-api.com/v6/latest/USD', { cache: 'no-store' });
-                    if (r.ok) {
-                        const j = await r.json();
-                        if (sane(j.rates?.THB)) { midRate = j.rates.THB; src = 'OpenER'; }
-                    }
-                } catch(e) {}
+                if (_midCacheHit && _midCachedSrc === 'OpenER') {
+                    midRate = _midCachedVal;
+                    src = 'OpenER';
+                } else {
+                    try {
+                        const r = await fetch('https://open.er-api.com/v6/latest/USD', { cache: 'no-store' });
+                        if (r.ok) {
+                            const j = await r.json();
+                            if (sane(j.rates?.THB)) {
+                                midRate = j.rates.THB;
+                                src = 'OpenER';
+                                localStorage.setItem(_midKey, Date.now().toString());
+                                localStorage.setItem(_midVal, midRate.toString());
+                                localStorage.setItem(_midSrc, src);
+                            }
+                        }
+                    } catch(e) {}
+                }
             }
 
-            // ── Source 4: fawazahmed0 via jsDelivr CDN — free, no key ─────────
+            // ── Source 4: fawazahmed0 via jsDelivr CDN — free, no key ────────
             if (!midRate) {
-                try {
-                    const r = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', { cache: 'no-store' });
-                    if (r.ok) {
-                        const j = await r.json();
-                        if (sane(j.usd?.thb)) { midRate = j.usd.thb; src = 'fawaz'; }
-                    }
-                } catch(e) {}
+                if (_midCacheHit && _midCachedSrc === 'fawaz') {
+                    midRate = _midCachedVal;
+                    src = 'fawaz';
+                } else {
+                    try {
+                        const r = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', { cache: 'no-store' });
+                        if (r.ok) {
+                            const j = await r.json();
+                            if (sane(j.usd?.thb)) {
+                                midRate = j.usd.thb;
+                                src = 'fawaz';
+                                localStorage.setItem(_midKey, Date.now().toString());
+                                localStorage.setItem(_midVal, midRate.toString());
+                                localStorage.setItem(_midSrc, src);
+                            }
+                        }
+                    } catch(e) {}
+                }
             }
 
-            // ── prevMid fallback: yesterday via fawazahmed0 ───────────────────
+            // ── prevMid fallback: yesterday via fawazahmed0 (once/day) ───────
             if (!prevMid && (src === 'OpenER' || src === 'fawaz')) {
                 try {
                     const d = new Date(); d.setDate(d.getDate() - 1);
@@ -22628,7 +22703,10 @@ ${_clip(contextSections, 2600)}`;
                     const r = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${ds}/v1/currencies/usd.json`, { cache: 'no-store' });
                     if (r.ok) {
                         const j = await r.json();
-                        if (sane(j.usd?.thb)) prevMid = j.usd.thb;
+                        if (sane(j.usd?.thb)) {
+                            prevMid = j.usd.thb;
+                            localStorage.setItem(_prevKey, prevMid.toString());
+                        }
                     }
                 } catch(e) {}
             }
@@ -22680,7 +22758,7 @@ ${_clip(contextSections, 2600)}`;
             const fmtChg = (curr, base, el) => {
                 if (!base || !sane(base)) {
                     // No base yet — show neutral
-                    el.textContent = '↗ 0.00%';
+                    el.textContent = '▲ 0.00%';
                     el.style.color = '#94a3b8';
                     return;
                 }
@@ -22688,7 +22766,7 @@ ${_clip(contextSections, 2600)}`;
                 const pct  = Math.abs((diff / base) * 100).toFixed(2);
                 const isUp = diff >  0.0005;
                 const isDn = diff < -0.0005;
-                el.textContent = `${isDn ? '↘' : '↗'} ${pct}%`;
+                el.textContent = `${isDn ? '▼' : '▲'} ${pct}%`;
                 el.style.color = isDn ? '#f43f5e' : '#22c55e';
             };
 
@@ -26409,7 +26487,7 @@ ${_clip(contextSections, 2600)}`;
             0%,80%,100% { opacity:0.2; transform:scale(0.85); }
             40%          { opacity:1;   transform:scale(1); }
         }
-        @media (min-width: 769px) {
+        @media (min-width: 768px) {
             #ps-splash { display:none !important; }
         }
     </style>
