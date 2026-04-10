@@ -282,6 +282,104 @@
             color: #d1d4dc !important;
         }
 
+        /* ── Settings Modal — Professional Design System ── */
+        #settings-modal .stab-bar {
+            display: flex; gap: 4px; padding: 6px;
+            background: var(--bg-card2); border-bottom: 1px solid var(--border);
+        }
+        #settings-modal .stab-btn {
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+            padding: 7px 8px; border-radius: 8px; border: none; cursor: pointer;
+            font-family: var(--font-main); font-size: 10px; font-weight: 700;
+            letter-spacing: 0.04em; text-transform: uppercase;
+            color: var(--text-dim); background: transparent;
+            transition: all 0.15s ease;
+        }
+        #settings-modal .stab-btn:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--text-secondary); }
+        #settings-modal .stab-btn.active {
+            background: color-mix(in srgb, var(--accent) 14%, transparent);
+            color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        #settings-modal .stab-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+        #settings-modal .s-card {
+            position: relative; border-radius: 10px; padding: 14px 14px 14px 18px;
+            background: var(--bg-card2); border: 1px solid var(--border);
+            transition: border-color 0.15s ease;
+        }
+        #settings-modal .s-card::before {
+            content: ''; position: absolute; left: 0; top: 10px; bottom: 10px;
+            width: 3px; border-radius: 0 3px 3px 0;
+            background: var(--s-accent, var(--accent)); opacity: 0.6;
+        }
+        #settings-modal .s-card:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+        #settings-modal .s-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        #settings-modal .s-card-info { display: flex; align-items: center; gap: 10px; }
+        #settings-modal .s-card-icon {
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        #settings-modal .s-card-icon svg { width: 16px; height: 16px; }
+        #settings-modal .s-card-name {
+            font-size: 12px; font-weight: 700; color: var(--text-primary);
+            line-height: 1.3; margin: 0;
+        }
+        #settings-modal .s-card-desc {
+            font-size: 9.5px; font-weight: 500; color: var(--text-dim);
+            line-height: 1.3; margin: 1px 0 0;
+        }
+        #settings-modal .s-badge {
+            font-size: 9px; font-weight: 700; padding: 2px 8px;
+            border-radius: 999px; letter-spacing: 0.02em; white-space: nowrap;
+        }
+        #settings-modal .s-input-row { display: flex; gap: 6px; }
+        #settings-modal .s-input {
+            flex: 1; font-size: 11px; padding: 8px 12px; border-radius: 8px;
+            outline: none; background: var(--bg-main); border: 1px solid var(--border);
+            color: var(--text-primary); font-family: var(--font-mono);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        #settings-modal .s-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+        }
+        #settings-modal .s-input::placeholder { color: var(--text-dim); font-size: 10px; opacity: 0.7; }
+        #settings-modal .s-eye-btn {
+            padding: 0 10px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--bg-main); color: var(--text-dim); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.12s ease; font-size: 12px;
+        }
+        #settings-modal .s-eye-btn:hover { color: var(--text-primary); border-color: var(--accent); }
+        #settings-modal .s-hint {
+            font-size: 9px; margin-top: 6px; color: var(--text-dim);
+            line-height: 1.4; font-weight: 500;
+        }
+        #settings-modal .s-hint a { text-decoration: underline; font-weight: 600; }
+        #settings-modal .s-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 20px; border-top: 1px solid var(--border);
+        }
+        #settings-modal .s-footer-btn {
+            font-family: var(--font-main); font-size: 10px; font-weight: 700;
+            padding: 7px 16px; border-radius: 8px; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 0.04em;
+            transition: all 0.12s ease; border: 1px solid var(--border);
+        }
+        #settings-modal .s-footer-btn.danger {
+            color: var(--text-dim); background: var(--bg-card2);
+        }
+        #settings-modal .s-footer-btn.danger:hover { color: #f43f5e; border-color: #f43f5e; }
+        #settings-modal .s-footer-btn.ghost {
+            color: var(--text-dim); background: var(--bg-card2);
+        }
+        #settings-modal .s-footer-btn.ghost:hover { color: var(--text-primary); }
+        #settings-modal .s-footer-btn.primary {
+            color: #fff; background: var(--accent); border-color: var(--accent);
+        }
+        #settings-modal .s-footer-btn.primary:hover { filter: brightness(1.1); }
+        #settings-modal .s-footer-btn.primary:active { transform: scale(0.97); }
+
         /* ── TV: Watchlist table — rows near-black like real TV ── */
         [data-theme="tv"] #watchlist-table tbody tr.wl-row {
             background: #0d0d0d;
@@ -1220,10 +1318,26 @@
             gap: 6px;
         }
         .news-title {
-            font-size: 13px;
-            font-weight: 800;
-            line-height: 1.35;
+            font-family: var(--font-main);
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.4;
             color: var(--text-primary);
+            display: -webkit-box;
+            line-clamp: 2;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin: 0;
+            letter-spacing: 0.01em;
+        }
+        .news-summary {
+            font-family: var(--font-main);
+            font-size: 10.5px;
+            font-weight: 400;
+            line-height: 1.4;
+            color: var(--text-secondary);
+            opacity: .85;
             display: -webkit-box;
             line-clamp: 2;
             -webkit-line-clamp: 2;
@@ -1232,23 +1346,12 @@
             margin: 0;
             letter-spacing: 0.005em;
         }
-        .news-summary {
-            font-size: 10.5px;
-            line-height: 1.35;
-            color: var(--text-secondary);
-            opacity: .9;
-            display: -webkit-box;
-            line-clamp: 2;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            margin: 0;
-        }
         .news-meta {
             display: flex;
             align-items: center;
             gap: 6px;
             flex-wrap: wrap;
+            font-family: var(--font-main);
         }
         .news-source {
             font-size: 9px;
@@ -1256,19 +1359,25 @@
             letter-spacing: 0.06em;
             color: var(--accent);
             text-transform: uppercase;
+            font-family: var(--font-main);
         }
         .news-time, .news-sep {
-            font-size: 9.5px;
+            font-size: 9px;
+            font-weight: 500;
             color: var(--text-dim);
+            font-family: var(--font-main);
+            letter-spacing: 0.01em;
         }
         .news-badge {
             background: color-mix(in srgb, var(--accent) 14%, transparent);
             color: var(--accent);
+            font-family: var(--font-main);
             font-size: 8px;
             font-weight: 700;
             padding: 1px 6px;
             border-radius: 999px;
             border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+            letter-spacing: 0.03em;
         }
         .news-feed-left {
             width: 48px;
@@ -24995,8 +25104,7 @@ ${_clip(contextSections, 2600)}`;
                 if (!panel || !btn) return;
                 const active = t === tab;
                 panel.classList.toggle('hidden', !active);
-                btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
-                btn.style.color = active ? 'var(--accent)' : 'var(--text-dim)';
+                btn.classList.toggle('active', active);
             });
             if (tab === 'theme') _renderThemeGrids();
             if (tab === 'display') _updateDisplayModeButtons();
@@ -26529,187 +26637,194 @@ ${_clip(contextSections, 2600)}`;
     <!-- ── Settings Modal ──────────────────────────────────────────────── -->
     <div id="settings-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4">
         <div class="fixed inset-0" style="background:rgba(0,0,0,0.5)" onclick="closeSettingsModal()"></div>
-        <div class="relative z-10 w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col" style="background:var(--bg-main);border:1px solid var(--border);max-height:88vh">
+        <div class="relative z-10 w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col" style="background:var(--bg-main);border:1px solid var(--border);max-height:88vh;font-family:var(--font-main)">
 
             <!-- Header -->
-            <div class="flex items-center justify-between px-5 py-3.5 border-b flex-shrink-0" style="border-color:var(--border)">
-                <div class="flex items-center gap-3">
-                    <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#0f2030,#1e3a5f)">
-                        <svg class="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f2030,#1a3a5c)">
+                        <svg width="14" height="14" fill="none" stroke="#5eead4" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     </div>
-                    <h2 class="text-sm font-black" style="color:var(--text-primary);font-family:var(--font-main)">Settings</h2>
+                    <span style="font-size:13px;font-weight:800;color:var(--text-primary);letter-spacing:0.01em">Settings</span>
                 </div>
-                <button onclick="closeSettingsModal()" class="w-7 h-7 rounded-lg flex items-center justify-center" style="color:var(--text-dim);background:var(--bg-card2)" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-dim)'">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                <button onclick="closeSettingsModal()" style="width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);background:var(--bg-card2);border:1px solid var(--border);cursor:pointer;transition:all 0.12s" onmouseover="this.style.color='var(--text-primary)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text-dim)';this.style.borderColor='var(--border)'">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round"><path d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
 
-            <!-- Tab Bar -->
-            <div class="flex border-b flex-shrink-0" style="border-color:var(--border);background:var(--bg-card2)">
-                <button id="stab-btn-api" onclick="switchSettingsTab('api')"
-                    class="flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all"
-                    style="border-bottom:2px solid var(--accent);color:var(--accent)">🔑 API Keys</button>
-                <button id="stab-btn-sync" onclick="switchSettingsTab('sync')"
-                    class="flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all"
-                    style="border-bottom:2px solid transparent;color:var(--text-dim)">☁️ Sync</button>
-                <button id="stab-btn-theme" onclick="switchSettingsTab('theme')"
-                    class="flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all"
-                    style="border-bottom:2px solid transparent;color:var(--text-dim)">🎨 Theme</button>
-                <button id="stab-btn-display" onclick="switchSettingsTab('display')"
-                    class="flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all"
-                    style="border-bottom:2px solid transparent;color:var(--text-dim)">📺 โหมดแสดงผล</button>
+            <!-- Tab Bar — Pill style -->
+            <div class="stab-bar flex-shrink-0">
+                <button id="stab-btn-api" onclick="switchSettingsTab('api')" class="stab-btn active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 015 5 5 5 0 01-5 5h-3m-6 0H6a5 5 0 01-5-5 5 5 0 015-5h3"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                    API Keys
+                </button>
+                <button id="stab-btn-sync" onclick="switchSettingsTab('sync')" class="stab-btn">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Sync
+                </button>
+                <button id="stab-btn-theme" onclick="switchSettingsTab('theme')" class="stab-btn">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                    Theme
+                </button>
+                <button id="stab-btn-display" onclick="switchSettingsTab('display')" class="stab-btn">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    Display
+                </button>
             </div>
 
             <!-- Tab: API Keys -->
-            <div id="stab-api" class="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+            <div id="stab-api" class="overflow-y-auto flex-1" style="padding:16px 20px;display:flex;flex-direction:column;gap:10px">
                 <!-- Finnhub -->
-                <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                    <div class="flex items-center justify-between mb-2.5">
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:#0f9d58"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></div>
-                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">Finnhub</p><p class="text-[10px]" style="color:var(--text-dim)">ราคาหุ้น real-time · finnhub.io</p></div>
+                <div class="s-card" style="--s-accent:#0f9d58">
+                    <div class="s-card-head">
+                        <div class="s-card-info">
+                            <div class="s-card-icon" style="background:#0f9d58"><svg fill="none" stroke="#fff" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></div>
+                            <div><p class="s-card-name">Finnhub</p><p class="s-card-desc">ราคาหุ้น real-time · finnhub.io</p></div>
                         </div>
-                        <span id="s-finnhub-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                        <span id="s-finnhub-badge" class="s-badge"></span>
                     </div>
-                    <div class="flex gap-2">
-                        <input id="s-finnhub-input" type="password" autocomplete="off" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')saveAllSettings()">
-                        <button onclick="toggleVisibility('s-finnhub-input')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    <div class="s-input-row">
+                        <input id="s-finnhub-input" type="password" autocomplete="off" placeholder="API Key" class="s-input" onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-finnhub-input')" class="s-eye-btn"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                     </div>
-                    <p class="text-[9px] mt-1.5" style="color:var(--text-dim)">สมัครฟรีที่ <a href="https://finnhub.io" target="_blank" class="underline" style="color:#0f9d58">finnhub.io</a> · 60 req/min</p>
+                    <p class="s-hint">สมัครฟรีที่ <a href="https://finnhub.io" target="_blank" style="color:#0f9d58">finnhub.io</a> · 60 req/min</p>
                 </div>
                 <!-- ExchangeRate-API -->
-                <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                    <div class="flex items-center justify-between mb-2.5">
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:#1a73e8"><span class="text-white text-[10px] font-black">FX</span></div>
-                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">ExchangeRate-API</p><p class="text-[10px]" style="color:var(--text-dim)">อัตราแลกเปลี่ยน USD/THB</p></div>
+                <div class="s-card" style="--s-accent:#1a73e8">
+                    <div class="s-card-head">
+                        <div class="s-card-info">
+                            <div class="s-card-icon" style="background:#1a73e8"><span style="color:#fff;font-size:9px;font-weight:900;letter-spacing:0.02em">FX</span></div>
+                            <div><p class="s-card-name">ExchangeRate-API</p><p class="s-card-desc">อัตราแลกเปลี่ยน USD/THB</p></div>
                         </div>
-                        <span id="s-erapi-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                        <span id="s-erapi-badge" class="s-badge"></span>
                     </div>
-                    <div class="flex gap-2">
-                        <input id="s-erapi-input" type="password" autocomplete="off" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')saveAllSettings()">
-                        <button onclick="toggleVisibility('s-erapi-input')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    <div class="s-input-row">
+                        <input id="s-erapi-input" type="password" autocomplete="off" placeholder="API Key" class="s-input" onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-erapi-input')" class="s-eye-btn"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                     </div>
-                    <p class="text-[9px] mt-1.5" style="color:var(--text-dim)">สมัครฟรีที่ <a href="https://app.exchangerate-api.com" target="_blank" class="underline" style="color:#1a73e8">app.exchangerate-api.com</a> · 1,500 req/month</p>
+                    <p class="s-hint">สมัครฟรีที่ <a href="https://app.exchangerate-api.com" target="_blank" style="color:#1a73e8">app.exchangerate-api.com</a> · 1,500 req/month</p>
                 </div>
                 <!-- Twelve Data -->
-                <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                    <div class="flex items-center justify-between mb-2.5">
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:#6366f1"><span class="text-white text-[9px] font-black">12</span></div>
-                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">Twelve Data</p><p class="text-[10px]" style="color:var(--text-dim)">FX Previous Close (% change แม่นยำ)</p></div>
+                <div class="s-card" style="--s-accent:#6366f1">
+                    <div class="s-card-head">
+                        <div class="s-card-info">
+                            <div class="s-card-icon" style="background:#6366f1"><span style="color:#fff;font-size:10px;font-weight:900">12</span></div>
+                            <div><p class="s-card-name">Twelve Data</p><p class="s-card-desc">FX Previous Close (% change แม่นยำ)</p></div>
                         </div>
-                        <span id="s-twelvedata-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                        <span id="s-twelvedata-badge" class="s-badge"></span>
                     </div>
-                    <div class="flex gap-2">
-                        <input id="s-twelvedata-input" type="password" autocomplete="off" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')saveAllSettings()">
-                        <button onclick="toggleVisibility('s-twelvedata-input')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    <div class="s-input-row">
+                        <input id="s-twelvedata-input" type="password" autocomplete="off" placeholder="API Key" class="s-input" onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-twelvedata-input')" class="s-eye-btn"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                     </div>
-                    <p class="text-[9px] mt-1.5" style="color:var(--text-dim)">สมัครฟรีที่ <a href="https://twelvedata.com" target="_blank" class="underline" style="color:#6366f1">twelvedata.com</a> · 800 req/day</p>
+                    <p class="s-hint">สมัครฟรีที่ <a href="https://twelvedata.com" target="_blank" style="color:#6366f1">twelvedata.com</a> · 800 req/day</p>
                 </div>
                 <!-- OpenRouter -->
-                <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                    <div class="flex items-center justify-between mb-2.5">
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div>
-                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">OpenRouter AI</p><p class="text-[10px]" style="color:var(--text-dim)">AI Stock Analyst · openrouter.ai</p></div>
+                <div class="s-card" style="--s-accent:#8b5cf6">
+                    <div class="s-card-head">
+                        <div class="s-card-info">
+                            <div class="s-card-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"><svg fill="none" stroke="#fff" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div>
+                            <div><p class="s-card-name">OpenRouter AI</p><p class="s-card-desc">AI Stock Analyst · openrouter.ai</p></div>
                         </div>
-                        <span id="s-openrouter-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                        <span id="s-openrouter-badge" class="s-badge"></span>
                     </div>
-                    <div class="flex gap-2">
-                        <input id="s-openrouter-input" type="password" autocomplete="off" placeholder="sk-or-v1-..." class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')saveAllSettings()">
-                        <button onclick="toggleVisibility('s-openrouter-input')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    <div class="s-input-row">
+                        <input id="s-openrouter-input" type="password" autocomplete="off" placeholder="sk-or-v1-..." class="s-input" onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-openrouter-input')" class="s-eye-btn"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                     </div>
-                    <p class="text-[9px] mt-1.5" style="color:var(--text-dim)"><a href="https://openrouter.ai" target="_blank" class="underline" style="color:#6366f1">openrouter.ai</a> → API Keys → Create Key · ต้องขึ้นต้นด้วย <strong>sk-or-v1-</strong></p>
+                    <p class="s-hint"><a href="https://openrouter.ai" target="_blank" style="color:#8b5cf6">openrouter.ai</a> → API Keys → Create Key · ต้องขึ้นต้นด้วย <strong>sk-or-v1-</strong></p>
                 </div>
                 <!-- FMP -->
-                <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                    <div class="flex items-center justify-between mb-2.5">
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
-                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">Financial Modeling Prep <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(245,158,11,0.15);color:#f59e0b">FMP</span></p><p class="text-[10px]" style="color:var(--text-dim)">Market Scanner + Pre/After-Hours · ฟรี 250 req/วัน</p></div>
+                <div class="s-card" style="--s-accent:#f59e0b">
+                    <div class="s-card-head">
+                        <div class="s-card-info">
+                            <div class="s-card-icon" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"><svg fill="none" stroke="#fff" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
+                            <div><p class="s-card-name">Financial Modeling Prep <span style="font-size:8px;font-weight:800;padding:1px 6px;border-radius:4px;margin-left:4px;background:rgba(245,158,11,0.15);color:#f59e0b;vertical-align:middle">FMP</span></p><p class="s-card-desc">Market Scanner + Pre/After-Hours · 250 req/day</p></div>
                         </div>
-                        <span id="s-fmp-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                        <span id="s-fmp-badge" class="s-badge"></span>
                     </div>
-                    <div class="flex gap-2">
-                        <input id="s-fmp-key-input" type="password" autocomplete="off" placeholder="ใส่ FMP API Key (สมัครฟรีที่ financialmodelingprep.com)" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')saveAllSettings()">
-                        <button onclick="toggleVisibility('s-fmp-key-input')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    <div class="s-input-row">
+                        <input id="s-fmp-key-input" type="password" autocomplete="off" placeholder="API Key" class="s-input" onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-fmp-key-input')" class="s-eye-btn"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                     </div>
-                    <p class="text-[9px] mt-1.5" style="color:var(--text-dim)">สมัครฟรีที่ <a href="https://financialmodelingprep.com/developer/docs" target="_blank" class="underline" style="color:#f59e0b">financialmodelingprep.com</a> → Register → Dashboard → API Key · ไม่ต้องใส่บัตรเครดิต</p>
+                    <p class="s-hint">สมัครฟรีที่ <a href="https://financialmodelingprep.com/developer/docs" target="_blank" style="color:#f59e0b">financialmodelingprep.com</a> → Register → Dashboard → API Key</p>
                 </div>
-                <!-- Alpaca — Primary WS + REST (real-time tick + chart bars) -->
-                <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                    <div class="flex items-center justify-between mb-2.5">
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:#FFCD00"><span style="font-size:10px;font-weight:900;color:#000">A</span></div>
-                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">Alpaca Markets <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" style="background:rgba(16,185,129,0.18);color:#10b981">WebSocket · IEX</span> <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ml-0.5" style="background:rgba(255,205,0,0.15);color:#FFCD00">REST</span></p><p class="text-[10px]" style="color:var(--text-dim)">Real-time tick ทุก trade · Chart bars · Sparklines (IEX free)</p></div>
+                <!-- Alpaca -->
+                <div class="s-card" style="--s-accent:#FFCD00">
+                    <div class="s-card-head">
+                        <div class="s-card-info">
+                            <div class="s-card-icon" style="background:#FFCD00"><span style="font-size:12px;font-weight:900;color:#000">A</span></div>
+                            <div>
+                                <p class="s-card-name">Alpaca Markets
+                                    <span style="font-size:8px;font-weight:800;padding:1px 6px;border-radius:4px;margin-left:4px;background:rgba(16,185,129,0.15);color:#10b981;vertical-align:middle">WS</span>
+                                    <span style="font-size:8px;font-weight:800;padding:1px 6px;border-radius:4px;margin-left:2px;background:rgba(255,205,0,0.15);color:#FFCD00;vertical-align:middle">REST</span>
+                                </p>
+                                <p class="s-card-desc">Real-time tick ทุก trade · Chart bars · Sparklines (IEX free)</p>
+                            </div>
                         </div>
-                        <span id="s-alpaca-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                        <span id="s-alpaca-badge" class="s-badge"></span>
                     </div>
-                    <div class="flex gap-2 mb-2">
-                        <input id="s-alpaca-key-input" type="password" autocomplete="off" placeholder="Alpaca API Key ID" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')saveAllSettings()">
-                        <button onclick="toggleVisibility('s-alpaca-key-input')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    <div class="s-input-row" style="margin-bottom:6px">
+                        <input id="s-alpaca-key-input" type="password" autocomplete="off" placeholder="API Key ID" class="s-input" onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-alpaca-key-input')" class="s-eye-btn"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                     </div>
-                    <div class="flex gap-2">
-                        <input id="s-alpaca-secret-input" type="password" autocomplete="off" placeholder="Alpaca Secret Key" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')saveAllSettings()">
-                        <button onclick="toggleVisibility('s-alpaca-secret-input')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    <div class="s-input-row">
+                        <input id="s-alpaca-secret-input" type="password" autocomplete="off" placeholder="Secret Key" class="s-input" onkeydown="if(event.key==='Enter')saveAllSettings()">
+                        <button onclick="toggleVisibility('s-alpaca-secret-input')" class="s-eye-btn"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                     </div>
-                    <p class="text-[9px] mt-1.5" style="color:var(--text-dim)"><a href="https://alpaca.markets" target="_blank" class="underline" style="color:#FFCD00">alpaca.markets</a> → Paper Trading หรือ Live → API Keys</p>
+                    <p class="s-hint"><a href="https://alpaca.markets" target="_blank" style="color:#FFCD00">alpaca.markets</a> → Paper Trading หรือ Live → API Keys</p>
                 </div>
             </div>
 
             <!-- Tab: Sync (Gist) -->
-            <div id="stab-sync" class="overflow-y-auto flex-1 px-5 py-4 space-y-3 hidden">
-                <div class="rounded-lg p-3.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                    <div class="flex items-center justify-between mb-2.5">
-                        <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background:#24292e"><svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></div>
-                            <div><p class="text-xs font-bold" style="color:var(--text-primary)">GitHub Gist Sync</p><p class="text-[10px]" style="color:var(--text-dim)">สำรองข้อมูลอัตโนมัติ · github.com</p></div>
+            <div id="stab-sync" class="overflow-y-auto flex-1 hidden" style="padding:16px 20px;display:flex;flex-direction:column;gap:10px">
+                <div class="s-card" style="--s-accent:#24292e">
+                    <div class="s-card-head">
+                        <div class="s-card-info">
+                            <div class="s-card-icon" style="background:#24292e"><svg width="16" height="16" fill="#fff" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg></div>
+                            <div><p class="s-card-name">GitHub Gist Sync</p><p class="s-card-desc">สำรองข้อมูลอัตโนมัติ · github.com</p></div>
                         </div>
-                        <span id="s-gist-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full"></span>
+                        <span id="s-gist-badge" class="s-badge"></span>
                     </div>
-                    <div class="flex gap-2">
-                        <input id="s-gist-input" type="password" autocomplete="off" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')_applyGistToken()">
-                        <button onclick="toggleVisibility('s-gist-input')" class="px-2.5 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
+                    <div class="s-input-row">
+                        <input id="s-gist-input" type="password" autocomplete="off" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="s-input" onkeydown="if(event.key==='Enter')_applyGistToken()">
+                        <button onclick="toggleVisibility('s-gist-input')" class="s-eye-btn"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                     </div>
-                    <button id="s-gist-apply-btn" onclick="_applyGistToken()" class="w-full mt-2 text-[11px] font-bold py-2.5 rounded-lg uppercase tracking-wider transition-all active:scale-[0.98]" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;letter-spacing:0.08em">Apply — ดึงข้อมูล + API Keys ทั้งหมด</button>
-                    <p id="s-gist-apply-status" class="text-[10px] mt-1.5 font-bold text-center" style="color:var(--text-dim);min-height:16px"></p>
-                    <p class="text-[9px] mt-1" style="color:var(--text-dim)">GitHub → Settings → Developer settings → Personal access tokens (Classic) · เลือก scope: <strong>gist</strong></p>
+                    <button id="s-gist-apply-btn" onclick="_applyGistToken()" style="width:100%;margin-top:8px;padding:9px 0;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-main);font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:linear-gradient(135deg,#059669,#10b981);color:#fff;transition:all 0.15s" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter=''">Apply — ดึงข้อมูล + API Keys ทั้งหมด</button>
+                    <p id="s-gist-apply-status" style="font-size:10px;margin-top:6px;font-weight:700;text-align:center;color:var(--text-dim);min-height:16px"></p>
+                    <p class="s-hint">GitHub → Settings → Developer settings → Personal access tokens (Classic) · เลือก scope: <strong>gist</strong></p>
                 </div>
             </div>
 
             <!-- Tab: Theme -->
-            <div id="stab-theme" class="overflow-y-auto flex-1 px-5 py-4 hidden">
-                <p class="text-[9px] font-black uppercase tracking-widest mb-2.5" style="color:var(--text-dim)">🌙 Dark</p>
+            <div id="stab-theme" class="overflow-y-auto flex-1 hidden" style="padding:16px 20px">
+                <p style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 10px;color:var(--text-dim)">Dark</p>
                 <div class="grid grid-cols-3 gap-2 mb-4" id="dark-theme-grid"></div>
-                <p class="text-[9px] font-black uppercase tracking-widest mb-2.5" style="color:var(--text-dim)">☀️ Light</p>
+                <p style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 10px;color:var(--text-dim)">Light</p>
                 <div class="grid grid-cols-3 gap-2" id="light-theme-grid"></div>
             </div>
 
             <!-- Tab: Display Mode -->
-            <div id="stab-display" class="overflow-y-auto flex-1 px-5 py-4 hidden">
-                <p class="text-[9px] font-black uppercase tracking-widest mb-2.5" style="color:var(--text-dim)">โหมดการแสดงผล AI</p>
-                <div class="flex gap-2">
+            <div id="stab-display" class="overflow-y-auto flex-1 hidden" style="padding:16px 20px">
+                <p style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 10px;color:var(--text-dim)">AI Analysis Mode</p>
+                <div style="display:flex;gap:8px">
                     <button id="disp-btn-beginner" onclick="setDisplayMode('beginner')"
-                        class="flex-1 py-2.5 px-3 rounded-lg text-[11px] font-bold transition-all"
-                        style="background:var(--bg-card2);border:2px solid var(--border);color:var(--text-primary)">
-                        🟢 มือใหม่ (Beginner)
+                        style="flex:1;padding:10px 12px;border-radius:10px;font-family:var(--font-main);font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;background:var(--bg-card2);border:2px solid var(--border);color:var(--text-primary)">
+                        Beginner<br><span style="font-size:9px;font-weight:500;color:var(--text-dim)">สรุปสั้น + ภาษาไทย</span>
                     </button>
                     <button id="disp-btn-trader" onclick="setDisplayMode('trader')"
-                        class="flex-1 py-2.5 px-3 rounded-lg text-[11px] font-bold transition-all"
-                        style="background:var(--bg-card2);border:2px solid var(--border);color:var(--text-primary)">
-                        🔵 เทรดเดอร์ (Trader)
+                        style="flex:1;padding:10px 12px;border-radius:10px;font-family:var(--font-main);font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;background:var(--bg-card2);border:2px solid var(--border);color:var(--text-primary)">
+                        Trader<br><span style="font-size:9px;font-weight:500;color:var(--text-dim)">Technical เต็ม + ศัพท์ EN</span>
                     </button>
                 </div>
-                <p class="text-[9px] mt-2" style="color:var(--text-dim)">มือใหม่: สรุปสั้น + ภาษาไทย | เทรดเดอร์: Technical เต็ม + ศัพท์อังกฤษ</p>
             </div>
 
             <!-- Footer -->
-            <div class="flex items-center justify-between px-5 py-3 border-t flex-shrink-0" style="border-color:var(--border)">
-                <button onclick="clearAllSettings()" class="text-[10px] font-bold px-3 py-2 rounded-lg uppercase tracking-wider transition-all" style="color:var(--text-dim);background:var(--bg-card2);border:1px solid var(--border)" onmouseover="this.style.color='#f43f5e'" onmouseout="this.style.color='var(--text-dim)'">ล้างทั้งหมด</button>
-                <div class="flex gap-2">
-                    <button onclick="closeSettingsModal()" class="text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider" style="color:var(--text-dim);background:var(--bg-card2);border:1px solid var(--border)">ยกเลิก</button>
-                    <button onclick="saveAllSettings()" class="text-[10px] font-semibold px-5 py-2 rounded-md uppercase tracking-wider text-white transition-all active:scale-95" style="background:var(--accent)">บันทึกทั้งหมด</button>
+            <div class="s-footer flex-shrink-0">
+                <button onclick="clearAllSettings()" class="s-footer-btn danger">Clear All</button>
+                <div style="display:flex;gap:8px">
+                    <button onclick="closeSettingsModal()" class="s-footer-btn ghost">Cancel</button>
+                    <button onclick="saveAllSettings()" class="s-footer-btn primary">Save All</button>
                 </div>
             </div>
         </div>
