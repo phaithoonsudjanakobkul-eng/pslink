@@ -12657,14 +12657,14 @@
         const logoDataUrlCache = {}; // url -> data URL (strong cache for NEWS re-renders)
         const logoDataInflight = {}; // url -> Promise
         const logoDataMeta = {}; // url -> last-used timestamp
-        const LOGO_DATA_CACHE_KEY = 'ps_logo_data_cache_v2';
+        const LOGO_DATA_CACHE_KEY = 'ps_logo_data_cache_v5';
         const LOGO_DATA_CACHE_MAX_ITEMS = 120;
         const LOGO_DATA_CACHE_MAX_ITEM_LEN = 120 * 1024;
         const LOGO_DATA_CACHE_MAX_TOTAL_LEN = 900 * 1024;
         const LOGO_DATA_CACHE_TTL_MS = 45 * 24 * 60 * 60 * 1000;
         const symbolLogoDataCache = {}; // sym -> data URL for instant NEWS logo after F5
         const symbolLogoMeta = {}; // sym -> last-used timestamp
-        const SYMBOL_LOGO_CACHE_KEY = 'ps_symbol_logo_cache_v1';
+        const SYMBOL_LOGO_CACHE_KEY = 'ps_symbol_logo_cache_v4';
         const SYMBOL_LOGO_CACHE_MAX_ITEMS = 120;
         const SYMBOL_LOGO_CACHE_MAX_ITEM_LEN = 110 * 1024;
         const SYMBOL_LOGO_CACHE_MAX_TOTAL_LEN = 700 * 1024;
@@ -12712,7 +12712,7 @@
                 items[url] = dataUrl;
                 total += dataUrl.length;
             }
-            return { version: 1, ts: Date.now(), items };
+            return { version: 11, ts: Date.now(), items };
         }
         function _saveLogoDataCacheLocal(immediate = false) {
             const run = () => {
@@ -12741,6 +12741,7 @@
         }
         function _applyLogoDataCacheData(payload, { persistLocal = false } = {}) {
             try {
+                if (!payload || (payload.version || 0) < 11) return;
                 const srcItems = (payload && payload.items && typeof payload.items === 'object')
                     ? payload.items
                     : (payload && typeof payload === 'object' ? payload : {});
@@ -12767,10 +12768,11 @@
                 items[sym] = dataUrl;
                 total += dataUrl.length;
             }
-            return { version: 1, ts: Date.now(), items };
+            return { version: 11, ts: Date.now(), items };
         }
         function _applySymbolLogoCacheData(payload, { persistLocal = false } = {}) {
             try {
+                if (!payload || (payload.version || 0) < 11) return;
                 const srcItems = (payload && payload.items && typeof payload.items === 'object')
                     ? payload.items
                     : (payload && typeof payload === 'object' ? payload : {});
@@ -26547,6 +26549,8 @@ ${_clip(contextSections, 2600)}`;
                 let _pinnedCount = 0;
                 try { const _ip = JSON.parse(localStorage.getItem('ps_pinned_wl') || '[]'); _pinnedSymSet = new Set(_ip.filter(s => watchlist.includes(s))); _pinnedCount = _pinnedSymSet.size; } catch(_) {}
                 _splashStatus(`Watchlist: ${watchlist.length} หุ้น · Pinned: ${_pinnedCount} รายการ`);
+                // Purge stale logo cache keys from previous versions
+                try { ['v2','v3','v4'].forEach(v => localStorage.removeItem('ps_logo_data_cache_'+v)); ['v1','v2','v3'].forEach(v => localStorage.removeItem('ps_symbol_logo_cache_'+v)); } catch(_) {}
                 _loadLogoDataCacheLocal(); // keep logo cache across F5 before rendering NEWS
                 loadWlCache(); // restore price/profile cache for instant display
                 prewarmWatchlistLogos(80); // warm visible symbols ASAP after refresh
