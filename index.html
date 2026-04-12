@@ -51,7 +51,7 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Poppins:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&family=Oswald:wght@300;400;600;700&family=Raleway:wght@300;400;600;700&family=Nunito:wght@300;400;600;700&family=DM+Serif+Display&family=Space+Mono:wght@400;700&family=Pacifico&family=Kanit:wght@300;400;600;700&family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Poppins:wght@300;400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Bebas+Neue&family=Oswald:wght@300;400;600;700&family=Raleway:wght@300;400;600;700&family=Nunito:wght@300;400;600;700&family=DM+Serif+Display&family=Space+Mono:wght@400;700&family=Pacifico&family=Kanit:wght@300;400;600;700&family=Sarabun:wght@300;400;600;700&family=Cormorant+Garamond:ital,wght@0,300;1,300;1,400&display=swap" rel="stylesheet">
     <style>
         /* Prevent FOUT: system fallback matching Inter metrics */
         body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
@@ -492,9 +492,7 @@
             background: #0d0d0d !important;
             border-color: rgba(42,46,57,0.8) !important;
         }
-        /* AI message rows */
-        [data-theme="tv"] .ai-msg-body,
-        [data-theme="tv"] .msgbody { color: #d1d4dc !important; }
+        /* AI message rows — handled by var(--text-primary) */
         /* News rows */
         [data-theme="tv"] .news-item,
         [data-theme="tv"] [class*="news-row"],
@@ -574,6 +572,8 @@
         /* AI popup bar */
         [data-theme="tv"] #ai-popup-bar,
         [data-theme="tv"] #ai-prompt-row { background: #0d0d0d !important; border-color: rgba(42,46,57,0.8) !important; }
+        /* AI popup panel — TV theme: deeper shadow only (bg/borders via CSS vars) */
+        [data-theme="tv"] #ai-popup-panel { box-shadow: 0 8px 32px rgba(0,0,0,0.7) !important; }
         /* Watchlist panel container + chart outer */
         [data-theme="tv"] #watchlist-panel,
         [data-theme="tv"] #wl-chart-area  { background: #0d0d0d !important; }
@@ -582,6 +582,14 @@
         [data-theme="tv"] #qc-exchange-badge { background: #1e222d !important; border-color: rgba(42,46,57,0.8) !important; }
         /* Logo circle bg */
         [data-theme="tv"] .qc-logo-wrap    { background: #1e222d !important; }
+        /* QC panel logo must always fill the circle */
+        #qc-logo {
+            position: absolute !important;
+            top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
 
         /* TAB BUTTONS */
         html.dark .bg-gray-100 { background-color: #1e222d !important; }
@@ -628,12 +636,9 @@
         html.dark .text-gray-400 { color: #475569 !important; }
         html.dark .text-gray-300 { color: #334155 !important; }
 
-        /* AI chat message body — fixed readable color, not theme accent */
+        /* AI chat message body — follows theme text color */
         .ai-msg-body, .msgbody {
-            color: #1e293b !important;  /* light mode: dark slate */
-        }
-        html.dark .ai-msg-body, html.dark .msgbody {
-            color: #e2e8f0 !important;  /* dark mode: near-white */
+            color: var(--text-primary) !important;
         }
         /* INPUTS */
         html.dark input[type="text"],
@@ -987,11 +992,9 @@
         .wl-logo-wrap img {
             position: absolute; inset: 0;
             width: 100%; height: 100%;
-            object-fit: contain;
-            border-radius: 50%;
+            object-fit: cover;
             opacity: 0;
             transition: opacity 0.25s ease;
-            background: white;
         }
         .wl-logo-wrap img.loaded {
             opacity: 1;
@@ -1089,13 +1092,17 @@
             word-break: break-word;
         }
         #nm-ai-result strong { font-weight: 800; }
+        /* Light mode: softer shadow on AI popup */
+        html:not(.dark) #ai-popup-panel {
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important;
+        }
         #ai-popup-input-row {
             background: color-mix(in srgb, var(--bg-card2) 82%, transparent);
             backdrop-filter: blur(6px);
         }
         #ai-popup-input-shell {
-            background: rgba(26, 115, 232, 0.08) !important;
-            background-color: rgba(26, 115, 232, 0.08) !important;
+            background: color-mix(in srgb, var(--accent) 8%, transparent) !important;
+            background-color: color-mix(in srgb, var(--accent) 8%, transparent) !important;
             border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
         }
@@ -1114,11 +1121,7 @@
             appearance: none !important;
             caret-color: var(--text-primary);
         }
-        [data-theme="tv"] #ai-popup-input-shell,
-        [data-theme="tv"] #ai-popup-input {
-            background: rgba(26, 115, 232, 0.10) !important;
-            background-color: rgba(26, 115, 232, 0.10) !important;
-        }
+        /* (input-shell accent handled by generic color-mix rule above) */
         #ai-popup-input:-webkit-autofill,
         #ai-popup-input:-webkit-autofill:hover,
         #ai-popup-input:-webkit-autofill:focus {
@@ -1979,7 +1982,7 @@
         /* Profile notes: hardcoded RTE colors (rgb black, bright blue) become invisible/harsh in dark mode.
            invert(1) flips lightness (black→white), hue-rotate(180deg) rotates hues back to preserve blue/teal identity.
            Apply to both display and edit (contenteditable) so view ↔ edit look identical. */
-        html.dark #profile-display-notes,
+        html.dark #profile-display-notes > *,
         html.dark #profile-input-notes { filter: invert(1) hue-rotate(180deg); }
         /* Mobile: stack vertically */
         /* Desktop: photo fills profile-card-main height */
@@ -1989,7 +1992,16 @@
         #profile-wl-console { overflow: hidden; }
         /* PINNED grid columns — minmax() adapts from 1280px up to 1440p 125%DPI (~2048px CSS) with no media query */
         /* min = current×0.9 (no overflow even at 1280px), max = fills ~614px panel at 125% 1440p DPI */
+        #wl-pinned-list, #wl-table-scroll, #profile-display-notes { scrollbar-width: thin; scrollbar-color: transparent transparent; }
         #wl-pinned-list { --pinned-gcols: minmax(61px,105px) minmax(54px,93px) minmax(45px,78px) minmax(34px,59px) minmax(61px,105px) minmax(43px,74px) minmax(40px,69px); }
+        #wl-pinned-list.is-scrolling, #wl-table-scroll.is-scrolling, #profile-display-notes.is-scrolling { scrollbar-color: color-mix(in srgb,var(--text-dim) 40%,transparent) transparent; }
+        #wl-pinned-list::-webkit-scrollbar { width: 3px; }
+        #wl-table-scroll::-webkit-scrollbar { width: 3px; height: 3px; }
+        #profile-display-notes::-webkit-scrollbar { width: 3px; }
+        #wl-pinned-list::-webkit-scrollbar-track, #wl-table-scroll::-webkit-scrollbar-track, #profile-display-notes::-webkit-scrollbar-track { background: transparent; }
+        #wl-pinned-list::-webkit-scrollbar-thumb, #wl-table-scroll::-webkit-scrollbar-thumb, #profile-display-notes::-webkit-scrollbar-thumb { background: transparent; border-radius: 99px; transition: background 0.3s; }
+        #wl-pinned-list.is-scrolling::-webkit-scrollbar-thumb, #wl-table-scroll.is-scrolling::-webkit-scrollbar-thumb, #profile-display-notes.is-scrolling::-webkit-scrollbar-thumb { background: color-mix(in srgb,var(--text-dim) 50%,transparent); }
+        #wl-pinned-list.is-scrolling::-webkit-scrollbar-thumb:hover, #wl-table-scroll.is-scrolling::-webkit-scrollbar-thumb:hover, #profile-display-notes.is-scrolling::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb,var(--text-dim) 70%,transparent); }
         /* PINNED WL — tablet (768–1023px): hide CHG/HIGH/LOW, 4-col layout fills panel */
         @media (min-width: 768px) and (max-width: 1023px) {
             .wl-pinned-col-hide { display: none !important; }
@@ -5478,6 +5490,9 @@
                             <button onclick="wzToggleVis('wz-gist-token')" class="px-2 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
                         </div>
                         <button id="wz-gist-apply-btn" onclick="wzApplyGist()" class="w-full text-[11px] font-bold py-2.5 rounded-lg uppercase tracking-wider transition-all active:scale-[0.98]" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;cursor:pointer">APPLY</button>
+                        <div id="wz-gist-progress" style="height:3px;border-radius:2px;overflow:hidden;margin-top:6px;background:rgba(16,185,129,0.12);display:none;">
+                            <div style="height:100%;width:40%;border-radius:2px;background:linear-gradient(90deg,transparent,#10b981,transparent);animation:wzProgressSlide 1.4s ease-in-out infinite;"></div>
+                        </div>
                         <p id="wz-gist-status" class="text-[10px] mt-1.5 font-bold text-center" style="color:var(--text-dim);min-height:14px"></p>
                     </div>
 
@@ -5561,6 +5576,8 @@
                 localStorage.setItem('ps_gist_token', token);
                 if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = 'กำลังดึงข้อมูล...'; }
                 if (statusEl) { statusEl.textContent = 'SYNCING...'; statusEl.style.color = '#3b82f6'; }
+                const _prog = document.getElementById('wz-gist-progress');
+                if (_prog) _prog.style.display = 'block';
 
                 try {
                     // Fetch Gist
@@ -5571,11 +5588,13 @@
                     if (!res.ok) {
                         const msgs = { 401: 'Token ไม่ถูกต้องหรือหมดอายุ', 403: 'ไม่มีสิทธิ์เข้าถึง Gist', 404: 'ไม่พบ Gist — ตรวจสอบ Token' };
                         if (statusEl) { statusEl.textContent = msgs[res.status] || ('Error ' + res.status); statusEl.style.color = '#f43f5e'; }
+                        if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'APPLY'; }
+                        if (_prog) _prog.style.display = 'none';
                         return;
                     }
                     const gist = await res.json();
                     let fileObj = gist.files?.[GIST_FILENAME] || Object.values(gist.files || {}).find(f => f.filename?.endsWith('.json'));
-                    if (!fileObj) { if (statusEl) { statusEl.textContent = 'ไม่พบข้อมูล PSLink ใน Gist'; statusEl.style.color = '#f43f5e'; } return; }
+                    if (!fileObj) { if (statusEl) { statusEl.textContent = 'ไม่พบข้อมูล PSLink ใน Gist'; statusEl.style.color = '#f43f5e'; } if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'APPLY'; } if (_prog) _prog.style.display = 'none'; return; }
 
                     let content = fileObj.content;
                     if (fileObj.raw_url) {
@@ -5589,7 +5608,6 @@
                     //  records would stay empty and updateDashboard would show a blank page)
                     if (Array.isArray(data.records))   records   = data.records;
                     if (Array.isArray(data.watchlist)) watchlist = data.watchlist;
-                    if (Array.isArray(data.signalLog)) signalLog = data.signalLog;
 
                     // Force-restore ALL API keys (overwrite)
                     let keysRestored = 0;
@@ -5633,6 +5651,7 @@
                 } catch(e) {
                     if (statusEl) { statusEl.textContent = (e.message || 'Error').slice(0, 50); statusEl.style.color = '#f43f5e'; }
                     if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'APPLY'; }
+                    if (_prog) _prog.style.display = 'none';
                 }
             }
 
@@ -5839,7 +5858,7 @@
         </div>
 
         <!-- WATCHLIST TAB -->
-        <div id="tab-watchlist" class="hidden space-y-1 animate-in pt-1">
+        <div id="tab-watchlist" class="hidden space-y-1 pt-1">
 
             <!-- Finnhub Token Modal -->
             <div id="finnhub-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
@@ -5974,7 +5993,7 @@
             <!-- Watchlist Table -->
             <div id="wl-table-panel">
             <div class="glass-card overflow-hidden">
-                <div style="overflow-x:auto;overflow-y:auto;scrollbar-gutter:auto;max-height:inherit">
+                <div id="wl-table-scroll" style="overflow-x:auto;overflow-y:auto;scrollbar-gutter:auto;max-height:inherit">
                 <table id="watchlist-table" class="w-full min-w-[800px]">
                     <colgroup>
                         <col style="width:30px"> <col style="width:110px"> <col style="width:130px"> <col style="width:72px"> <col style="width:96px">
@@ -6051,10 +6070,7 @@
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
                         </button>
                         <div class="w-10 h-10 flex-shrink-0 relative rounded-full overflow-hidden" style="background:var(--bg-card2)">
-                            <img id="qc-logo" src="" class="w-10 h-10 absolute inset-0 transition-opacity duration-150" style="opacity:0;object-fit:cover;width:100%;height:100%;" onerror="this.style.opacity='0'">
-                            <div id="qc-logo-fallback" class="w-10 h-10 absolute inset-0 flex items-center justify-center" style="display:none">
-                                <span id="qc-logo-initials" class="text-sm font-black" style="color:var(--text-primary)"></span>
-                            </div>
+                            <img id="qc-logo" src="" alt="" style="opacity:0;">
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-1.5">
@@ -6262,7 +6278,7 @@
         </div><!-- end tab-watchlist -->
 
         <!-- ── NEWS TAB ─────────────────────────────────────── -->
-        <div id="tab-news" class="hidden animate-in" style="width:100%">
+        <div id="tab-news" class="hidden" style="width:100%">
 
             <!-- Sticky header -->
             <div id="news-sticky-header" style="position:sticky;top:64px;z-index:20;background:var(--bg-main);border-bottom:1px solid var(--border);padding:10px 0 0 0;margin-bottom:0">
@@ -6298,7 +6314,7 @@
         </div>
 
         <!-- ── UTILITIES TAB ──────────────────────────────────────── -->
-        <div id="tab-utilities" class="hidden animate-in" style="width:calc(100% + 32px);margin:0 -16px;">
+        <div id="tab-utilities" class="hidden" style="width:calc(100% + 32px);margin:0 -16px;">
             <div style="display:flex;height:calc(100vh - 112px);overflow:hidden;">
 
                 <!-- ── Sidebar ── -->
@@ -11868,8 +11884,17 @@
             } else {
                 _stopNewsLivePolling();
             }
-            if (t === 'dashboard') updateDashboard();
+            if (t === 'dashboard') {
+                _suppressFlash = true;
+                if (_dashboardDirty) { updateDashboard(); _dashboardDirty = false; }
+                else { _loadProfileCard(); _renderPinnedWl(); }
+                requestAnimationFrame(() => { _suppressFlash = false; });
+            }
             if (t === 'watchlist' && !skipWlRefresh) {
+                // Suppress flash animations during tab-switch DOM reconciliation —
+                // flashes should only fire from live WS ticks, not stale→current catchup
+                _suppressFlash = true;
+
                 // Step 1: Render only missing rows — existing rows already live via WS background
                 watchlist.forEach(s => {
                     if (!document.getElementById('wl-row-' + s))
@@ -11892,6 +11917,9 @@
                 watchlist.forEach(s => {
                     if (wlDataCache[s]) updateWatchlistPriceCells(s, wlDataCache[s]);
                 });
+
+                // Re-enable flash after all sync updates are done (next frame)
+                requestAnimationFrame(() => { _suppressFlash = false; });
 
                 // Step 3: Ensure WS is connected — ไม่ reconnect ถ้า alive อยู่แล้ว
                 if (isMarketOpen()) {
@@ -12064,6 +12092,7 @@
 
         function saveAndCalc() {
             if (isLoading) return;
+            _dashboardDirty = true;
             const month = curMonth;
             const fixedItems   = getListItems('fixed');
             const dynamicItems = getListItems('dynamic');
@@ -12283,6 +12312,7 @@
                 }
                 if (emptyEl) emptyEl.classList.remove('hidden');
                 if (contentEl) contentEl.classList.add('hidden');
+                if (typeof _hideSplash === 'function') { _splashStatus('ยินดีต้อนรับ'); _hideSplash(); }
                 return;
             }
             const emptyEl = document.getElementById('empty-state');
@@ -12439,7 +12469,7 @@
         const logoDataUrlCache = {}; // url -> data URL (strong cache for NEWS re-renders)
         const logoDataInflight = {}; // url -> Promise
         const logoDataMeta = {}; // url -> last-used timestamp
-        const LOGO_DATA_CACHE_KEY = 'ps_logo_data_cache_v1';
+        const LOGO_DATA_CACHE_KEY = 'ps_logo_data_cache_v2';
         const LOGO_DATA_CACHE_MAX_ITEMS = 120;
         const LOGO_DATA_CACHE_MAX_ITEM_LEN = 120 * 1024;
         const LOGO_DATA_CACHE_MAX_TOTAL_LEN = 900 * 1024;
@@ -12459,147 +12489,9 @@
             scheduleAutoSave(true); // immediate — user explicitly changed watchlist
         }
 
-        const SIGNAL_LOG_KEY = 'ps_signal_log_v1';
-        const SIGNAL_LOG_MAX_ITEMS = 800;
-        let signalLog = [];
-        let _signalLogResolving = false;
-
-        function _loadSignalLogLocal() {
-            try {
-                const raw = localStorage.getItem(SIGNAL_LOG_KEY);
-                const arr = raw ? JSON.parse(raw) : [];
-                signalLog = Array.isArray(arr) ? arr : [];
-            } catch(e) {
-                signalLog = [];
-            }
-        }
-
-        function _saveSignalLogLocal(triggerSync = true) {
-            _lsSave(SIGNAL_LOG_KEY, JSON.stringify(signalLog));
-            if (triggerSync) scheduleAutoSave(false);
-        }
-
-        function _normalizeSignalLabel(label) {
-            return String(label || '')
-                .replace(/[▲▼•]/g, '')
-                .replace(/\s+/g, ' ')
-                .trim();
-        }
-
-        function _signalDirection(label) {
-            const t = _normalizeSignalLabel(label).toLowerCase();
-            if (t.includes('buy')) return 1;
-            if (t.includes('sell')) return -1;
-            return 0;
-        }
-
-        function _calcSignalResult(signalLabel, pctChange) {
-            if (!Number.isFinite(pctChange)) return 'FLAT';
-            const dir = _signalDirection(signalLabel);
-            if (dir > 0) {
-                if (pctChange >= 1) return 'WIN';
-                if (pctChange <= -1) return 'LOSS';
-                return 'FLAT';
-            }
-            if (dir < 0) {
-                if (pctChange <= -1) return 'WIN';
-                if (pctChange >= 1) return 'LOSS';
-                return 'FLAT';
-            }
-            return Math.abs(pctChange) < 1 ? 'FLAT' : 'N/A';
-        }
-
-        function logSignalHistoryEntry(payload) {
-            try {
-                const symbol = String(payload?.symbol || '').trim().toUpperCase();
-                const signal = _normalizeSignalLabel(payload?.signal || '');
-                const price = Number(payload?.price_at_signal);
-                if (!symbol || !signal || !Number.isFinite(price) || price <= 0) return;
-                const now = Date.now();
-                const recentWindowMs = 45 * 60 * 1000;
-                const dedup = signalLog.find(e =>
-                    e &&
-                    e.symbol === symbol &&
-                    _normalizeSignalLabel(e.signal) === signal &&
-                    e.setup === (payload?.setup || '') &&
-                    Math.abs(now - Number(e.id || 0)) <= recentWindowMs &&
-                    Number.isFinite(Number(e.price_at_signal || 0)) &&
-                    Math.abs((Number(e.price_at_signal) - price) / Math.max(0.01, price)) < 0.0025
-                );
-                if (dedup) return;
-                const entry = {
-                    id: now,
-                    symbol,
-                    date: new Date(now).toISOString().slice(0, 10),
-                    price_at_signal: +price.toFixed(2),
-                    signal,
-                    analyst: String(payload?.analyst || 'N/A'),
-                    confluence: Number.isFinite(Number(payload?.confluence)) ? Number(payload.confluence) : null,
-                    setup: String(payload?.setup || 'N/A'),
-                    mtf: String(payload?.mtf || 'N/A'),
-                    rsi_d1: Number.isFinite(Number(payload?.rsi_d1)) ? +Number(payload.rsi_d1).toFixed(2) : null,
-                    outcome_price: null,
-                    outcome_date: null,
-                    pct_change: null,
-                    result: null
-                };
-                signalLog.unshift(entry);
-                if (signalLog.length > SIGNAL_LOG_MAX_ITEMS) signalLog = signalLog.slice(0, SIGNAL_LOG_MAX_ITEMS);
-                _saveSignalLogLocal(true);
-            } catch(e) {}
-        }
-
-        async function resolveSignalLogOutcomes() {
-            if (_signalLogResolving) return;
-            _signalLogResolving = true;
-            try {
-                const now = Date.now();
-                const minAgeMs = 7 * 24 * 60 * 60 * 1000;
-                const pending = signalLog.filter(e =>
-                    e &&
-                    (e.result == null) &&
-                    Number.isFinite(Number(e.id || 0)) &&
-                    (now - Number(e.id)) >= minAgeMs &&
-                    Number.isFinite(Number(e.price_at_signal || 0)) &&
-                    Number(e.price_at_signal) > 0
-                ).slice(0, 24);
-                if (!pending.length) return;
-                let changed = false;
-                for (const e of pending) {
-                    const sym = String(e.symbol || '').toUpperCase();
-                    if (!sym) continue;
-                    let px = Number(wlDataCache[sym]?.c || 0);
-                    if (!Number.isFinite(px) || px <= 0) {
-                        try {
-                            const q = await fetchQuote(sym);
-                            px = Number(q?.c || q?._dailyC || q?.pc || 0);
-                        } catch(err) {
-                            px = 0;
-                        }
-                    }
-                    if (!Number.isFinite(px) || px <= 0) continue;
-                    const sigPx = Number(e.price_at_signal || 0);
-                    if (!Number.isFinite(sigPx) || sigPx <= 0) continue;
-                    const pct = ((px - sigPx) / sigPx) * 100;
-                    e.outcome_price = +px.toFixed(2);
-                    e.outcome_date = new Date().toISOString().slice(0, 10);
-                    e.pct_change = +pct.toFixed(2);
-                    e.result = _calcSignalResult(e.signal, pct);
-                    changed = true;
-                }
-                if (changed) {
-                    _saveSignalLogLocal(true);
-                    renderSignalHistoryModal();
-                }
-            } finally {
-                _signalLogResolving = false;
-            }
-        }
-
         function preloadLogo(url) {
             if (!url || logoCache[url]) return;
             const img = new Image();
-            img.crossOrigin = 'anonymous';
             logoCache[url] = img; // store element — check .complete & .naturalWidth later
             img.src = url;
             _touchLogoDataUsage(url);
@@ -12648,6 +12540,17 @@
             if (_logoCacheSaveTimer) return;
             _logoCacheSaveTimer = setTimeout(run, 1200);
         }
+        // Returns true only for properly-cropped small logo data URLs (≤256px PNG)
+        // Rejects stale full-resolution 1000×1000 images from old Gist/localStorage cache
+        function _isValidLogoDataUrl(dataUrl) {
+            if (!dataUrl || !dataUrl.startsWith('data:image/png;base64,')) return false;
+            try {
+                const bin = atob(dataUrl.slice(22, 54)); // 32 base64 chars → 24 bytes (PNG sig + IHDR)
+                const w = (bin.charCodeAt(16)<<24)|(bin.charCodeAt(17)<<16)|(bin.charCodeAt(18)<<8)|bin.charCodeAt(19);
+                const h = (bin.charCodeAt(20)<<24)|(bin.charCodeAt(21)<<16)|(bin.charCodeAt(22)<<8)|bin.charCodeAt(23);
+                return w > 0 && w <= 256 && h > 0 && h <= 256;
+            } catch(e) { return false; }
+        }
         function _applyLogoDataCacheData(payload, { persistLocal = false } = {}) {
             try {
                 const srcItems = (payload && payload.items && typeof payload.items === 'object')
@@ -12657,6 +12560,7 @@
                     if (!url || typeof dataUrl !== 'string') return;
                     if (!dataUrl.startsWith('data:image/')) return;
                     if (dataUrl.length > LOGO_DATA_CACHE_MAX_ITEM_LEN) return;
+                    if (!_isValidLogoDataUrl(dataUrl)) return; // reject stale full-res images
                     logoDataUrlCache[url] = dataUrl;
                     _touchLogoDataUsage(url);
                 });
@@ -12735,25 +12639,75 @@
             return src;
         }
         function primeLogoDataUrl(url) {
-            if (!url || logoDataUrlCache[url] || logoDataInflight[url]) return;
+            if (!url || _isValidLogoDataUrl(logoDataUrlCache[url]) || logoDataInflight[url]) return;
             _touchLogoDataUsage(url);
-            logoDataInflight[url] = fetch(url, { cache: 'force-cache' })
-                .then(r => (r.ok ? r.blob() : Promise.reject(new Error('logo fetch failed'))))
-                .then(blob => new Promise((resolve, reject) => {
-                    const fr = new FileReader();
-                    fr.onload = () => resolve(fr.result);
-                    fr.onerror = reject;
-                    fr.readAsDataURL(blob);
-                }))
-                .then(dataUrl => {
-                    if (typeof dataUrl === 'string') {
-                        logoDataUrlCache[url] = dataUrl;
-                        _touchLogoDataUsage(url);
-                        _saveLogoDataCacheLocal(false);
+            // Auto-crop to visual bounding box, then center in a square canvas
+            function _imgToDataUrl(img) {
+                const SIZE = 128;
+                // Step 1: draw full image to detect bounding box
+                const tmp = document.createElement('canvas');
+                tmp.width = img.naturalWidth; tmp.height = img.naturalHeight;
+                const tctx = tmp.getContext('2d');
+                tctx.drawImage(img, 0, 0);
+                const pixels = tctx.getImageData(0, 0, tmp.width, tmp.height).data;
+                let minX = tmp.width, maxX = 0, minY = tmp.height, maxY = 0;
+                for (let y = 0; y < tmp.height; y++) {
+                    for (let x = 0; x < tmp.width; x++) {
+                        const i = (y * tmp.width + x) * 4;
+                        const r = pixels[i], g = pixels[i+1], b = pixels[i+2], a = pixels[i+3];
+                        // Not white/transparent
+                        if (a > 20 && !(r > 240 && g > 240 && b > 240)) {
+                            if (x < minX) minX = x; if (x > maxX) maxX = x;
+                            if (y < minY) minY = y; if (y > maxY) maxY = y;
+                        }
                     }
-                })
-                .catch(() => {}) // fallback to raw URL when blocked by CORS/cache policy
-                .finally(() => { delete logoDataInflight[url]; });
+                }
+                // Fallback: full image if bounding box detection fails
+                if (minX >= maxX || minY >= maxY) { minX = 0; minY = 0; maxX = tmp.width - 1; maxY = tmp.height - 1; }
+                // Add 8% padding around bounding box
+                const pad = Math.max(maxX - minX, maxY - minY) * 0.08;
+                minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+                maxX = Math.min(tmp.width - 1, maxX + pad); maxY = Math.min(tmp.height - 1, maxY + pad);
+                // Step 2: draw cropped+centered to output canvas
+                const out = document.createElement('canvas');
+                out.width = SIZE; out.height = SIZE;
+                const octx = out.getContext('2d');
+                octx.fillStyle = 'white';
+                octx.fillRect(0, 0, SIZE, SIZE);
+                const srcW = maxX - minX, srcH = maxY - minY;
+                const scale = Math.min(SIZE / srcW, SIZE / srcH);
+                const dstW = srcW * scale, dstH = srcH * scale;
+                const dstX = (SIZE - dstW) / 2, dstY = (SIZE - dstH) / 2;
+                octx.drawImage(img, minX, minY, srcW, srcH, dstX, dstY, dstW, dstH);
+                return out.toDataURL('image/png');
+            }
+            logoDataInflight[url] = new Promise(function(resolve) {
+                // Try direct CORS load first
+                var img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = function() {
+                    try {
+                        var dataUrl = _imgToDataUrl(img);
+                        if (dataUrl) { logoDataUrlCache[url] = dataUrl; _touchLogoDataUsage(url); _saveLogoDataCacheLocal(false); }
+                    } catch(e) {}
+                    resolve();
+                };
+                img.onerror = function() {
+                    // CORS blocked — try via proxy
+                    var proxy = new Image();
+                    proxy.crossOrigin = 'anonymous';
+                    proxy.onload = function() {
+                        try {
+                            var dataUrl = _imgToDataUrl(proxy);
+                            if (dataUrl) { logoDataUrlCache[url] = dataUrl; _touchLogoDataUsage(url); _saveLogoDataCacheLocal(false); }
+                        } catch(e) {}
+                        resolve();
+                    };
+                    proxy.onerror = function() { resolve(); };
+                    proxy.src = 'https://corsproxy.io/?' + encodeURIComponent(url);
+                };
+                img.src = url;
+            }).finally(function() { delete logoDataInflight[url]; });
         }
         function resolveLogoSrc(url) {
             if (!url) return '';
@@ -15553,7 +15507,7 @@
             // Flash row on price change — direction based on tick-to-tick (new vs previously displayed)
             const priceStr = fmt(price);
             const prevPriceStr = priceEl.innerText;
-            if (prevPriceStr && prevPriceStr !== '—' && prevPriceStr !== priceStr) {
+            if (!_suppressFlash && prevPriceStr && prevPriceStr !== '—' && prevPriceStr !== priceStr) {
                 const prevPrice = parseFloat(prevPriceStr.replace('$', ''));
                 const tickUp = price != null && !isNaN(prevPrice) ? price >= prevPrice : isUp;
                 const row = document.getElementById('wl-pinned-row-' + symbol);
@@ -16638,7 +16592,7 @@
             const tr = cells[7].closest('tr');
             const prevPriceText = cells[7].innerText;
             const newPriceText  = price !== null ? '$' + fmt(price) : '—';
-            if (tr && prevPriceText && prevPriceText !== '—' && prevPriceText !== newPriceText) {
+            if (!_suppressFlash && tr && prevPriceText && prevPriceText !== '—' && prevPriceText !== newPriceText) {
                 const flashCls = isUp ? 'flash-up' : 'flash-down';
                 tr.classList.remove('flash-up', 'flash-down');
                 requestAnimationFrame(() => tr.classList.add(flashCls));
@@ -16801,6 +16755,42 @@
             const panel = document.getElementById('quick-chart-panel');
             const wrap = document.getElementById('wl-split-wrap');
             const isAlreadyOpen = wrap.classList.contains('chart-open');
+
+            // ── Logo: same approach as watchlist — <img> + data URL ──
+            const logo = d?.logo ?? '';
+            const _qcLogoEl = document.getElementById('qc-logo');
+            _qcLogoEl.src = '';
+            _qcLogoEl.style.opacity = '0';
+            const _fhUrl = 'https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/' + symbol + '.png';
+            const _bestDataUrl = (logo && logoDataUrlCache[logo]) || logoDataUrlCache[_fhUrl] || '';
+            if (_bestDataUrl) {
+                _qcLogoEl.src = _bestDataUrl;
+                _qcLogoEl.style.opacity = '1';
+            } else {
+                // No data URL yet — try raw logoCache or load directly
+                const _logoImg = (logo && logoCache[logo]?.complete && logoCache[logo]?.naturalWidth > 0) ? logoCache[logo]
+                               : (logoCache[_fhUrl]?.complete && logoCache[_fhUrl]?.naturalWidth > 0) ? logoCache[_fhUrl]
+                               : null;
+                if (_logoImg) {
+                    _qcLogoEl.src = _logoImg.src;
+                    _qcLogoEl.style.opacity = '1';
+                } else {
+                    const _loadUrl = logo || _fhUrl;
+                    if (_loadUrl) {
+                        const _capturedSymbol = symbol;
+                        const _tmp = new Image();
+                        _tmp.onload = function() {
+                            if (qcCurrentSymbol === _capturedSymbol) {
+                                _qcLogoEl.src = _tmp.src;
+                                _qcLogoEl.style.opacity = '1';
+                            }
+                            logoCache[_loadUrl] = _tmp;
+                        };
+                        _tmp.src = _loadUrl;
+                    }
+                }
+            }
+
             wrap.classList.add('chart-open');
             setCompactHeaders(true);
             // Scroll window so quick-chart-panel top aligns just below fixed navbar
@@ -16829,30 +16819,6 @@
             // Header info
             document.getElementById('qc-symbol').innerText = symbol;
             document.getElementById('qc-name').innerText = d?.name ?? '';
-
-            const logo = d?.logo ?? '';
-            const logoEl       = document.getElementById('qc-logo');
-            const logoFallback = document.getElementById('qc-logo-fallback');
-            const logoInitials = document.getElementById('qc-logo-initials');
-
-            if (logo && isLogoCached(logo)) {
-                // Already preloaded — show instantly, no flicker, no network request
-                logoEl.src = logo;
-                logoEl.style.opacity = '1';
-                if (logoFallback) logoFallback.style.display = 'none';
-            } else if (logo) {
-                // Not cached yet — show spinner, load, fade in when ready
-                logoEl.style.opacity = '0';
-                if (logoFallback) logoFallback.style.display = 'none';
-                logoEl.src = '';
-                logoEl.onload  = () => { logoEl.style.opacity = '1'; if (logoFallback) logoFallback.style.display = 'none'; };
-                logoEl.onerror = () => { logoEl.style.opacity = '0'; if (logoFallback) { logoFallback.style.display = 'flex'; if (logoInitials) logoInitials.textContent = symbol.slice(0,2); } };
-                logoEl.src = logo;
-            } else {
-                logoEl.style.opacity = '0';
-                logoEl.src = '';
-                if (logoFallback) { logoFallback.style.display = 'flex'; if (logoInitials) logoInitials.textContent = symbol.slice(0,2); }
-            }
 
             // Same logic as watchlist: show regular session close when market is closed
             const _qcMktOpen = isMarketOpen();
@@ -20459,11 +20425,11 @@ ${sourceText}`;
             aiChatHistory = [];
             document.getElementById('ai-popup-messages').innerHTML = `
                 <div class="flex items-start gap-2.5">
-                    <div class="flex items-center justify-center flex-shrink-0" style="width:24px;height:24px;border-radius:4px;border:1px solid color-mix(in srgb,#1a73e8 55%,transparent);background:color-mix(in srgb,#1a73e8 8%,transparent)">
-                        <svg style="width:12px;height:12px;color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+                    <div class="flex items-center justify-center flex-shrink-0" style="width:24px;height:24px;border-radius:4px;border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);background:color-mix(in srgb,var(--accent) 8%,transparent)">
+                        <svg style="width:12px;height:12px;color:var(--accent)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
                     </div>
                     <div class="flex-1">
-                        <div class="mb-1" style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1a73e8">AI ANALYST</div>
+                        <div class="mb-1" style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent)">AI ANALYST</div>
                         <div class="text-sm leading-relaxed ai-msg-body">สวัสดีครับ ถามได้เลยเรื่องแนวรับ/แนวต้าน, ข่าวล่าสุด หรือ outlook ของหุ้นใดก็ได้ครับ</div>
                     </div>
                 </div>`;
@@ -20476,16 +20442,16 @@ ${sourceText}`;
             const ts = new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
             const html = isUser
                 ? `<div id="${id}" class="flex flex-col items-end gap-0.5">
-                    <div class="max-w-[80%] px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm leading-relaxed" style="background:linear-gradient(135deg,#1a73e8,#0d47a1);color:white">${escHtml(text)}</div>
+                    <div class="max-w-[80%] px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm leading-relaxed" style="background:var(--accent);color:white">${escHtml(text)}</div>
                     <span class="text-[9px]" style="color:var(--text-dim)">${ts}</span>
                    </div>`
                 : `<div id="${id}" class="flex items-start gap-3">
-                    <div class="flex items-center justify-center flex-shrink-0 mt-0.5" style="width:24px;height:24px;border-radius:4px;border:1px solid color-mix(in srgb,#1a73e8 55%,transparent);background:color-mix(in srgb,#1a73e8 8%,transparent)">
-                        <svg style="width:12px;height:12px;color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+                    <div class="flex items-center justify-center flex-shrink-0 mt-0.5" style="width:24px;height:24px;border-radius:4px;border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);background:color-mix(in srgb,var(--accent) 8%,transparent)">
+                        <svg style="width:12px;height:12px;color:var(--accent)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-1">
-                            <span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1a73e8">AI ANALYST</span>
+                            <span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent)">AI ANALYST</span>
                             <span class="text-[9px]" style="color:var(--text-dim)">${ts}</span>
                         </div>
                         <div class="ai-msg-body text-sm leading-relaxed" style="white-space:pre-wrap">${isLoading ? '<span class="ai-typing">กำลังวิเคราะห์<span class="dots">...</span></span>' : escHtml(text)}</div>
@@ -20806,12 +20772,12 @@ ${sourceText}`;
             bubble.className = 'flex items-start gap-3';
             const ts = new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
             bubble.innerHTML = `
-                <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style="background:linear-gradient(135deg,#1a73e8,#34a853)">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style="background:linear-gradient(135deg,var(--accent),var(--accent2,#26a69a))">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1.5">
-                        <span class="text-[10px] font-bold" style="color:#4285f4">AI ANALYST</span>
+                        <span class="text-[10px] font-bold" style="color:var(--accent)">AI ANALYST</span>
                         <span class="text-[9px]" style="color:var(--text-dim)">${ts}</span>
                     </div>
                     <div class="msgbody text-sm leading-relaxed" style="white-space:pre-wrap">
@@ -21696,16 +21662,6 @@ ${_clip(contextSections, 2600)}`;
                         newsTop ? `ข่าวล่าสุด: ${newsTop}` : '',
                         `สัญญาณหลายกรอบเวลา: **${trendThai}**`,
                     ].filter(Boolean).join('\n');
-                    logSignalHistoryEntry({
-                        symbol: sym,
-                        price_at_signal: p,
-                        signal: displaySignal,
-                        analyst: analyst?.label || 'N/A',
-                        confluence: confScore,
-                        setup: setupTxt,
-                        mtf: `${mtfConfluence}${htfTrend && htfTrend !== 'neutral' ? ` (${htfTrend})` : ''}`,
-                        rsi_d1: t?.rsi14
-                    });
 
                     const outputParts = [quickBlock, warningBlock, invalidBlock];
                     if (displayMode === 'trader') outputParts.push(detailBlock);
@@ -22081,6 +22037,8 @@ ${_clip(contextSections, 2600)}`;
         }
         let _wsBackgroundMode     = false;
         let _dashboardVisible     = false;  // true when Dashboard tab is active
+        let _dashboardDirty       = true;   // true = needs full updateDashboard on next show
+        let _suppressFlash        = false;  // true during tab switch — prevents mass flash on stale DOM
         let _watchlistVisible     = false;  // true when Watchlist tab is active
         let _pinnedGen            = 0;      // incremented when pinned DOM rebuilds → force re-cache
         let _pinnedSymSet         = new Set(); // fast O(1) lookup — avoids getElementById on non-pinned symbols
@@ -24527,7 +24485,6 @@ ${_clip(contextSections, 2600)}`;
             // Save locally first as fallback
             _lsSave('ps_records',   JSON.stringify(records));
             _lsSave('ps_watchlist', JSON.stringify(watchlist));
-            _lsSave(SIGNAL_LOG_KEY, JSON.stringify(signalLog));
             try {
                 // Use _buildExportData() — single source of truth, always includes latest fields
                 const exportData = _buildExportData();
@@ -24579,6 +24536,7 @@ ${_clip(contextSections, 2600)}`;
             showGistStatus('SYNCING...', 'text-blue-500');
             _isSyncing = true;
             try {
+                if (isInitialLoad) _splashStatus('เชื่อมต่อ GitHub API...');
                 const res = await fetch(`https://api.github.com/gists/${GIST_ID}?_=${Date.now()}`, {
                     headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' },
                     cache: 'no-store'
@@ -24589,6 +24547,7 @@ ${_clip(contextSections, 2600)}`;
                 if (res.status === 404) { showGistStatus('ไม่พบ Gist ✗', 'text-rose-500'); return; }
                 if (!res.ok) { showGistStatus(`SYNC ERR ${res.status} ✗`, 'text-rose-500'); return; }
 
+                if (isInitialLoad) _splashStatus('ได้รับ Gist metadata ✓');
                 const gist = await res.json();
 
                 // Try GIST_FILENAME first, then any .json file as fallback
@@ -24606,14 +24565,17 @@ ${_clip(contextSections, 2600)}`;
                     // raw_url points to gist.githubusercontent.com — different CORS policy from api.github.com
                     // Do NOT send Authorization header here — it triggers CORS preflight which fails
                     // The raw_url is pre-authenticated by GitHub for the token owner
+                    if (isInitialLoad) _splashStatus('ดาวน์โหลดไฟล์ข้อมูล...');
                     const rawRes = await fetch(fileObj.raw_url + '?_=' + Date.now(), {
                         cache: 'no-store'
                     });
                     if (!rawRes.ok) { showGistStatus(`RAW ERR ${rawRes.status} ✗`, 'text-rose-500'); return; }
                     content = await rawRes.text();
+                    if (isInitialLoad) _splashStatus(`ได้รับไฟล์ ${(content.length/1024).toFixed(1)} KB ✓`);
                 }
                 if (!content) { showGistStatus('ไม่มีข้อมูลใน Gist', 'text-gray-400'); return; }
 
+                if (isInitialLoad) _splashStatus('แปลงข้อมูล JSON...');
                 const data = JSON.parse(content);
                 const prevRecordsSig = (() => { try { return JSON.stringify(records || []); } catch(e) { return ''; } })();
 
@@ -24625,10 +24587,14 @@ ${_clip(contextSections, 2600)}`;
 
                 if (Array.isArray(data)) {
                     if (!hasLocalChanges) records = data;
+                    if (isInitialLoad) _splashStatus(`โหลด ${records.length} รายการ (legacy format)`);
                 } else {
                     if (Array.isArray(data.records)  && !hasLocalChanges) records   = data.records;
                     if (Array.isArray(data.watchlist) && !hasLocalChanges) watchlist = data.watchlist;
-                    if (Array.isArray(data.signalLog) && !hasLocalChanges) signalLog = data.signalLog;
+                    if (isInitialLoad) _splashStatus(`Records: ${records.length} · Watchlist: ${watchlist.length} หุ้น`);
+                    const _sparkCount = data.movementCache?.data ? Object.keys(data.movementCache.data).length : 0;
+                    const _logoCount  = data.logoDataCache?.items ? Object.keys(data.logoDataCache.items).length : 0;
+                    if (isInitialLoad) _splashStatus(`Sparkline Cache: ${_sparkCount} · Logo Cache: ${_logoCount} รายการ`);
                     if (data.movementCache?.data && typeof data.movementCache.data === 'object') {
                         _applySparklineCacheData(data.movementCache.data, { applyToMemory: false });
                     }
@@ -24656,6 +24622,7 @@ ${_clip(contextSections, 2600)}`;
                             setProfilePhoto(db.profilePhoto);
                             try { localStorage.setItem('ps_profile_photo', db.profilePhoto); } catch(e) {}
                         }
+                        if (isInitialLoad) _splashStatus('กู้คืน Avatar / Profile Photo ✓');
                     }
                     // Theme precedence: local user preference always wins.
                     // Gist theme is used only as a first-time fallback on this browser/profile.
@@ -24663,6 +24630,7 @@ ${_clip(contextSections, 2600)}`;
                     const localDark  = localStorage.getItem('ps_dark');
                     if (!localTheme && data.meta?.theme && _THEMES[data.meta.theme]) {
                         _applyTheme(data.meta.theme);
+                        if (isInitialLoad) _splashStatus(`ใช้ Theme: ${data.meta.theme}`);
                     } else if (!localTheme && localDark === null && typeof data.meta?.dark === 'boolean') {
                         applyDarkMode(data.meta.dark);
                         try { localStorage.setItem('ps_dark', data.meta.dark ? '1' : '0'); } catch(e) {}
@@ -24676,6 +24644,7 @@ ${_clip(contextSections, 2600)}`;
                         if (pc.pillsHidden) { try { localStorage.setItem('ps_profile_pills_hidden', pc.pillsHidden); } catch(e) {} }
                         if (pc.pinnedWl)    { try { localStorage.setItem('ps_pinned_wl', pc.pinnedWl); } catch(e) {} }
                         _loadProfileCard();
+                        if (isInitialLoad) _splashStatus('กู้คืน Profile Card ✓');
                     }
                     // FX self-tracking: restore prev close data for cross-device continuity
                     if (data.fxSelfTrack) {
@@ -24705,6 +24674,7 @@ ${_clip(contextSections, 2600)}`;
                             }
                         }
                         if (_keysRestored > 0) {
+                            if (isInitialLoad) _splashStatus(`กู้คืน API Keys ${_keysRestored} รายการ ✓`);
                             updateSettingsBadges();
                             // Kick WS + data fetch if Alpaca/Finnhub keys were restored
                             if (!alpWs && isMarketOpen()) connectWs();
@@ -24714,12 +24684,11 @@ ${_clip(contextSections, 2600)}`;
 
                 // Ensure chronological order before any computation or persistence
                 _sortRecords();
-                // Persist everything to localStorage — ถ้ามี local changes ให้ save เฉพาะ records
-                // watchlist/signalLog จะถูก save จาก saveWatchlist() / _saveSignalLogLocal() แทน
+                if (isInitialLoad) _splashStatus('บันทึกข้อมูลลง Local Storage...');
+                // Persist everything to localStorage
                 _lsSave('ps_records', JSON.stringify(records));
                 if (!hasLocalChanges) {
                     _lsSave('ps_watchlist', JSON.stringify(watchlist));
-                    _lsSave(SIGNAL_LOG_KEY, JSON.stringify(signalLog));
                 }
                 const nextRecordsSig = (() => { try { return JSON.stringify(records || []); } catch(e) { return ''; } })();
                 const recordsChanged = prevRecordsSig !== nextRecordsSig;
@@ -24733,11 +24702,13 @@ ${_clip(contextSections, 2600)}`;
                 // Reload records tab once. On initial sync, skip if records are unchanged
                 // to prevent dashboard bar chart "double jump" after browser refresh.
                 if (!isInitialLoad || recordsChanged) {
+                    _dashboardDirty = true;
                     loadMonth(curMonth);
                 }
                 prewarmWatchlistLogos(80);
 
                 if (isInitialLoad) {
+                    if (isInitialLoad) _splashStatus('เตรียม Watchlist UI...');
                     // Rows already pre-rendered from localStorage cache in window.onload
                     // Just add any NEW symbols that came from Gist but weren't in cache
                     watchlist.forEach(sym => {
@@ -24935,6 +24906,7 @@ ${_clip(contextSections, 2600)}`;
                 'ps_profile_label_1', 'ps_profile_label_2', 'ps_profile_label_3',
                 'ps_profile_notes', 'ps_profile_notes_html',
                 'ps_profile_free_imgs', 'ps_profile_pills_hidden',
+                'ps_pinned_wl',
                 // FX self-tracking (previous close data)
                 'ps_fx_self_mid', 'ps_fx_self_date',
                 'ps_fx_self_prev', 'ps_fx_self_prev_dt'
@@ -24956,9 +24928,15 @@ ${_clip(contextSections, 2600)}`;
                     dark: document.documentElement.classList.contains('dark')
                 },
                 settings,   // ← API keys + all settings
+                profileCard: {
+                    notesHtml:   localStorage.getItem('ps_profile_notes_html') || '',
+                    notes:       localStorage.getItem('ps_profile_notes') || '',
+                    freeImgs:    localStorage.getItem('ps_profile_free_imgs') || '[]',
+                    pillsHidden: localStorage.getItem('ps_profile_pills_hidden') || '[]',
+                    pinnedWl:    localStorage.getItem('ps_pinned_wl') || '[]',
+                },
                 records,
                 watchlist,
-                signalLog,
                 movementCache: { version: 5, ts: Date.now(), data: _collectSparklineCacheData() },
                 logoDataCache: _collectLogoDataCacheData(),
                 symbolLogoCache: _collectSymbolLogoCacheData(),
@@ -24989,7 +24967,6 @@ ${_clip(contextSections, 2600)}`;
                     } else if (data.records || data.watchlist) {
                         if (data.records)  records   = data.records;
                         if (data.watchlist) watchlist = data.watchlist;
-                        if (Array.isArray(data.signalLog)) signalLog = data.signalLog;
                         if (data.movementCache?.data && typeof data.movementCache.data === 'object') {
                             _applySparklineCacheData(data.movementCache.data, { applyToMemory: false });
                         }
@@ -25042,6 +25019,16 @@ ${_clip(contextSections, 2600)}`;
                             });
                             updateSettingsBadges();
                         }
+                        // Profile card: notes, free images, pills visibility, pinned watchlist
+                        if (data.profileCard) {
+                            const pc = data.profileCard;
+                            if (pc.notesHtml)   { try { localStorage.setItem('ps_profile_notes_html', pc.notesHtml); } catch(e) {} }
+                            if (pc.notes)       { try { localStorage.setItem('ps_profile_notes', pc.notes); } catch(e) {} }
+                            if (pc.freeImgs)    { try { localStorage.setItem('ps_profile_free_imgs', pc.freeImgs); } catch(e) {} }
+                            if (pc.pillsHidden) { try { localStorage.setItem('ps_profile_pills_hidden', pc.pillsHidden); } catch(e) {} }
+                            if (pc.pinnedWl)    { try { localStorage.setItem('ps_pinned_wl', pc.pinnedWl); } catch(e) {} }
+                            _loadProfileCard();
+                        }
                     } else {
                         alert('ไฟล์ไม่ถูกต้อง'); return;
                     }
@@ -25051,7 +25038,6 @@ ${_clip(contextSections, 2600)}`;
                     // Save records and watchlist
                     _lsSave('ps_records',   JSON.stringify(records));
                     _lsSave('ps_watchlist', JSON.stringify(watchlist));
-                    _lsSave(SIGNAL_LOG_KEY, JSON.stringify(signalLog));
                     prewarmWatchlistLogos(80);
 
                     // Reload records tab
@@ -25240,127 +25226,6 @@ ${_clip(contextSections, 2600)}`;
                 .replace(/'/g, '&#39;');
         }
 
-        function openSignalHistoryModal() {
-            const m = document.getElementById('signal-history-modal');
-            if (!m) return;
-            m.classList.remove('hidden');
-            renderSignalHistoryModal();
-            resolveSignalLogOutcomes();
-        }
-
-        function closeSignalHistoryModal() {
-            const m = document.getElementById('signal-history-modal');
-            if (!m) return;
-            m.classList.add('hidden');
-        }
-
-        function renderSignalHistoryModal() {
-            const root = document.getElementById('signal-history-content');
-            if (!root) return;
-            const rows = Array.isArray(signalLog) ? signalLog : [];
-            const resolved = rows.filter(r => !!r?.result);
-            const wins = resolved.filter(r => r.result === 'WIN').length;
-            const losses = resolved.filter(r => r.result === 'LOSS').length;
-            const flats = resolved.filter(r => r.result === 'FLAT').length;
-            const wr = resolved.length ? ((wins / resolved.length) * 100) : 0;
-            const setupStats = {};
-            resolved.forEach(r => {
-                const k = String(r.setup || 'N/A');
-                if (!setupStats[k]) setupStats[k] = { total: 0, win: 0, loss: 0, flat: 0 };
-                setupStats[k].total += 1;
-                if (r.result === 'WIN') setupStats[k].win += 1;
-                else if (r.result === 'LOSS') setupStats[k].loss += 1;
-                else if (r.result === 'FLAT') setupStats[k].flat += 1;
-            });
-            const setupRows = Object.entries(setupStats)
-                .sort((a, b) => b[1].total - a[1].total)
-                .map(([k, s]) => {
-                    const setupWr = s.total ? ((s.win / s.total) * 100).toFixed(1) : '0.0';
-                    return `<tr>
-                        <td class="px-2 py-1.5">${_escHtml(k)}</td>
-                        <td class="px-2 py-1.5 text-right">${s.total}</td>
-                        <td class="px-2 py-1.5 text-right">${s.win}</td>
-                        <td class="px-2 py-1.5 text-right">${s.loss}</td>
-                        <td class="px-2 py-1.5 text-right">${s.flat}</td>
-                        <td class="px-2 py-1.5 text-right">${setupWr}%</td>
-                    </tr>`;
-                }).join('');
-            const tableRows = rows.slice(0, 240).map(r => {
-                const pct = Number.isFinite(Number(r?.pct_change)) ? Number(r.pct_change) : null;
-                const pctTxt = pct == null ? '—' : `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
-                const res = String(r?.result || 'PENDING');
-                const resCls = res === 'WIN' ? 'color:#16a34a' : res === 'LOSS' ? 'color:#dc2626' : res === 'FLAT' ? 'color:#f59e0b' : 'color:var(--text-dim)';
-                return `<tr>
-                    <td class="px-2 py-1.5">${_escHtml(r?.symbol || '')}</td>
-                    <td class="px-2 py-1.5">${_escHtml(r?.date || '')}</td>
-                    <td class="px-2 py-1.5">${_escHtml(_normalizeSignalLabel(r?.signal || ''))}</td>
-                    <td class="px-2 py-1.5 text-right">${Number.isFinite(Number(r?.price_at_signal)) ? Number(r.price_at_signal).toFixed(2) : '—'}</td>
-                    <td class="px-2 py-1.5 text-right">${Number.isFinite(Number(r?.outcome_price)) ? Number(r.outcome_price).toFixed(2) : '—'}</td>
-                    <td class="px-2 py-1.5 text-right">${pctTxt}</td>
-                    <td class="px-2 py-1.5 text-center" style="${resCls}">${_escHtml(res)}</td>
-                </tr>`;
-            }).join('');
-            root.innerHTML = `
-                <div class="grid grid-cols-2 gap-2 mb-3">
-                    <div class="rounded-lg p-2.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                        <div class="text-[9px] uppercase tracking-wider font-bold" style="color:var(--text-dim)">Resolved</div>
-                        <div class="text-sm font-black" style="color:var(--text-primary)">${resolved.length}</div>
-                    </div>
-                    <div class="rounded-lg p-2.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                        <div class="text-[9px] uppercase tracking-wider font-bold" style="color:var(--text-dim)">Win Rate</div>
-                        <div class="text-sm font-black" style="color:var(--text-primary)">${wr.toFixed(1)}%</div>
-                    </div>
-                    <div class="rounded-lg p-2.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                        <div class="text-[9px] uppercase tracking-wider font-bold" style="color:var(--text-dim)">WIN / LOSS / FLAT</div>
-                        <div class="text-xs font-bold" style="color:var(--text-primary)">${wins} / ${losses} / ${flats}</div>
-                    </div>
-                    <div class="rounded-lg p-2.5" style="background:var(--bg-card2);border:1px solid var(--border)">
-                        <div class="text-[9px] uppercase tracking-wider font-bold" style="color:var(--text-dim)">Total Logs</div>
-                        <div class="text-sm font-black" style="color:var(--text-primary)">${rows.length}</div>
-                    </div>
-                </div>
-
-                <div class="rounded-lg overflow-hidden mb-3" style="border:1px solid var(--border)">
-                    <div class="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider" style="background:var(--bg-card2);color:var(--text-dim)">Breakdown by Setup</div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-[10px]">
-                            <thead style="background:var(--bg-main);color:var(--text-dim)">
-                                <tr>
-                                    <th class="px-2 py-1.5 text-left">Setup</th>
-                                    <th class="px-2 py-1.5 text-right">N</th>
-                                    <th class="px-2 py-1.5 text-right">Win</th>
-                                    <th class="px-2 py-1.5 text-right">Loss</th>
-                                    <th class="px-2 py-1.5 text-right">Flat</th>
-                                    <th class="px-2 py-1.5 text-right">WR</th>
-                                </tr>
-                            </thead>
-                            <tbody>${setupRows || '<tr><td class="px-2 py-2" colspan="6" style="color:var(--text-dim)">ยังไม่มีผลลัพธ์ที่ประเมินแล้ว</td></tr>'}</tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="rounded-lg overflow-hidden" style="border:1px solid var(--border)">
-                    <div class="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider" style="background:var(--bg-card2);color:var(--text-dim)">Signal Log</div>
-                    <div class="overflow-auto" style="max-height:38vh">
-                        <table class="w-full text-[10px]">
-                            <thead style="position:sticky;top:0;background:var(--bg-main);color:var(--text-dim)">
-                                <tr>
-                                    <th class="px-2 py-1.5 text-left">Sym</th>
-                                    <th class="px-2 py-1.5 text-left">Date</th>
-                                    <th class="px-2 py-1.5 text-left">Signal</th>
-                                    <th class="px-2 py-1.5 text-right">Entry</th>
-                                    <th class="px-2 py-1.5 text-right">Now</th>
-                                    <th class="px-2 py-1.5 text-right">%Chg</th>
-                                    <th class="px-2 py-1.5 text-center">Result</th>
-                                </tr>
-                            </thead>
-                            <tbody>${tableRows || '<tr><td class="px-2 py-2" colspan="7" style="color:var(--text-dim)">ยังไม่มี signal log</td></tr>'}</tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-        }
-
         function executeClear() {
             records = records.filter(r => r.id !== curMonth);
             _lsSave('ps_records', JSON.stringify(records));
@@ -25444,8 +25309,10 @@ ${_clip(contextSections, 2600)}`;
             if (savedDark === null) localStorage.setItem('ps_dark', '0'); // init default
 
             try {
+                _splashStatus('อ่าน Records จาก Local Storage...');
                 const saved = localStorage.getItem('ps_records');
                 if (saved) { records = JSON.parse(saved); _sortRecords(); }
+                _splashStatus(`Records: ${records.length} รายการ ✓`);
                 const savedAvatar = localStorage.getItem('ps_avatar');
                 if (savedAvatar) { db.avatar = savedAvatar; setAvatarImage(savedAvatar); }
                 const savedProfilePhoto = localStorage.getItem('ps_profile_photo');
@@ -25455,14 +25322,16 @@ ${_clip(contextSections, 2600)}`;
                 const savedWl = localStorage.getItem('ps_watchlist');
                 if (savedWl) watchlist = JSON.parse(savedWl);
                 // Init _pinnedSymSet from localStorage immediately so WS guard works before _renderPinnedWl runs
-                try { const _ip = JSON.parse(localStorage.getItem('ps_pinned_wl') || '[]'); _pinnedSymSet = new Set(_ip.filter(s => watchlist.includes(s))); } catch(_) {}
-                _loadSignalLogLocal();
+                let _pinnedCount = 0;
+                try { const _ip = JSON.parse(localStorage.getItem('ps_pinned_wl') || '[]'); _pinnedSymSet = new Set(_ip.filter(s => watchlist.includes(s))); _pinnedCount = _pinnedSymSet.size; } catch(_) {}
+                _splashStatus(`Watchlist: ${watchlist.length} หุ้น · Pinned: ${_pinnedCount} รายการ`);
                 _loadLogoDataCacheLocal(); // keep logo cache across F5 before rendering NEWS
                 loadWlCache(); // restore price/profile cache for instant display
                 prewarmWatchlistLogos(80); // warm visible symbols ASAP after refresh
                 // Load sparkline cache กรอง stale session ออก — ป้องกัน intraday flash ตอนตลาดปิด
                 // skipStale=true: เก็บเฉพาะ session วันนี้ ทิ้ง session เก่า
                 loadSparklineCache({ skipStale: true });
+                _splashStatus('โหลด Logo & Sparkline Cache ✓');
                 _loadLowCache(); // restore 7D/30D low cache from localStorage
                 setTimeout(() => { refreshAllLowData(); scheduleLowRefresh(); }, 2000);
                 // If market already closed when app loads → fetch official EOD close
@@ -25472,6 +25341,7 @@ ${_clip(contextSections, 2600)}`;
             if (savedMonth) curMonth = savedMonth;
             document.getElementById('monthInput').value = curMonth;
             const savedTab = localStorage.getItem('ps_tab') || 'dashboard';
+            _splashStatus(`เรนเดอร์ UI · Tab: ${savedTab}`);
             showTab(savedTab, false, true);
             loadMonth(curMonth); // sets isLoading=true then false — must complete before WL render
 
@@ -25506,7 +25376,41 @@ ${_clip(contextSections, 2600)}`;
                     connectWs();
                 }
                 _startWsWatchdog();
-                syncFromGist(true);
+                _splashStatus('เชื่อมต่อ WebSocket' + (isMarketOpen() ? ' (ตลาดเปิด)' : ' (ตลาดปิด)'));
+                syncFromGist(true).then(function() {
+                    // Preload ALL watchlist logos and wait until finished before hiding splash
+                    const _FHLOGO = 'https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/';
+                    const _logoPromises = [];
+                    watchlist.forEach(function(sym) {
+                        const url = wlDataCache[sym]?.logo || profileCache[sym]?.logo || (_FHLOGO + sym + '.png');
+                        // Check if already loaded
+                        const existing = logoCache[url];
+                        if (existing && existing.complete && existing.naturalWidth > 0) return;
+                        // Preload and track completion
+                        const p = new Promise(function(resolve) {
+                            const img = new Image();
+                            img.onload = function() { logoCache[url] = img; resolve(); };
+                            img.onerror = function() { resolve(); }; // don't block on failure
+                            logoCache[url] = img;
+                            img.src = url;
+                        });
+                        _logoPromises.push(p);
+                    });
+                    if (_logoPromises.length > 0) {
+                        _splashStatus('โหลด Logo ' + _logoPromises.length + '/' + watchlist.length + ' หุ้น...');
+                        // Wait for all logos — max 4s timeout safety net
+                        Promise.race([
+                            Promise.all(_logoPromises),
+                            new Promise(function(r) { setTimeout(r, 4000); })
+                        ]).then(function() {
+                            _splashStatus('พร้อมใช้งาน ✓');
+                            setTimeout(_hideSplash, 300);
+                        });
+                    } else {
+                        _splashStatus('พร้อมใช้งาน ✓');
+                        setTimeout(_hideSplash, 300);
+                    }
+                });
             } else {
                 if (watchlist.length > 0) {
                     watchlist.forEach(s => {
@@ -25530,6 +25434,35 @@ ${_clip(contextSections, 2600)}`;
                         _startWsWatchdog();
                         refreshWatchlist(); // no setTimeout — start immediately
                     }
+                }
+                // No Gist — preload logos then hide splash
+                const _FHLOGO2 = 'https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/';
+                const _logoPromises2 = [];
+                watchlist.forEach(function(sym) {
+                    const url = wlDataCache[sym]?.logo || profileCache[sym]?.logo || (_FHLOGO2 + sym + '.png');
+                    const existing = logoCache[url];
+                    if (existing && existing.complete && existing.naturalWidth > 0) return;
+                    const p = new Promise(function(resolve) {
+                        const img = new Image();
+                        img.onload = function() { logoCache[url] = img; resolve(); };
+                        img.onerror = function() { resolve(); };
+                        logoCache[url] = img;
+                        img.src = url;
+                    });
+                    _logoPromises2.push(p);
+                });
+                if (_logoPromises2.length > 0) {
+                    _splashStatus('โหลด Logo ' + _logoPromises2.length + '/' + watchlist.length + ' หุ้น...');
+                    Promise.race([
+                        Promise.all(_logoPromises2),
+                        new Promise(function(r) { setTimeout(r, 4000); })
+                    ]).then(function() {
+                        _splashStatus('พร้อมใช้งาน ✓');
+                        setTimeout(_hideSplash, 300);
+                    });
+                } else {
+                    _splashStatus(records.length > 0 || watchlist.length > 0 ? 'โหลดข้อมูล local แล้ว ✓' : 'พร้อมใช้งาน ✓');
+                    setTimeout(_hideSplash, 300);
                 }
             }
 
@@ -25678,7 +25611,6 @@ ${_clip(contextSections, 2600)}`;
             }
             updateAiStatus();
             updateSettingsBadges();
-            setTimeout(() => { resolveSignalLogOutcomes(); }, 1200);
             startExtHoursPolling(); // TV Scanner — no API key needed
         };
 
@@ -25711,7 +25643,6 @@ ${_clip(contextSections, 2600)}`;
                 chartPrefs: (() => { try { return JSON.parse(localStorage.getItem('ps_lwc_prefs')||'{}'); } catch(e){return{};} })(),
                 records,
                 watchlist,
-                signalLog,
                 movementCache: { version: 5, ts: Date.now(), data: _collectSparklineCacheData() },
                 logoDataCache: _collectLogoDataCacheData(),
                 symbolLogoCache: _collectSymbolLogoCacheData(),
@@ -25829,9 +25760,6 @@ ${_clip(contextSections, 2600)}`;
                 (r.fixed  ||[]).map(x=>(x.name||'')+(x.val||x.amount||0)+(x.isPaid?1:0)).join(',') + '|' +
                 (r.dynamic||[]).map(x=>(x.name||'')+(x.val||x.amount||0)+(x.isPaid?1:0)).join(',')
             ).join(';');
-            const sHash = (signalLog || []).slice(0, 120).map(s =>
-                [s.id, s.symbol, s.signal, s.result, s.outcome_price, s.pct_change].join('|')
-            ).join(';');
             // Include avatar/profilePhoto length as proxy — avoids hashing full base64
             // but still detects a new photo being set
             const avHash = (db.avatar        ? String(db.avatar.length)        : '0');
@@ -25844,7 +25772,7 @@ ${_clip(contextSections, 2600)}`;
                 localStorage.getItem('ps_pinned_wl')                   || '',
             ].join('|');
             const lwcHash = localStorage.getItem('ps_lwc_prefs') || '';
-            return rHash + '::wl:' + watchlist.join(',') + '::sig:' + sHash + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash;
+            return rHash + '::wl:' + watchlist.join(',') + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash;
         }
         setInterval(() => {
             if (!getGistToken()) return;
@@ -26506,13 +26434,13 @@ ${_clip(contextSections, 2600)}`;
          onclick="restoreAiPopup()">
         <!-- Desktop: pill with text -->
         <div class="ai-fab-pill flex items-center gap-1.5 px-2.5 py-1.5 rounded shadow-lg"
-             style="background:color-mix(in srgb,var(--bg-card,#111) 92%,#1a73e8 8%);border:1px solid color-mix(in srgb,#1a73e8 55%,transparent);color:var(--text-primary,#e0e0e0);">
-            <svg class="w-3 h-3 flex-shrink-0" style="color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+             style="background:color-mix(in srgb,var(--bg-card,#111) 92%,var(--accent) 8%);border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);color:var(--text-primary,#e0e0e0);">
+            <svg class="w-3 h-3 flex-shrink-0" style="color:var(--accent)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
             <span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-primary,#e0e0e0)">AI ANALYST</span>
             <span id="ai-fab-badge" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5"></span>
         </div>
         <!-- Mobile: circle icon-only -->
-        <div class="ai-fab-circle items-center justify-center rounded-full shadow-2xl" style="width:52px;height:52px;background:linear-gradient(135deg,#1a73e8,#34a853);color:white;position:relative;">
+        <div class="ai-fab-circle items-center justify-center rounded-full shadow-2xl" style="width:52px;height:52px;background:linear-gradient(135deg,var(--accent),var(--accent2,#26a69a));color:white;position:relative;">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
             <span class="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" style="margin:4px;"></span>
         </div>
@@ -26523,23 +26451,22 @@ ${_clip(contextSections, 2600)}`;
          style="bottom:24px;right:24px;width:520px;max-width:calc(100vw - 32px)">
         <div id="ai-popup-panel"
              class="flex flex-col rounded-md overflow-hidden"
-             style="height:min(76vh,720px);min-height:620px;background:var(--bg-card);border:1px solid color-mix(in srgb,#1a73e8 40%,var(--border));box-shadow:0 8px 32px rgba(0,0,0,0.45);overscroll-behavior:contain"
+             style="height:min(76vh,720px);min-height:620px;background:var(--bg-card);border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border));box-shadow:0 8px 32px rgba(0,0,0,0.45);overscroll-behavior:contain"
              onwheel="event.stopPropagation()">
 
             <!-- Header (drag handle) -->
             <div id="ai-popup-header"
                  class="flex items-center justify-between px-3 py-2 flex-shrink-0 border-b cursor-grab active:cursor-grabbing"
-                 style="background:color-mix(in srgb,var(--bg-card2) 94%,#1a73e8 6%);border-color:color-mix(in srgb,#1a73e8 30%,var(--border));user-select:none">
+                 style="background:color-mix(in srgb,var(--bg-card2) 94%,var(--accent) 6%);border-color:color-mix(in srgb,var(--accent) 30%,var(--border));user-select:none">
                 <div class="flex items-center gap-2">
-                    <div class="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style="background:transparent;border:1px solid color-mix(in srgb,#1a73e8 55%,transparent)">
-                        <svg class="w-3 h-3" style="color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+                    <div class="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style="background:transparent;border:1px solid color-mix(in srgb,var(--accent) 55%,transparent)">
+                        <svg class="w-3 h-3" style="color:var(--accent)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
                     </div>
                     <span style="font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-primary)">AI STOCK ANALYST</span>
-                    <span id="ai-popup-badge" style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;padding:1px 6px;border-radius:3px;border:1px solid color-mix(in srgb,#1a73e8 45%,transparent);color:#1a73e8;background:color-mix(in srgb,#1a73e8 8%,transparent)">AUTO FREE</span>
+                    <span id="ai-popup-badge" style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;padding:1px 6px;border-radius:3px;border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)">AUTO FREE</span>
                 </div>
                 <div class="flex items-center gap-1">
                     <button id="ai-glossary-btn" onclick="toggleAiGlossary()" aria-expanded="false" class="transition-all" style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:transparent;border:1px solid var(--border);color:var(--text-dim)">คู่มือ</button>
-                    <button onclick="openSignalHistoryModal()" class="transition-all" style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:transparent;border:1px solid var(--border);color:var(--text-dim)">SIGNALS</button>
                     <button onclick="clearAiChat()" class="transition-all" style="font-family:var(--font-mono);font-size:8px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;background:transparent;border:1px solid var(--border);color:var(--text-dim)">CLR</button>
                     <!-- Minimize -->
                     <button onclick="minimizeAiPopup()" class="flex items-center justify-center transition-all" style="width:20px;height:20px;border-radius:3px;background:transparent;border:1px solid var(--border);color:var(--text-dim)" title="ย่อ">
@@ -26579,18 +26506,18 @@ ${_clip(contextSections, 2600)}`;
             <!-- Messages -->
             <div id="ai-popup-messages" class="flex-1 overflow-y-auto flex flex-col gap-3 p-4" onwheel="event.stopPropagation()">
                 <div class="flex items-start gap-2.5">
-                    <div class="flex items-center justify-center flex-shrink-0" style="width:24px;height:24px;border-radius:4px;border:1px solid color-mix(in srgb,#1a73e8 55%,transparent);background:color-mix(in srgb,#1a73e8 8%,transparent)">
-                        <svg style="width:12px;height:12px;color:#1a73e8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
+                    <div class="flex items-center justify-center flex-shrink-0" style="width:24px;height:24px;border-radius:4px;border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);background:color-mix(in srgb,var(--accent) 8%,transparent)">
+                        <svg style="width:12px;height:12px;color:var(--accent)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.5 3.5 0 01-4.95 0l-.347-.347z"/></svg>
                     </div>
                     <div class="flex-1">
-                        <div class="mb-1" style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#1a73e8">AI ANALYST</div>
+                        <div class="mb-1" style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent)">AI ANALYST</div>
                         <div class="text-sm leading-relaxed ai-msg-body">สวัสดีครับ ถามได้เลยเรื่องแนวรับ/แนวต้าน, ข่าวล่าสุด หรือ outlook ของหุ้นใดก็ได้ครับ</div>
                     </div>
                 </div>
             </div>
 
             <!-- Input -->
-            <div id="ai-popup-input-row" class="flex items-center gap-2 px-3 py-2 flex-shrink-0 border-t" style="border-color:color-mix(in srgb,#1a73e8 25%,var(--border));background:color-mix(in srgb,var(--bg-card2) 94%,#1a73e8 6%)">
+            <div id="ai-popup-input-row" class="flex items-center gap-2 px-3 py-2 flex-shrink-0 border-t" style="border-color:color-mix(in srgb,var(--accent) 25%,var(--border));background:color-mix(in srgb,var(--bg-card2) 94%,var(--accent) 6%)">
                 <div id="ai-popup-input-shell" class="flex-1 px-3 py-1.5" style="border-radius:4px;border:1px solid var(--border);background:transparent">
                     <input id="ai-popup-input" type="text" autocomplete="off" placeholder="ถามต่อได้เลย..."
                         class="w-full outline-none"
@@ -26599,7 +26526,7 @@ ${_clip(contextSections, 2600)}`;
                 </div>
                 <button onclick="sendAiMessage()" id="ai-popup-send-btn"
                     class="flex items-center gap-1.5 flex-shrink-0"
-                    style="padding:4px 14px;border-radius:4px;background:color-mix(in srgb,var(--bg-card) 90%,#1a73e8 10%);border-top:1px solid color-mix(in srgb,#1a73e8 45%,transparent);border-left:1px solid color-mix(in srgb,#1a73e8 45%,transparent);border-right:1px solid color-mix(in srgb,#1a73e8 45%,transparent);border-bottom:2px solid color-mix(in srgb,#1a73e8 70%,transparent);color:#1a73e8">
+                    style="padding:4px 14px;border-radius:4px;background:color-mix(in srgb,var(--bg-card) 90%,var(--accent) 10%);border-top:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-left:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-right:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-bottom:2px solid color-mix(in srgb,var(--accent) 70%,transparent);color:var(--accent)">
                     <span style="font-family:var(--font-mono);font-size:15px;line-height:1">↵</span>
                     <span style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">SEND</span>
                 </button>
@@ -26612,27 +26539,6 @@ ${_clip(contextSections, 2600)}`;
             </div>
         </div>
     </div>
-
-    <!-- ── Signal History Modal ─────────────────────────────────────────── -->
-    <div id="signal-history-modal" class="fixed inset-0 z-[220] hidden">
-        <div class="fixed inset-0" style="background:rgba(0,0,0,0.58)" onclick="closeSignalHistoryModal()"></div>
-        <div class="relative z-10 w-full max-w-4xl mx-auto rounded-xl shadow-2xl overflow-hidden" style="background:var(--bg-main);border:1px solid var(--border);max-height:86vh;margin-top:max(2rem, var(--sat))">
-            <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color:var(--border)">
-                <div>
-                    <div class="text-xs font-black uppercase tracking-wider" style="color:var(--text-primary)">Signal History</div>
-                    <div class="text-[10px]" style="color:var(--text-dim)">Win/Loss tracker from Local AI signals</div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="resolveSignalLogOutcomes()" class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim)">Refresh Outcome</button>
-                    <button onclick="closeSignalHistoryModal()" class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim)">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </div>
-            </div>
-            <div id="signal-history-content" class="p-3.5 overflow-auto" style="max-height:calc(86vh - 58px)"></div>
-        </div>
-    </div>
-
 
     <!-- ── Settings Modal ──────────────────────────────────────────────── -->
     <div id="settings-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4">
@@ -26856,10 +26762,10 @@ ${_clip(contextSections, 2600)}`;
         </div>
     </div>
 
-    <!-- v1.6.15 Splash Screen — mobile only, white bg, logo + PSLink, fade out after init -->
+    <!-- Splash Screen — all devices, dark theme, logo + PSLink, fade out after init -->
     <div id="ps-splash" style="
         position:fixed;inset:0;z-index:99999;
-        background:#ffffff;
+        background:var(--bg-main,#0c1220);
         display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
         transition:opacity 0.6s ease, visibility 0.6s ease;
         opacity:1;visibility:visible;
@@ -26867,9 +26773,9 @@ ${_clip(contextSections, 2600)}`;
         <!-- Logo -->
         <div id="ps-splash-logo" style="
             width:72px;height:72px;border-radius:20px;
-            background:#f0f6ff;
+            background:var(--bg-card2,#1a2744);
             display:flex;align-items:center;justify-content:center;
-            box-shadow:0 2px 16px rgba(59,130,246,0.12);
+            box-shadow:0 4px 24px rgba(59,130,246,0.25);
         ">
             <svg viewBox="0 0 32 32" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="16" cy="16" r="6" fill="none" stroke="#3b82f6" stroke-width="1.8" opacity="0.45"/>
@@ -26882,8 +26788,8 @@ ${_clip(contextSections, 2600)}`;
         </div>
         <!-- App name -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-            <span style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;font-size:28px;font-weight:800;letter-spacing:-0.5px;color:#0f172a;">PSLink</span>
-            <span style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;font-size:12px;font-weight:500;letter-spacing:0.08em;color:#94a3b8;text-transform:uppercase;">Personal Finance</span>
+            <span style="font-family:var(--font-main,-apple-system,BlinkMacSystemFont,sans-serif);font-size:28px;font-weight:800;letter-spacing:-0.5px;color:var(--text-primary,#f1f5f9);">PSLink</span>
+            <span style="font-family:var(--font-main,-apple-system,BlinkMacSystemFont,sans-serif);font-size:11px;font-weight:600;letter-spacing:0.12em;color:var(--text-dim,#475569);text-transform:uppercase;">All-in-One Dashboard</span>
         </div>
         <!-- Loading dots -->
         <div id="ps-splash-dots" style="display:flex;gap:6px;margin-top:8px;">
@@ -26891,9 +26797,11 @@ ${_clip(contextSections, 2600)}`;
             <span style="width:6px;height:6px;border-radius:50%;background:#3b82f6;animation:splashDot 1.2s ease-in-out 0.2s infinite;"></span>
             <span style="width:6px;height:6px;border-radius:50%;background:#3b82f6;animation:splashDot 1.2s ease-in-out 0.4s infinite;"></span>
         </div>
+        <!-- Boot log console -->
+        <div id="ps-splash-log" style="width:270px;height:60px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;margin-top:8px;padding:0 2px;box-sizing:border-box;text-align:center;"></div>
         <!-- Credit -->
         <div style="position:absolute;bottom:48px;left:0;right:0;text-align:center;">
-            <span style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;font-size:11px;font-weight:500;color:#cbd5e1;letter-spacing:0.04em;">Phaithoon Sudjanakobkul</span>
+            <span style="font-family:SF Mono,ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;font-weight:400;color:var(--text-dim,#334155);letter-spacing:0.08em;">Phaithoon Sudjanakobkul</span>
         </div>
     </div>
     <style>
@@ -26901,26 +26809,73 @@ ${_clip(contextSections, 2600)}`;
             0%,80%,100% { opacity:0.2; transform:scale(0.85); }
             40%          { opacity:1;   transform:scale(1); }
         }
-        @media (min-width: 768px) {
-            #ps-splash { display:none !important; }
+        @keyframes wzProgressSlide {
+            0%   { transform: translateX(-150%); }
+            100% { transform: translateX(400%); }
         }
     </style>
     <script>
     (function() {
         function _hideSplash() {
             const splash = document.getElementById('ps-splash');
-            if (!splash) return;
+            if (!splash || splash.style.display === 'none') return;
             splash.style.opacity = '0';
             splash.style.visibility = 'hidden';
             setTimeout(function() { splash.style.display = 'none'; }, 620);
         }
-        window.addEventListener('load', function() {
-            setTimeout(_hideSplash, 2200);
-        });
-        setTimeout(_hideSplash, 4000);
+        function _splashStatus(text) {
+            const log = document.getElementById('ps-splash-log');
+            if (!log) return;
+            // Dim all previous lines
+            log.querySelectorAll('.sl').forEach(function(l) {
+                l.style.color = 'rgba(100,116,139,0.45)';
+                l.style.fontWeight = '400';
+            });
+            // Append new active line
+            var p = document.createElement('p');
+            p.className = 'sl';
+            p.textContent = '▸ ' + text;
+            p.style.cssText = 'margin:0;font-family:SF Mono,ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;font-weight:600;letter-spacing:0.03em;color:var(--accent,#3b82f6);opacity:0;transition:opacity 0.1s;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+            log.appendChild(p);
+            requestAnimationFrame(function() { p.style.opacity = '1'; });
+            // Keep max 4 lines to prevent overflow
+            var lines = log.querySelectorAll('.sl');
+            if (lines.length > 4) lines[0].remove();
+        }
+        window._hideSplash   = _hideSplash;
+        window._splashStatus = _splashStatus;
+        // Fallback: hide after 7s in case any path fails to call _hideSplash
+        setTimeout(_hideSplash, 7000);
     })();
     </script>
 
+    <script>
+    (function(){
+        function _initAutoHideScrollbar(scrollElId, containerElId, delay) {
+            var scroll = document.getElementById(scrollElId);
+            var box    = document.getElementById(containerElId);
+            if (!scroll || !box) return;
+            var _timer;
+            function _show() {
+                scroll.classList.add('is-scrolling');
+                clearTimeout(_timer);
+                _timer = setTimeout(function(){ scroll.classList.remove('is-scrolling'); }, delay || 900);
+            }
+            box.addEventListener('mouseenter', _show);
+            scroll.addEventListener('scroll', _show, { passive: true });
+        }
+        function _init() {
+            _initAutoHideScrollbar('wl-pinned-list',       'profile-wl-console', 900);
+            _initAutoHideScrollbar('wl-table-scroll',      'wl-table-panel',     900);
+            _initAutoHideScrollbar('profile-display-notes','profile-view',       900);
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', _init, { once: true });
+        } else {
+            _init();
+        }
+    })();
+    </script>
     <div id="wl-toast-wrap" aria-live="polite" aria-atomic="true"></div>
     <!-- Landscape lock overlay (mobile/tablet only) -->
     <div id="pslink-rotate-msg" style="display:none">
