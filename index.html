@@ -177,11 +177,25 @@
             0%   { box-shadow: inset 0 0 0 9999px rgba(239, 83, 80, 0.20); }
             100% { box-shadow: inset 0 0 0 9999px rgba(239, 83, 80, 0); }
         }
+        /* Alt keyframes — identical visuals but DIFFERENT names so browser always restarts animation */
+        @keyframes flashUp1 {
+            0%   { box-shadow: inset 0 0 0 9999px rgba(38, 166, 154, 0.20); }
+            100% { box-shadow: inset 0 0 0 9999px rgba(38, 166, 154, 0); }
+        }
+        @keyframes flashDown1 {
+            0%   { box-shadow: inset 0 0 0 9999px rgba(239, 83, 80, 0.20); }
+            100% { box-shadow: inset 0 0 0 9999px rgba(239, 83, 80, 0); }
+        }
         /* box-shadow: inset → GPU composited, no paint trigger */
-        .flash-up   { animation: flashUp   0.6s ease-out; }
-        .flash-down { animation: flashDown 0.6s ease-out; }
-        .pinned-flash-up   { animation: flashUp   0.6s ease-out; }
-        .pinned-flash-down { animation: flashDown 0.6s ease-out; }
+        /* -1 variants use different animation NAME → guarantees restart without offsetWidth reflow */
+        .flash-up                  { animation: flashUp    0.6s ease-out; }
+        .flash-up-1                { animation: flashUp1   0.6s ease-out; }
+        .flash-down                { animation: flashDown  0.6s ease-out; }
+        .flash-down-1              { animation: flashDown1 0.6s ease-out; }
+        .pinned-flash-up           { animation: flashUp    0.6s ease-out; }
+        .pinned-flash-up-1         { animation: flashUp1   0.6s ease-out; }
+        .pinned-flash-down         { animation: flashDown  0.6s ease-out; }
+        .pinned-flash-down-1       { animation: flashDown1 0.6s ease-out; }
         /* Price cell smooth color transition — ทำให้ดูพรีเมียมแม้ tick ช้า */
         #watchlist-table td.price-cell,
         #watchlist-table td.num-cell { transition: color 0.15s ease; }
@@ -2034,11 +2048,12 @@
         #profile-photo-edit-btn { opacity: 0; pointer-events: none; transition: opacity 0.2s; }
         #profile-photo-wrap:hover #profile-photo-edit-btn { opacity: 1; pointer-events: auto; }
         /* Muse Card */
-        #muse-btn-row { opacity: 0; pointer-events: none; transition: opacity 0.2s; }
-        #muse-card:hover #muse-btn-row { opacity: 1; pointer-events: auto; }
+        #muse-btn-row { opacity: 0; pointer-events: none; transition: opacity 0.3s; }
         #muse-card.muse-collapsed #muse-btn-row { opacity: 0.75 !important; pointer-events: auto !important; }
         #muse-card.muse-collapsed #muse-edit-btn,
-        #muse-card.muse-collapsed #muse-preset-btns { opacity: 0; pointer-events: none; }
+        #muse-card.muse-collapsed #muse-preset-btns,
+        #muse-card.muse-collapsed #muse-layout-btn,
+        #muse-card.muse-collapsed #muse-autorotate-indicator { opacity: 0; pointer-events: none; }
         #muse-collapse-btn:hover { background: rgba(10,10,15,0.5) !important; border-color: rgba(255,255,255,0.18) !important; }
         #muse-edit-btn:hover { background: rgba(0,0,0,0.4) !important; border-color: rgba(255,255,255,0.2) !important; }
         #muse-slots { transition: opacity 0.15s; }
@@ -5594,33 +5609,41 @@
                 <!-- Muse Card — 5 slots -->
                 <div id="muse-card" class="dash-card" style="overflow:hidden;padding:0;position:relative;">
                     <div id="muse-slots" style="display:flex;width:100%;gap:2px;align-items:stretch;"></div>
+                    <div id="muse-toast" style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:none;opacity:0;transition:opacity 0.3s;background:color-mix(in srgb,var(--accent) 10%,rgba(15,15,20,0.45));border:1px solid color-mix(in srgb,var(--accent) 28%,rgba(255,255,255,0.06));border-radius:20px;padding:5px 14px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-size:10.5px;font-weight:400;color:rgba(255,255,255,0.82);letter-spacing:0.06em;white-space:nowrap;box-shadow:0 2px 12px rgba(0,0,0,0.2);"></div>
                     <!-- Button row: [A][B][C] [pencil] [↑ MUSE] -->
-                    <div id="muse-btn-row" style="position:absolute;top:10px;right:10px;z-index:20;display:flex;align-items:center;gap:5px;">
-                        <div id="muse-preset-btns" style="display:flex;gap:3px;align-items:center;"></div>
-                        <button id="muse-edit-btn" onclick="_museToggleEdit()" title="จัดการคลิป"
-                            style="width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);flex-shrink:0;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </button>
+                    <div id="muse-btn-row" style="position:absolute;top:10px;right:10px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
                         <button id="muse-collapse-btn" onclick="_museToggleCollapse()" title="ซ่อน/แสดง Muse"
-                            style="height:28px;padding:0 10px 0 8px;border-radius:14px;background:rgba(10,10,15,0.28);border:1px solid rgba(255,255,255,0.08);cursor:pointer;display:flex;align-items:center;gap:5px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);flex-shrink:0;">
+                            style="height:28px;padding:0 8px;border-radius:6px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;align-items:center;gap:5px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);flex-shrink:0;">
                             <svg id="muse-chevron-svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline id="muse-chevron-pts" points="18 15 12 9 6 15"/></svg>
-                            <span style="font-size:9px;font-weight:800;letter-spacing:0.12em;color:rgba(255,255,255,0.38);text-transform:uppercase;line-height:1;">MUSE</span>
+                            <span style="font-size:9px;font-weight:800;letter-spacing:0.12em;color:rgba(255,255,255,0.45);text-transform:uppercase;line-height:1;">MUSE</span>
                         </button>
+                        <button id="muse-edit-btn" onclick="_museToggleEdit()" title="จัดการคลิป"
+                            style="width:28px;height:28px;border-radius:6px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);flex-shrink:0;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        </button>
+                        <button id="muse-layout-btn" onclick="_museToggleLayout()" title="สลับ Layout"
+                            style="width:28px;height:28px;border-radius:6px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);flex-shrink:0;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        </button>
+                        <div id="muse-autorotate-indicator" style="display:none;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);flex-shrink:0;" title="Auto-rotate active">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 3s linear infinite;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        </div>
+                        <div id="muse-preset-btns" style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;"></div>
                     </div>
                 </div>
 
                 <!-- Muse Modal (position:fixed, sits outside layout flow) -->
                 <div id="muse-modal-backdrop" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.48);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);" onclick="if(event.target===this)_museToggleEdit()">
-                    <div id="muse-modal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:540px;max-width:calc(100vw - 32px);max-height:82vh;background:var(--bg-card2);border-radius:20px;border:1px solid var(--border);box-shadow:0 32px 80px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.04);display:flex;flex-direction:column;overflow:hidden;">
+                    <div id="muse-modal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:540px;max-width:calc(100vw - 32px);height:652px;max-height:82vh;background:var(--bg-card2);border-radius:20px;border:1px solid var(--border);box-shadow:0 32px 80px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.04);display:flex;flex-direction:column;overflow:hidden;">
                         <!-- Header -->
                         <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 16px;flex-shrink:0;">
                             <div style="display:flex;align-items:center;gap:10px;">
                                 <div style="width:32px;height:32px;border-radius:10px;background:color-mix(in srgb,var(--accent) 15%,transparent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);display:flex;align-items:center;justify-content:center;">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><path d="M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM21 16a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1.5"/><rect x="13" y="2" width="9" height="9" rx="1.5"/><rect x="2" y="13" width="9" height="9" rx="1.5"/><polygon points="16,13 22,16.5 16,20" fill="var(--accent)" stroke="none"/></svg>
                                 </div>
                                 <div>
                                     <div style="font-size:14px;font-weight:800;letter-spacing:0.04em;color:var(--text-primary);line-height:1.2;">MUSE</div>
-                                    <div style="font-size:10px;color:var(--text-dim);font-weight:500;line-height:1.2;">Clip Manager</div>
+                                    <div style="font-size:10px;color:var(--text-dim);font-weight:500;line-height:1.2;">Media Playlist</div>
                                 </div>
                             </div>
                             <button onclick="_museToggleEdit()" style="width:30px;height:30px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-dim);">
@@ -5631,18 +5654,21 @@
                         <div style="display:flex;align-items:center;gap:8px;padding:10px 20px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-shrink:0;">
                             <span style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-dim);text-transform:uppercase;flex-shrink:0;">PLAYLIST</span>
                             <div id="muse-preset-tabs" style="display:flex;gap:4px;flex:1;"></div>
-                            <button id="muse-lock-btn" onclick="_museToggleLock()" title="ตั้ง/ลบ password สำหรับ playlist นี้" style="width:26px;height:26px;border-radius:7px;background:var(--bg-card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;transition:background 0.15s,border-color 0.15s;">🔓</button>
+                            <button id="muse-lock-btn" onclick="_museToggleLock()" title="ตั้ง/ลบ password สำหรับ playlist นี้" style="width:26px;height:26px;border-radius:7px;background:var(--bg-card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-dim);transition:background 0.15s,border-color 0.15s;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
                             <button onclick="_museShuffle()" style="height:26px;padding:0 10px;border-radius:7px;background:var(--bg-card);border:1px solid var(--border);cursor:pointer;font-size:9px;font-weight:700;color:var(--text-secondary);display:flex;align-items:center;gap:5px;flex-shrink:0;letter-spacing:0.04em;">
                                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
                                 Shuffle
                             </button>
                         </div>
                         <!-- Clip list (scrollable) -->
-                        <div id="muse-edit-list" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:6px;min-height:0;"></div>
+                        <div style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;">
+                            <div id="muse-edit-list" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:6px;min-height:0;"></div>
+                            <div id="muse-modal-toast" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;opacity:0;transition:opacity 0.3s;background:var(--bg-card);border:1px solid var(--border);border-left:2px solid var(--accent);border-radius:20px;padding:5px 14px 5px 12px;font-size:10.5px;font-weight:400;color:var(--text-primary);letter-spacing:0.05em;white-space:nowrap;box-shadow:0 2px 14px rgba(0,0,0,0.1);"></div>
+                        </div>
                         <!-- Add URL footer -->
                         <div style="padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                <span style="font-size:10px;color:var(--text-dim);font-weight:600;opacity:0.7;">เพิ่มคลิป</span>
+                                <span style="font-size:10px;color:var(--text-dim);font-weight:600;opacity:0.7;">เพิ่มคลิป / รูปภาพ</span>
                                 <span id="muse-clip-count" style="font-size:10px;color:var(--text-dim);font-weight:700;opacity:0.6;">0/5</span>
                             </div>
                             <div style="display:flex;gap:8px;">
@@ -5650,7 +5676,10 @@
                                     onkeydown="if(event.key==='Enter')_museAddClip()"
                                     style="flex:1;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:11px;padding:0 12px;outline:none;min-width:0;transition:border-color 0.15s,opacity 0.15s;">
                                 <button id="muse-add-btn" onclick="_museAddClip()" style="height:36px;padding:0 18px;border-radius:9px;background:var(--accent);border:none;cursor:pointer;color:white;font-size:11px;font-weight:700;flex-shrink:0;letter-spacing:0.03em;transition:background 0.2s,opacity 0.15s;">+ Add</button>
+                                <button onclick="_museImageFileInput()" title="เพิ่มรูปภาพ" style="height:36px;width:36px;border-radius:9px;background:var(--bg-card2);border:1px solid var(--border);cursor:pointer;color:var(--text-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>
+                                <input id="muse-image-file" type="file" accept="image/*" onchange="_museHandleImageFile(this)" style="display:none;">
                             </div>
+                            <div id="muse-autorotate-section" style="margin-top:12px;"></div>
                         </div>
                     </div>
                 </div>
@@ -13102,6 +13131,10 @@
 
         // Persist movement sparklines so F5 can render instantly
         let _sparkSaveTimer = null;
+        // TTL สำหรับ sparkline cache: Alpaca real bars = 7 วัน (คง frozen ข้ามวันหยุด), อื่นๆ = 24h
+        const _SPARK_TTL_REALBAR = 7 * 24 * 60 * 60 * 1000;
+        const _SPARK_TTL_OTHER   = 24 * 60 * 60 * 1000;
+
         function _collectSparklineCacheData() {
             const now = Date.now();
             const out = {};
@@ -13112,7 +13145,8 @@
                 Object.keys(data).forEach(sym => {
                     const e = data[sym];
                     if (!e || !Array.isArray(e.prices) || e.prices.length < 2) return;
-                    if (e.ts && (now - e.ts) > 24 * 60 * 60 * 1000) return;
+                    const ttl = e.src === 'alpaca' ? _SPARK_TTL_REALBAR : _SPARK_TTL_OTHER;
+                    if (e.ts && (now - e.ts) > ttl) return;
                     out[sym] = {
                         prices: e.prices.slice(-180),
                         ts: e.ts || now,
@@ -13126,7 +13160,8 @@
             Object.keys(wlSparklineCache).forEach(sym => {
                 const e = wlSparklineCache[sym];
                 if (!e || !Array.isArray(e.prices) || e.prices.length < 2) return;
-                if (e.ts && (now - e.ts) > 24 * 60 * 60 * 1000) return;
+                const _ttl2 = e.src === 'alpaca' ? _SPARK_TTL_REALBAR : _SPARK_TTL_OTHER;
+                if (e.ts && (now - e.ts) > _ttl2) return;
                 const prev = out[sym];
                 if (prev && (prev.ts || 0) > (e.ts || 0)) return;
                 out[sym] = {
@@ -13149,7 +13184,8 @@
             Object.keys(data).forEach(sym => {
                 const e = data[sym];
                 if (!e || !Array.isArray(e.prices) || e.prices.length < 2) return;
-                if (e.ts && (now - e.ts) > 24 * 60 * 60 * 1000) return;
+                const _ttl3 = e.src === 'alpaca' ? _SPARK_TTL_REALBAR : _SPARK_TTL_OTHER;
+                if (e.ts && (now - e.ts) > _ttl3) return;
                 cleaned[sym] = {
                     prices: e.prices.slice(-180),
                     ts: e.ts || now,
@@ -13226,7 +13262,9 @@
                             if (isRealBars && recentSession && e.fetchTs) filteredData[sym] = e;
                         }
                     } else {
-                        const recentEnough = e.ts && (Date.now() - e.ts) < 8 * 60 * 60 * 1000;
+                        // ตลาดปิด: Alpaca real bars คง frozen ได้ 7 วัน, อื่นๆ 8h
+                        const _closedTtl = isRealBars ? _SPARK_TTL_REALBAR : 8 * 60 * 60 * 1000;
+                        const recentEnough = e.ts && (Date.now() - e.ts) < _closedTtl;
                         if ((sessionOk || (!mktOpen && recentEnough)) && e.fetchTs) filteredData[sym] = e;
                     }
                 });
@@ -13303,7 +13341,11 @@
         function inExtendedDayEt(isoTs) {
             const mins = etMinutes(isoTs);
             if (mins == null) return false;
-            return mins >= 240 && mins <= 1200; // 04:00-20:00 ET
+            if (mins < 240 || mins > 1200) return false; // 04:00-20:00 ET
+            // Exclude weekends — IEX occasionally reports stray trades on Sat/Sun
+            const dt = new Date(isoTs);
+            const dow = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' }).format(dt);
+            return dow !== 'Sat' && dow !== 'Sun';
         }
 
         function dateKeyEt(isoTs) {
@@ -13348,13 +13390,9 @@
         }
 
         function sparklineQuality(prices, basePrice) {
-            // Relax MIN_POINTS during first 10 min after market open (few bars available)
-            const minPts = (() => {
-                if (!isMarketOpen()) return SPARKLINE_MIN_POINTS;
-                const etMin = currentEtMinutes();
-                if (etMin != null && etMin < 570 + 10) return 2; // 09:30-09:40 ET → accept 2+ bars
-                return SPARKLINE_MIN_POINTS;
-            })();
+            // During market hours: accept 2+ points (line can be drawn)
+            // When closed: use SPARKLINE_MIN_POINTS for quality gate on cached data
+            const minPts = isMarketOpen() ? 2 : SPARKLINE_MIN_POINTS;
             if (!Array.isArray(prices) || prices.length < minPts) return false;
             let min = Infinity, max = -Infinity;
             let changes = 0;
@@ -13405,7 +13443,7 @@
             try {
                 const end   = new Date();
                 // Fetch enough history, then lock to latest ET regular session day (Webull 1D-like)
-                const start = new Date(end.getTime() - 48 * 60 * 60 * 1000);
+                const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days — covers long weekends (e.g. Good Friday + weekend)
                 const u = new URL(`https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars`);
                 u.searchParams.set('timeframe', '1Min');
                 u.searchParams.set('start', start.toISOString());
@@ -13426,8 +13464,19 @@
                 if (!bars.length) return null;
                 const dayBarsAll = bars.filter(b => b?.t && b?.c != null && inExtendedDayEt(b.t));
                 if (!dayBarsAll.length) return null;
-                const latestDay = dateKeyEt(dayBarsAll[dayBarsAll.length - 1].t);
+                // Pick latest day with enough bars — when market is closed, a pre-market bar
+                // from today (e.g. Monday 8am with 1 errant trade) can shadow the last full session.
+                // Walk back to find the most recent day with >= 30 bars when market is closed.
+                let latestDay = dateKeyEt(dayBarsAll[dayBarsAll.length - 1].t);
                 let dayBars = dayBarsAll.filter(b => dateKeyEt(b.t) === latestDay);
+                if (!isMarketOpen() && dayBars.length < 30) {
+                    const byDay = {};
+                    dayBarsAll.forEach(b => { const d = dateKeyEt(b.t); (byDay[d] = byDay[d] || []).push(b); });
+                    const sortedDays = Object.keys(byDay).sort();
+                    for (let i = sortedDays.length - 1; i >= 0; i--) {
+                        if (byDay[sortedDays[i]].length >= 30) { latestDay = sortedDays[i]; dayBars = byDay[latestDay]; break; }
+                    }
+                }
                 if (!dayBars.length) return null;
                 // Strict minute window for current ET day: 04:00 ET to current ET minute when market is open.
                 if (isMarketOpen()) {
@@ -13877,30 +13926,33 @@
         // Sparkline DOM update throttle map — max once per 500ms per symbol
         const _sparkDomThrottle = {};
         function pushSparklinePrice(symbol, price) {
+            if (!isMarketOpen()) return; // PRE-MKT / AH prices must never enter sparkline
             if (price == null || isNaN(price)) return;
+            const _now = _frameTs || Date.now(); // reuse RAF frame timestamp when available
             let entry = wlSparklineCache[symbol];
             if (!entry) {
-                if (hasRealSparkSource()) return;
                 const d = wlDataCache[symbol] || {};
-                wlSparklineCache[symbol] = { prices: [Number(price.toFixed(2))], base: (d?.pc ?? null), open: (d?.o ?? null), src: 'live', ts: Date.now() };
+                const base = d.pc ?? d._prevDailyC ?? null;
+                const p2 = Math.round(price * 100) / 100;
+                const pts = base != null ? [Math.round(base * 100) / 100, p2] : [p2];
+                wlSparklineCache[symbol] = { prices: pts, base: base, open: d.o ?? null, src: 'live', ts: _now, fetchTs: _now, session: currentEtDateKey() };
+                updateSparklineCell(symbol);
                 return;
             }
             const arr = entry.prices;
-            const p2  = Number(price.toFixed(2));
+            const p2  = Math.round(price * 100) / 100;
             if (entry.src === 'alpaca') {
-                // Update last bar's close with latest WS price (real-time Y movement)
                 if (arr.length > 0) arr[arr.length - 1] = p2;
-                entry.ts = Date.now(); // keep freshness gate alive while WS trades flow
+                entry.ts = _now;
             } else {
                 if (arr.length && arr[arr.length - 1] === p2) return;
                 arr.push(p2);
                 if (arr.length > 400) arr.splice(0, arr.length - 400);
-                entry.ts = Date.now();
+                entry.ts = _now;
             }
             // Throttle DOM write 2s — hash check ใน updateSparklineCell กัน flicker ซ้ำ
-            const now = Date.now();
-            if (!_sparkDomThrottle[symbol] || now - _sparkDomThrottle[symbol] >= 2000) {
-                _sparkDomThrottle[symbol] = now;
+            if (!_sparkDomThrottle[symbol] || _now - _sparkDomThrottle[symbol] >= 2000) {
+                _sparkDomThrottle[symbol] = _now;
                 updateSparklineCell(symbol);
             }
         }
@@ -14005,7 +14057,7 @@
             // ── Desktop: canvas-based (same logic as Pinned sparkline) ──
             const mktOpen = typeof isMarketOpen === 'function' ? isMarketOpen() : false;
             const isRealSrc = entry.src === 'alpaca' || entry.src === 'finnhub';
-            const canvasReady = isRealSrc && prices.length >= 2 && (!mktOpen || prices.length >= 12);
+            const canvasReady = isRealSrc && prices.length >= 2;
             if (el) {
                 if (canvasReady) {
                     // Ensure canvas element exists; canvas loop handles drawing
@@ -15416,7 +15468,7 @@
             const mktOpen   = _canvasMktOpen;
 
             if (!entry || !Array.isArray(entry.prices) || entry.prices.length < 2) return;
-            if (mktOpen && entry.prices.length < 12) return;
+            if (mktOpen && entry.prices.length < 2) return;
             const TOTAL_MIN = 390;
             const openMs    = _canvasOpenMs;
 
@@ -15598,7 +15650,7 @@
             const mktOpen = _canvasMktOpen;
 
             if (!entry || !Array.isArray(entry.prices) || entry.prices.length < 2) return;
-            if (mktOpen && entry.prices.length < 12) return;
+            if (mktOpen && entry.prices.length < 2) return;
             const TOTAL_MIN = 390;
             const openMs    = _canvasOpenMs;
 
@@ -15847,7 +15899,7 @@
                 const tickUp = price != null && !isNaN(prevPrice) ? price >= prevPrice : isUp;
                 const row = document.getElementById('wl-pinned-row-' + symbol);
                 if (row) {
-                    row.classList.remove('pinned-flash-up', 'pinned-flash-down');
+                    row.classList.remove('pinned-flash-up', 'pinned-flash-down', 'pinned-flash-up-1', 'pinned-flash-down-1');
                     requestAnimationFrame(() => row.classList.add(tickUp ? 'pinned-flash-up' : 'pinned-flash-down'));
                 }
             }
@@ -16138,9 +16190,9 @@
                     const sn = data[sym]; if (!sn) return;
 
                     // pc = previous close สำหรับคำนวณ extended hours %
-                    // Priority: dailyBar.c (ราคาปิด regular session วันนี้)
-                    //         → wlDataCache[sym].pc (จาก Finnhub)
-                    //         → prevDailyBar.c (วันก่อนหน้า — fallback สุดท้าย)
+                    // Priority: dailyBar.c (extended-session close — same convention as Webull Prev Close)
+                    //         → wlDataCache[sym].pc (Finnhub regular-session close — fallback)
+                    //         → prevDailyBar.c (previous daily bar — last resort)
                     const pc = sn.dailyBar?.c || wlDataCache[sym]?.pc || sn.prevDailyBar?.c || null;
                     const preP = sn.latestTrade?.p ?? sn.minuteBar?.c ?? null;
                     // Store Alpaca daily bar data for accurate session change (regardless of session)
@@ -16181,15 +16233,36 @@
                         updatePreMktCell(sym, preP, pct, false);
                         updated++;
                     } else if (isReg) {
-                        // Regular hours: ONLY show frozen pre-market value — never recalculate
-                        // latestTrade.p during regular = current session price, NOT pre-market
+                        // Regular hours: update OHLC + P.CLS from snapshot for accurate daily stats
+                        // prevDailyBar.c = extended close of previous session (matches Webull P.CLS convention)
+                        const prevClose = sn.prevDailyBar?.c || null;
+                        const sessionO  = sn.dailyBar?.o    || null;
+                        const sessionH  = sn.dailyBar?.h    || null;
+                        const sessionL  = sn.dailyBar?.l    || null;
+                        if (wlDataCache[sym] && (prevClose || sessionO || sessionH || sessionL)) {
+                            const cur = existing.c ?? null;
+                            const updates = {};
+                            if (prevClose) {
+                                updates.pc = prevClose;
+                                if (cur != null) {
+                                    updates.d  = cur - prevClose;
+                                    updates.dp = (cur - prevClose) / prevClose * 100;
+                                }
+                            }
+                            if (sessionO) updates.o = sessionO;
+                            if (sessionH) updates.h = sessionH;
+                            if (sessionL) updates.l = sessionL;
+                            wlDataCache[sym] = Object.assign({}, existing, updates);
+                            updateWatchlistPriceCells(sym, wlDataCache[sym]);
+                            updated++;
+                        }
+                        // Frozen PRE-MKT cell — never overwrite with regular session price
                         const frozenP   = existing.preMarketPrice;
                         const frozenPct = existing.preMarketChangePct;
                         if (frozenP != null && frozenPct != null) {
                             updatePreMktCell(sym, frozenP, frozenPct, false);
-                            updated++;
                         }
-                        // No PM data → leave cell as-is, never overwrite with session price
+                        // No PM data → leave PRE-MKT cell as-is
                     } else if (isAH) {
                         // After-hours: use latestTrade as AH price vs today's close (dailyBar.c)
                         // Must use dailyBar.c (regular session close), NOT prevDailyBar.c
@@ -16931,7 +17004,7 @@
             const newPriceText  = price !== null ? '$' + fmt(price) : '—';
             if (!_suppressFlash && tr && prevPriceText && prevPriceText !== '—' && prevPriceText !== newPriceText) {
                 const flashCls = isUp ? 'flash-up' : 'flash-down';
-                tr.classList.remove('flash-up', 'flash-down');
+                tr.classList.remove('flash-up', 'flash-down', 'flash-up-1', 'flash-down-1');
                 requestAnimationFrame(() => tr.classList.add(flashCls));
             }
 
@@ -19978,6 +20051,52 @@ ${sourceText}`;
             if (_sparklineRefreshTimer) { clearInterval(_sparklineRefreshTimer); _sparklineRefreshTimer = null; }
         }
 
+        // ── Market open/close transition watcher ─────────────────────────────
+        // ตรวจ transition ทุก 60 วิ:
+        //   close → open : ล้าง session เก่า + เริ่ม drawing ใหม่
+        //   open  → close: freeze sparkline + push Gist ทันที
+        let _mktTransPrev = null;
+        function _clearPrevSessionSparklines() {
+            const today = typeof currentEtDateKey === 'function' ? currentEtDateKey() : '';
+            Object.keys(wlSparklineCache).forEach(function(sym) {
+                const e = wlSparklineCache[sym];
+                if (e && e.session && e.session !== today) {
+                    delete wlSparklineCache[sym];
+                    const canvas = document.getElementById('wl-spark-canvas-' + sym);
+                    if (canvas && canvas._ctx2d) canvas._ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            });
+        }
+        setInterval(function() {
+            const now = isMarketOpen();
+            if (_mktTransPrev === null) { _mktTransPrev = now; return; }
+            if (now === _mktTransPrev) return;
+            _mktTransPrev = now;
+            if (!now) {
+                // ตลาดเพิ่งปิด — freeze sparkline + save
+                saveSparklineCache();
+                if (typeof _pushToGist === 'function') _pushToGist(true);
+            } else {
+                // ตลาดเพิ่งเปิด — ล้าง session เก่า เริ่ม drawing ใหม่
+                _clearPrevSessionSparklines();
+                setTimeout(function() {
+                    // refreshWatchlist ก่อน — ได้ OHLC/P.CLS ของ session ใหม่
+                    // แล้วค่อย refreshSparkline — ใช้ wlDataCache.pc ที่ถูกต้องเป็น base
+                    var _wlP = typeof refreshWatchlist === 'function' ? refreshWatchlist() : Promise.resolve();
+                    (_wlP || Promise.resolve()).then(function() {
+                        if (typeof refreshSparklineForTopSymbols === 'function') refreshSparklineForTopSymbols();
+                    });
+                }, 2000);
+            }
+        }, 60_000);
+
+        // Periodic REST-based sparkline refresh every 5 min (Approach 2: REST as primary source)
+        // Ensures sparkline is always complete regardless of when PSLink was opened
+        setInterval(function() {
+            if (!isMarketOpen()) return;
+            if (typeof refreshSparklineForTopSymbols === 'function') refreshSparklineForTopSymbols();
+        }, 5 * 60 * 1000);
+
         // Active Tab Monitoring
         let _tabHiddenAt = 0; // timestamp when tab was hidden
 
@@ -22383,6 +22502,9 @@ ${_clip(contextSections, 2600)}`;
         let _pinnedSymSet         = new Set(); // fast O(1) lookup — avoids getElementById on non-pinned symbols
         let _mainSparkSymSet      = new Set(); // symbols with canvas sparklines in main watchlist
         let _sigThreshold         = 60;     // signal/rating recompute throttle (pre-computed)
+        let _frameTs              = 0;      // Date.now() shared across entire RAF frame — avoid per-symbol calls
+        let _isMobileWl           = window.innerWidth <= 1200; // skip desktop/mobile DOM branch
+        window.addEventListener('resize', function() { _isMobileWl = window.innerWidth <= 1200; });
 
         // Inline chart updater — called directly from WS, no rAF
         function _updateChartDirect(sym, newPrice) {
@@ -22469,6 +22591,7 @@ ${_clip(contextSections, 2600)}`;
         function _rafFlushQuotes() {
             _rafPending = false;
             _hasPendingTrades = false;
+            _frameTs = Date.now(); // shared timestamp for entire frame — no per-symbol Date.now()
             if (_wsBackgroundMode) {
                 if (_dashboardVisible && _pinnedSymSet.size > 0) {
                     for (const _s in _pendingTrades) {
@@ -22519,6 +22642,16 @@ ${_clip(contextSections, 2600)}`;
         const _CLS_UP_CHG    = 'px-3 py-2 text-right num-cell text-sm wl-up';
         const _CLS_DN_CHG    = 'px-3 py-2 text-right num-cell text-sm wl-dn';
 
+        // ── _fmt2: fast toFixed(2) replacement — pure integer math, no string parsing ──
+        // V8's Number.toFixed handles edge cases (Infinity, NaN, negative zero) we don't need.
+        // This saves ~40ns per call × 6 calls × 15 symbols = ~3.6μs per frame.
+        function _fmt2(n) {
+            var neg = n < 0; if (neg) n = -n;
+            var r = (n * 100 + 0.5) | 0;  // round to cents (safe up to ~$21M)
+            var c = r % 100, w = (r / 100) | 0;
+            return (neg ? '-' : '') + w + '.' + (c < 10 ? '0' : '') + c;
+        }
+
         // ── _updatePinnedCellHot: WS hot-path pinned cell updater ────────────
         // Cached DOM refs + dirty check + nodeValue — same perf tier as _handleTrade
         function _updatePinnedCellHot(sym, d) {
@@ -22554,18 +22687,13 @@ ${_clip(contextSections, 2600)}`;
                 d._pinPriceTxt = p2;
                 d._pinPrice.firstChild ? (d._pinPrice.firstChild.nodeValue = p2) : (d._pinPrice.innerText = p2);
                 if (d._pinPrice.style.color !== col) d._pinPrice.style.color = col;
-                // Flash row — _flashState direction tracking + setTimeout cleanup (matches _handleTrade)
+                // Flash row — alternating class trick, batch timer (matches _handleTrade)
                 if (!_suppressFlash && d._pinRow && prevTxt) {
-                    const cls = isUp ? 'pinned-flash-up' : 'pinned-flash-down';
-                    if (d._pinFlashState !== isUp) {
-                        d._pinFlashState = isUp;
-                        d._pinRow.classList.remove('pinned-flash-down', 'pinned-flash-up');
-                        d._pinRow.classList.add(cls);
-                    } else {
-                        d._pinRow.classList.remove('pinned-flash-up', 'pinned-flash-down');
-                        void d._pinRow.offsetWidth; // force reflow to restart animation (cheaper than getAnimations)
-                        d._pinRow.classList.add(cls);
-                    }
+                    const alt = (d._pinFlashAlt = (d._pinFlashAlt || 0) ^ 1);
+                    const cls = (isUp ? 'pinned-flash-up' : 'pinned-flash-down') + (alt ? '-1' : '');
+                    d._pinFlashState = isUp;
+                    d._pinRow.classList.remove('pinned-flash-up', 'pinned-flash-down', 'pinned-flash-up-1', 'pinned-flash-down-1');
+                    d._pinRow.classList.add(cls);
                     clearTimeout(d._pinRow._ft);
                     d._pinRow._ft = setTimeout(_clearPinnedFlash, 500, d._pinRow);
                 }
@@ -22612,16 +22740,17 @@ ${_clip(contextSections, 2600)}`;
             const d = wlDataCache[sym];
             if (!d || !newPrice) return;
 
-            // ── Compute all values once — single pass, no repeated toFixed ───
-            const pc = (d.pc || d._prevDailyC) || null;  // pc = Finnhub prev close (correct base)
-            let chg = 0, pct = 0;
-            if (pc != null) {
-                d.c = newPrice; d._wsTs = Date.now(); chg = newPrice - pc; d.d = chg; pct = chg / pc * 100; d.dp = pct;
-            } else {
-                d.c = newPrice; chg = d.d ?? 0; pct = d.dp ?? 0;
+            // ── Fast path: _alpHandleTrades/_fhHandleTrades already set d.c/d/dp/h/l ──
+            // Only recompute if called from a non-hot source (snapshot, control msg)
+            if (d.c !== newPrice) {
+                const pc = (d.pc || d._prevDailyC) || null;
+                d.c = newPrice; d._wsTs = _frameTs || Date.now();
+                if (pc != null) { d.d = newPrice - pc; d.dp = d.d / pc * 100; }
+                if (d.h != null) { if (newPrice > d.h) d.h = newPrice; } else d.h = newPrice;
+                if (d.l != null) { if (newPrice < d.l) d.l = newPrice; } else d.l = newPrice;
             }
-            if (d.h != null) { if (newPrice > d.h) d.h = newPrice; } else d.h = newPrice;
-            if (d.l != null) { if (newPrice < d.l) d.l = newPrice; } else d.l = newPrice;
+            const chg = d.d ?? 0;
+            const pct = d.dp ?? 0;
             const isUp = pct >= 0;
 
             // PATH A: chart — zero latency, always first
@@ -22632,47 +22761,42 @@ ${_clip(contextSections, 2600)}`;
             const cells = d._cells;
             if (!cells || cells.length < 15) { updateWatchlistPriceCells(sym, d); return; }
 
-            // Pre-format all strings once — reused across every cell write
-            const p2     = newPrice.toFixed(2);
+            // Pre-format strings with _fmt2 (pure integer math — no V8 toFixed overhead)
+            const p2     = _fmt2(newPrice);
             const newTxt = '$' + p2;
             const chgAbs = chg < 0 ? -chg : chg;
-            const chgTxt = (isUp ? '+' : '-') + chgAbs.toFixed(2);
-            const pctStr = pct.toFixed(2);
+            const chgTxt = (isUp ? '+' : '-') + _fmt2(chgAbs);
+            const pctStr = _fmt2(pct);
             const pctTxt = (isUp ? '▲ +' : '▼ ') + pctStr + '%';
 
-            // ── Flash: _flashState direction tracking + setTimeout cleanup ──
+            // ── Flash: alternating class + animation name trick — zero reflow ──
             const tr = d._tr;
             if (!_suppressFlash && tr && d._lastTxt && d._lastTxt !== newTxt) {
-                const wantUp = isUp;
-                const cls = wantUp ? 'flash-up' : 'flash-down';
-                if (d._flashState !== wantUp) {
-                    d._flashState = wantUp;
-                    tr.classList.remove('flash-down', 'flash-up');
-                    tr.classList.add(cls);
-                } else {
-                    tr.classList.remove('flash-up', 'flash-down');
-                    void tr.offsetWidth; // force reflow to restart animation (cheaper than getAnimations)
-                    tr.classList.add(cls);
-                }
+                const alt = (d._flashAlt = (d._flashAlt || 0) ^ 1);
+                const cls = (isUp ? 'flash-up' : 'flash-down') + (alt ? '-1' : '');
+                d._flashState = isUp;
+                tr.classList.remove('flash-up', 'flash-down', 'flash-up-1', 'flash-down-1');
+                tr.classList.add(cls);
                 clearTimeout(tr._ft);
                 tr._ft = setTimeout(_clearFlash, 500, tr);
             }
             d._lastTxt = newTxt;
 
-            // ── Price [7] — instant snap (Webull-style) ────────────────────────
-            const _hotColor = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
+            // ── Direction flip flag — skip className/style.color when direction unchanged ──
+            const dirFlip = d._lastIsUp !== isUp;
+            if (dirFlip) d._lastIsUp = isUp;
+
+            // ── Price [7] ──────────────────────────────────────────────────────
             if (cells[7].data !== p2) {
                 cells[7].data = p2;
-                cells[7].className = isUp ? _CLS_UP_PRICE : _CLS_DN_PRICE;
-                cells[7].style.color = _hotColor;
                 cells[7].firstChild ? (cells[7].firstChild.nodeValue = newTxt) : (cells[7].innerText = newTxt);
+                if (dirFlip) { cells[7].className = isUp ? _CLS_UP_PRICE : _CLS_DN_PRICE; cells[7].style.color = isUp ? 'var(--wl-up)' : 'var(--wl-dn)'; }
             }
             // ── CHG [8] ───────────────────────────────────────────────────────
             if (cells[8].data !== chgTxt) {
                 cells[8].data = chgTxt;
-                cells[8].className = isUp ? _CLS_UP_CHG : _CLS_DN_CHG;
-                cells[8].style.color = _hotColor;
                 cells[8].firstChild ? (cells[8].firstChild.nodeValue = chgTxt) : (cells[8].innerText = chgTxt);
+                if (dirFlip) { cells[8].className = isUp ? _CLS_UP_CHG : _CLS_DN_CHG; cells[8].style.color = isUp ? 'var(--wl-up)' : 'var(--wl-dn)'; }
             }
             // ── CHG% badge [9] ────────────────────────────────────────────────
             if (cells[9].data !== pctStr) {
@@ -22680,22 +22804,20 @@ ${_clip(contextSections, 2600)}`;
                 if (!cells[9].firstElementChild) { const sp = document.createElement('span'); cells[9].innerHTML = ''; cells[9].appendChild(sp); }
                 const sp = cells[9].firstElementChild;
                 if (sp.firstChild) { sp.firstChild.nodeValue = pctTxt; } else { sp.textContent = pctTxt; }
-                const bc = isUp ? 'wl-badge-up' : 'wl-badge-dn'; if (sp.className !== bc) sp.className = bc;
-                // Sync inline styles set by updateWatchlistPriceCells — otherwise stale
-                // inline color (higher specificity) overrides the correct CSS class color
-                sp.style.color = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
-                sp.style.background = isUp ? 'rgba(8,153,129,0.12)' : 'rgba(242,54,69,0.12)';
+                if (dirFlip) {
+                    const bc = isUp ? 'wl-badge-up' : 'wl-badge-dn'; if (sp.className !== bc) sp.className = bc;
+                    sp.style.color = isUp ? 'var(--wl-up)' : 'var(--wl-dn)';
+                    sp.style.background = isUp ? 'rgba(8,153,129,0.12)' : 'rgba(242,54,69,0.12)';
+                }
             }
-            // ── Sparkline color sync on direction flip ───────────────────────
-            // Sparkline SVG color is baked at render time and only refreshes every ~20s.
-            // When direction flips mid-tick, re-render sparkline so color matches LAST/CHG/CHG%.
-            if (d._hotIsUp !== isUp) {
+            // ── Sparkline color sync on direction flip (mobile SVG only) ──────
+            if (dirFlip) {
                 d._hotIsUp = isUp;
-                if (typeof updateSparklineCell === 'function') updateSparklineCell(sym);
+                if (_isMobileWl && typeof updateSparklineCell === 'function') updateSparklineCell(sym);
             }
-            // ── H/L [13][14] ──────────────────────────────────────────────────
-            if (cells[13] && d.h != null) { const ht = '$'+d.h.toFixed(2); if (cells[13].data !== ht) { cells[13].data = ht; cells[13].firstChild ? (cells[13].firstChild.nodeValue = ht) : (cells[13].innerText = ht); } }
-            if (cells[14] && d.l != null) { const lt = '$'+d.l.toFixed(2); if (cells[14].data !== lt) { cells[14].data = lt; cells[14].firstChild ? (cells[14].firstChild.nodeValue = lt) : (cells[14].innerText = lt); } }
+            // ── H/L [13][14] — _fmt2 avoids toFixed string alloc ─────────────
+            if (cells[13] && d.h != null) { const ht = '$'+_fmt2(d.h); if (cells[13].data !== ht) { cells[13].data = ht; cells[13].firstChild ? (cells[13].firstChild.nodeValue = ht) : (cells[13].innerText = ht); } }
+            if (cells[14] && d.l != null) { const lt = '$'+_fmt2(d.l); if (cells[14].data !== lt) { cells[14].data = lt; cells[14].firstChild ? (cells[14].firstChild.nodeValue = lt) : (cells[14].innerText = lt); } }
 
             // ── Signal/Rating — adaptive throttle by watchlist size ───────────
             if (!d._sigEl)  d._sigEl  = document.getElementById('wl-signal-' + sym);
@@ -22724,39 +22846,50 @@ ${_clip(contextSections, 2600)}`;
                 }
             }
 
-            // ── Mobile card — className for color (no inline style recalc) ────
-            if (!d._mobPriceEl) {
-                const pb = document.getElementById('wl-mob-price-' + sym);
-                d._mobPriceEl = pb ? pb.firstElementChild : null;
-                d._mobChgdEl  = pb ? pb.querySelector('.wl-mob-chgd') : null;
-            }
-            if (!d._mobChgEl) d._mobChgEl = document.getElementById('wl-mob-chg-' + sym);
-            if (d._mobPriceEl && d._mobPriceEl.data !== p2) {
-                d._mobPriceEl.data = p2;
-                d._mobPriceEl.firstChild ? (d._mobPriceEl.firstChild.nodeValue = newTxt) : (d._mobPriceEl.innerText = newTxt);
-                d._mobPriceEl.style.color = '';
-                d._mobPriceEl.classList.remove('mob-price-fl-up', 'mob-price-fl-dn');
-                d._mobPriceEl.classList.add(isUp ? 'mob-price-fl-up' : 'mob-price-fl-dn');
-                clearTimeout(d._mobPriceFt);
-                d._mobPriceFt = setTimeout(function(el){ el.classList.remove('mob-price-fl-up', 'mob-price-fl-dn'); }, 650, d._mobPriceEl);
-            }
-            if (d._mobChgEl && d._mobChgEl.data !== pctStr) {
-                d._mobChgEl.data = pctStr;
-                d._mobChgEl.textContent = (isUp ? '+' : '') + pctStr + '%';
-                const mc = isUp ? 'wl-mob-chg-up' : 'wl-mob-chg-dn'; if (d._mobChgEl.className !== mc) d._mobChgEl.className = mc;
-            }
-            if (d._mobChgdEl && d._mobChgdEl.data !== chgTxt) {
-                d._mobChgdEl.data = chgTxt; d._mobChgdEl.textContent = chgTxt;
-                const mc = isUp ? 'wl-mob-chgd-up' : 'wl-mob-chgd-dn'; if (d._mobChgdEl.className !== mc) d._mobChgdEl.className = mc;
+            // ── Mobile card — skip entirely on desktop (>1200px: display:none) ──
+            if (_isMobileWl) {
+                if (!d._mobPriceEl) {
+                    const pb = document.getElementById('wl-mob-price-' + sym);
+                    d._mobPriceEl = pb ? pb.firstElementChild : null;
+                    d._mobChgdEl  = pb ? pb.querySelector('.wl-mob-chgd') : null;
+                }
+                if (!d._mobChgEl) d._mobChgEl = document.getElementById('wl-mob-chg-' + sym);
+                if (d._mobPriceEl && d._mobPriceEl.data !== p2) {
+                    d._mobPriceEl.data = p2;
+                    d._mobPriceEl.firstChild ? (d._mobPriceEl.firstChild.nodeValue = newTxt) : (d._mobPriceEl.innerText = newTxt);
+                    d._mobPriceEl.style.color = '';
+                    d._mobPriceEl.classList.remove('mob-price-fl-up', 'mob-price-fl-dn');
+                    d._mobPriceEl.classList.add(isUp ? 'mob-price-fl-up' : 'mob-price-fl-dn');
+                    clearTimeout(d._mobPriceFt);
+                    d._mobPriceFt = setTimeout(function(el){ el.classList.remove('mob-price-fl-up', 'mob-price-fl-dn'); }, 650, d._mobPriceEl);
+                }
+                if (d._mobChgEl && d._mobChgEl.data !== pctStr) {
+                    d._mobChgEl.data = pctStr;
+                    d._mobChgEl.textContent = (isUp ? '+' : '') + pctStr + '%';
+                    const mc = isUp ? 'wl-mob-chg-up' : 'wl-mob-chg-dn'; if (d._mobChgEl.className !== mc) d._mobChgEl.className = mc;
+                }
+                if (d._mobChgdEl && d._mobChgdEl.data !== chgTxt) {
+                    d._mobChgdEl.data = chgTxt; d._mobChgdEl.textContent = chgTxt;
+                    const mc = isUp ? 'wl-mob-chgd-up' : 'wl-mob-chgd-dn'; if (d._mobChgdEl.className !== mc) d._mobChgdEl.className = mc;
+                }
             }
 
-            pushSparklinePrice(sym, newPrice);
+            // ── Sparkline: inline hot path — skip function call + guards ──────
+            // For Alpaca source: just update last array element (canvas loop handles drawing)
+            // Full pushSparklinePrice only needed for 'live' source or new entries
+            const _spE = wlSparklineCache[sym];
+            if (_spE && _spE.src === 'alpaca' && _spE.prices.length > 0) {
+                _spE.prices[_spE.prices.length - 1] = Math.round(newPrice * 100) / 100;
+                _spE.ts = _frameTs;
+            } else {
+                pushSparklinePrice(sym, newPrice);
+            }
             if (_pinnedSymSet.size > 0 && _pinnedSymSet.has(sym)) _updatePinnedCellHot(sym, d);
         }
 
         // Flash cleanup — extracted to avoid closure allocation on hot path
-        function _clearFlash(tr) { tr.classList.remove('flash-up', 'flash-down'); }
-        function _clearPinnedFlash(el) { el.classList.remove('pinned-flash-up', 'pinned-flash-down'); }
+        function _clearFlash(tr) { tr.classList.remove('flash-up', 'flash-down', 'flash-up-1', 'flash-down-1'); }
+        function _clearPinnedFlash(el) { el.classList.remove('pinned-flash-up', 'pinned-flash-down', 'pinned-flash-up-1', 'pinned-flash-down-1'); }
 
         // ── Finnhub WebSocket (dual-feed alongside Alpaca) ─────────────────────
         function connectFinnhubWs() {
@@ -22845,51 +22978,62 @@ ${_clip(contextSections, 2600)}`;
             if (fhWs) { fhWs.close(); fhWs = null; } fhWsSubscribed.clear();
         }
 
-        function isUSDST(date) {
-            // US DST: starts 2nd Sunday March at 2am ET, ends 1st Sunday November at 2am ET
-            const y = date.getUTCFullYear();
+        // ── DST cache: compute once per year ────────────────────────────────
+        var _dstBounds = {};
+        function _getDstBounds(y) {
+            if (_dstBounds[y]) return _dstBounds[y];
             let sc=0, dstStart;
             for(let d=1;d<=31;d++){const dd=new Date(Date.UTC(y,2,d));if(dd.getUTCDay()===0){sc++;if(sc===2){dstStart=dd;break;}}}
             let dstEnd;
             for(let d=1;d<=7;d++){const dd=new Date(Date.UTC(y,10,d));if(dd.getUTCDay()===0){dstEnd=dd;break;}}
-            const s = dstStart.getTime() + 7*3600*1000;
-            const e = dstEnd.getTime()   + 6*3600*1000;
-            return date.getTime() >= s && date.getTime() < e;
+            _dstBounds[y] = { s: dstStart.getTime() + 7*3600*1000, e: dstEnd.getTime() + 6*3600*1000 };
+            return _dstBounds[y];
         }
-        // NYSE holidays — อัพเดทรายปี
+        function isUSDST(date) {
+            const b = _getDstBounds(date.getUTCFullYear());
+            const t = date.getTime();
+            return t >= b.s && t < b.e;
+        }
+        // NYSE holidays — อัพเดทรายปี (module-scope Set — allocated once, not per call)
+        var _nyseHolidays = new Set([
+            // 2025
+            '2025-01-01','2025-01-20','2025-02-17','2025-04-18',
+            '2025-05-26','2025-06-19','2025-07-04','2025-09-01',
+            '2025-11-27','2025-12-25',
+            // 2026
+            '2026-01-01','2026-01-19','2026-02-16','2026-04-03',
+            '2026-05-25','2026-07-03','2026-09-07','2026-11-26',
+            '2026-12-25',
+            // 2027
+            '2027-01-01','2027-01-18','2027-02-15','2027-03-26',
+            '2027-05-31','2027-06-18','2027-07-05','2027-09-06',
+            '2027-11-25','2027-12-24',
+        ]);
         function isNyseHoliday(d) {
             const y = d.getUTCFullYear();
-            const m = d.getUTCMonth() + 1; // 1-based
+            const m = d.getUTCMonth() + 1;
             const day = d.getUTCDate();
             const key = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-            // ── NYSE Holidays (Full-day closes) ──────────────────────────────
-            const holidays = new Set([
-                // 2025
-                '2025-01-01','2025-01-20','2025-02-17','2025-04-18',
-                '2025-05-26','2025-06-19','2025-07-04','2025-09-01',
-                '2025-11-27','2025-12-25',
-                // 2026
-                '2026-01-01','2026-01-19','2026-02-16','2026-04-03',
-                '2026-05-25','2026-07-03','2026-09-07','2026-11-26',
-                '2026-12-25',
-                // 2027
-                '2027-01-01','2027-01-18','2027-02-15','2027-03-26',
-                '2027-05-31','2027-06-18','2027-07-05','2027-09-06',
-                '2027-11-25','2027-12-24',
-            ]);
-            return holidays.has(key);
+            return _nyseHolidays.has(key);
         }
 
+        // ── isMarketOpen: cached for 10s — market state changes once/day ────
+        var _mktOpenCached = null;
+        var _mktOpenCacheTs = 0;
         function isMarketOpen() {
-            const now = new Date();
-            const day = now.getUTCDay(); // 0=Sun,6=Sat
-            if (day === 0 || day === 6) return false;
-            if (isNyseHoliday(now)) return false;
-            const utcMins = now.getUTCHours()*60+now.getUTCMinutes();
-            const dst  = isUSDST(now);
+            const now = Date.now();
+            if (_mktOpenCached !== null && now - _mktOpenCacheTs < 10000) return _mktOpenCached;
+            _mktOpenCacheTs = now;
+            const d = new Date(now);
+            const day = d.getUTCDay();
+            if (day === 0 || day === 6) { _mktOpenCached = false; return false; }
+            if (isNyseHoliday(d)) { _mktOpenCached = false; return false; }
+            const utcMins = d.getUTCHours()*60+d.getUTCMinutes();
+            const dst  = isUSDST(d);
             const open  = dst ? 13*60+30 : 14*60+30; // 9:30 ET in UTC
             const close = dst ? 20*60    : 21*60;     // 16:00 ET in UTC
-            return utcMins >= open && utcMins < close;
+            _mktOpenCached = utcMins >= open && utcMins < close;
+            return _mktOpenCached;
         }
 
         let _wsAuthenticated = false;
@@ -24019,10 +24163,17 @@ ${_clip(contextSections, 2600)}`;
 
         // ── Muse Card ────────────────────────────────────────────────────────
         const MUSE_KEY = 'ps_muse_clips'; // legacy key (migrated to preset A on first load)
-        const MUSE_PRESET_KEYS = ['ps_muse_clips_a', 'ps_muse_clips_b', 'ps_muse_clips_c'];
+        const MUSE_PRESET_KEYS = ['ps_muse_clips_a', 'ps_muse_clips_b', 'ps_muse_clips_c', 'ps_muse_clips_d', 'ps_muse_clips_e', 'ps_muse_clips_f'];
         const MUSE_PRESET_IDX_KEY = 'ps_muse_preset_idx';
         const MUSE_COLLAPSED_KEY = 'ps_muse_collapsed';
-        const MUSE_SLOTS = 5;
+        const MUSE_LAYOUT_KEY = 'ps_muse_layout';
+        const MUSE_AUTOROTATE_KEY = 'ps_muse_autorotate';
+        var _museLayoutMode = 0; // 0=compact (6 slots, 334px), 1=tall (5 slots, auto)
+        var _museAutoRotateTimer = null;
+        var _museTransitionTimer = null;
+        var _museAutoRotateEnabled = false;
+        var _museAutoRotateDurations = [30, 30, 30, 30, 30, 30]; // seconds per playlist
+        function _museGetSlotCount() { return _museLayoutMode === 2 ? 5 : 6; }
         var _museClips = [];
         var _museActiveIdx = -1;
         var _museInited = false;
@@ -24037,12 +24188,18 @@ ${_clip(contextSections, 2600)}`;
         var _musePwTarget = -1;
         var _musePwOpenedBackdrop = false;
         function _museCurrentKey() { return MUSE_PRESET_KEYS[_musePresetIdx] || MUSE_PRESET_KEYS[0]; }
+        function _museSaveCurrentPreset() {
+            var _mscpKey = _museCurrentKey();
+            localStorage.setItem(_mscpKey, JSON.stringify(_museClips));
+            if (typeof _pushToGist === 'function') _pushToGist(true);
+        }
 
         function _initMuseCard() {
             if (_museInited) return;
             _museInited = true;
             _musePresetIdx = parseInt(localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0') || 0;
             _museCollapsed = localStorage.getItem(MUSE_COLLAPSED_KEY) === '1';
+            _museLayoutMode = parseInt(localStorage.getItem(MUSE_LAYOUT_KEY) || '0') || 0;
             // Migrate legacy key → preset A on first load
             if (!localStorage.getItem(MUSE_PRESET_KEYS[0]) && localStorage.getItem(MUSE_KEY)) {
                 localStorage.setItem(MUSE_PRESET_KEYS[0], localStorage.getItem(MUSE_KEY));
@@ -24066,10 +24223,61 @@ ${_clip(contextSections, 2600)}`;
             }
             _museActiveIdx = _museClips.length > 0 ? 0 : -1;
             _museRenderSlots();
+            _museApplyLayout();
             _museApplyCollapse();
+            _museAutoRotateLoad();
+            if (_museAutoRotateEnabled) _museAutoRotateStart();
+            // Auto-hide btn-row: show on mousemove, fade after 2s inactivity
+            var _museBtnHideTimer = null;
+            function _museShowBtns() {
+                var row = document.getElementById('muse-btn-row');
+                var card = document.getElementById('muse-card');
+                if (!row) return;
+                row.style.opacity = '1';
+                row.style.pointerEvents = 'auto';
+                clearTimeout(_museBtnHideTimer);
+                if (card && !card.classList.contains('muse-collapsed')) {
+                    _museBtnHideTimer = setTimeout(function() {
+                        row.style.opacity = '0';
+                        row.style.pointerEvents = 'none';
+                    }, 2000);
+                }
+            }
+            function _museHideBtns() {
+                clearTimeout(_museBtnHideTimer);
+                var card = document.getElementById('muse-card');
+                if (card && card.classList.contains('muse-collapsed')) return;
+                _museBtnHideTimer = setTimeout(function() {
+                    var row = document.getElementById('muse-btn-row');
+                    if (row) { row.style.opacity = '0'; row.style.pointerEvents = 'none'; }
+                }, 800);
+            }
+            var museCard = document.getElementById('muse-card');
+            var _museWheelTs = 0;
+            if (museCard) {
+                museCard.addEventListener('mousemove', _museShowBtns);
+                museCard.addEventListener('mouseenter', _museShowBtns);
+                museCard.addEventListener('mouseleave', _museHideBtns);
+                museCard.addEventListener('wheel', function(e) {
+                    if (MUSE_PRESET_KEYS.length < 2) return;
+                    e.preventDefault();
+                    _museShowBtns();
+                    var now = Date.now();
+                    if (now - _museWheelTs < 350) return;
+                    _museWheelTs = now;
+                    var dir = e.deltaY > 0 ? 1 : -1;
+                    var pws = _museGetPws();
+                    var next = (_musePresetIdx + dir + MUSE_PRESET_KEYS.length) % MUSE_PRESET_KEYS.length;
+                    var guard = MUSE_PRESET_KEYS.length;
+                    while (guard-- > 0 && next !== _musePresetIdx && pws[next] && !_museUnlockedPresets.has(next)) {
+                        next = (next + dir + MUSE_PRESET_KEYS.length) % MUSE_PRESET_KEYS.length;
+                    }
+                    if (next !== _musePresetIdx) _museDoLoadPreset(next);
+                }, { passive: false });
+            }
             // Fetch missing thumbnails
             _museClips.forEach(function(c, i) {
-                if (!c.thumbnail) _museFetchThumbnail(c, function() { _museUpdateSlotCover(i); });
+                if (!c.thumbnail && c.type !== 'image') _museFetchThumbnail(c, function() { _museUpdateSlotCover(i); });
             });
         }
 
@@ -24082,11 +24290,19 @@ ${_clip(contextSections, 2600)}`;
             var container = document.getElementById('muse-slots');
             if (!container) return;
             var html = '';
-            for (var i = 0; i < MUSE_SLOTS; i++) {
+            var arStyle = _museLayoutMode === 0 ? '' : 'aspect-ratio:9/16;';
+            for (var i = 0; i < _museGetSlotCount(); i++) {
                 var clip = i < _museClips.length ? _museClips[i] : null;
                 if (clip) {
+                    var isImage = clip.type === 'image';
+                    if (isImage) {
+                        html += '<div id="muse-slot-' + i + '" style="flex:1;' + arStyle + 'position:relative;background:#111;overflow:hidden;">'
+                            + '<img src="' + clip.src + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">'
+                            + '<div style="position:absolute;bottom:8px;left:8px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="rgba(255,255,255,0.7)" stroke="none"/><path d="M21 15l-5-5L5 21" stroke-linecap="round" stroke-linejoin="round"/></svg></div>'
+                            + '</div>';
+                    } else {
                     var hasThumbnail = clip.thumbnail && clip.thumbnail.startsWith('http');
-                    html += '<div id="muse-slot-' + i + '" style="flex:1;aspect-ratio:9/16;position:relative;background:#111;overflow:hidden;cursor:pointer;" onclick="_museSlotClick(' + i + ')">'
+                    html += '<div id="muse-slot-' + i + '" style="flex:1;' + arStyle + 'position:relative;background:#111;overflow:hidden;cursor:pointer;" onclick="_museSlotClick(' + i + ')">'
                         + '<iframe id="muse-iframe-' + i + '" src="about:blank" frameborder="0" scrolling="no" allow="autoplay;clipboard-write;encrypted-media;picture-in-picture;web-share" allowfullscreen style="display:none;position:absolute;top:0;left:0;width:325px;height:578px;border:none;transform-origin:top left;"></iframe>'
                         + '<div id="muse-cover-' + i + '" style="position:absolute;inset:0;">'
                         + (hasThumbnail ? '<img src="' + clip.thumbnail + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><svg width="28" height="28" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM21 16a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>')
@@ -24094,15 +24310,17 @@ ${_clip(contextSections, 2600)}`;
                         + '</div>'
                         + '<div id="muse-timer-' + i + '" style="display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.55);color:white;font-size:10px;font-weight:700;font-family:monospace;padding:2px 8px;border-radius:10px;z-index:10;backdrop-filter:blur(4px);white-space:nowrap;letter-spacing:0.05em;"></div>'
                         + '</div>';
+                    }
                 } else {
-                    html += '<div style="flex:1;aspect-ratio:9/16;position:relative;background:color-mix(in srgb,var(--bg-card2) 60%,#000 40%);overflow:hidden;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,0.04);">'
-                        + '<span style="color:rgba(255,255,255,0.1);font-size:22px;font-weight:200;line-height:1;">+</span>'
+                    html += '<div id="muse-slot-' + i + '" style="flex:1;' + arStyle + 'position:relative;background:color-mix(in srgb,var(--bg-card2) 60%,#000 40%);overflow:hidden;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,0.04);">'
+                        + '<div style="position:absolute;inset:6px;border:1px dashed var(--border);border-radius:4px;pointer-events:none;opacity:0.6;"></div>'
+                        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="color:var(--text-dim);opacity:0.45;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
                         + '</div>';
                 }
             }
             container.innerHTML = html;
             // Scale all iframes
-            for (var j = 0; j < Math.min(MUSE_SLOTS, _museClips.length); j++) {
+            for (var j = 0; j < Math.min(_museGetSlotCount(), _museClips.length); j++) {
                 _museScaleSlotIframe(j);
             }
             _museRenderCardPresetBtns();
@@ -24113,9 +24331,20 @@ ${_clip(contextSections, 2600)}`;
                 var slot = document.getElementById('muse-slot-' + idx);
                 var iframe = document.getElementById('muse-iframe-' + idx);
                 if (!slot || !iframe) return;
-                var w = slot.offsetWidth;
-                if (w === 0) return;
-                iframe.style.transform = 'scale(' + (w / 325) + ')';
+                var slotW = slot.offsetWidth;
+                var slotH = slot.offsetHeight;
+                if (slotW === 0) return;
+                var scaleW = slotW / 325;
+                var scaleH = slotH > 0 ? slotH / 578 : 0;
+                // cover-fit: scale by whichever dimension is larger ratio
+                var scale = (scaleH > scaleW) ? scaleH : scaleW;
+                var scaledH = 578 * scale;
+                var topOffset = (slotH - scaledH) / 2;
+                var scaledW = 325 * scale;
+                var leftOffset = (slotW - scaledW) / 2;
+                iframe.style.transform = 'scale(' + scale + ')';
+                iframe.style.top = topOffset + 'px';
+                iframe.style.left = leftOffset + 'px';
             });
         }
 
@@ -24140,6 +24369,7 @@ ${_clip(contextSections, 2600)}`;
         function _museSlotClick(idx) {
             if (idx >= _museClips.length) return;
             var clip = _museClips[idx];
+            if (clip.type === 'image') return;
             var id = _museParseTikTokId(clip.url);
             if (!id) return;
             // Stop previous playing slot
@@ -24218,6 +24448,7 @@ ${_clip(contextSections, 2600)}`;
         function _museToggleCollapse() {
             _museCollapsed = !_museCollapsed;
             localStorage.setItem(MUSE_COLLAPSED_KEY, _museCollapsed ? '1' : '0');
+            if (typeof _pushToGist === 'function') _pushToGist(true);
             _museApplyCollapse();
         }
 
@@ -24227,13 +24458,159 @@ ${_clip(contextSections, 2600)}`;
             var pts = document.getElementById('muse-chevron-pts');
             if (_museCollapsed) {
                 if (slots) slots.style.display = 'none';
-                if (card) { card.classList.add('muse-collapsed'); card.style.minHeight = '48px'; }
+                if (card) { card.classList.add('muse-collapsed'); card.style.height = ''; card.style.minHeight = '48px'; }
                 if (pts) pts.setAttribute('points', '6 9 12 15 18 9');
             } else {
                 if (slots) slots.style.display = 'flex';
                 if (card) { card.classList.remove('muse-collapsed'); card.style.minHeight = ''; }
                 if (pts) pts.setAttribute('points', '18 15 12 9 6 15');
+                _museApplyLayout();
             }
+        }
+
+        function _museApplyLayout() {
+            var card = document.getElementById('muse-card');
+            var slots = document.getElementById('muse-slots');
+            if (_museLayoutMode === 0) {
+                // Compact: 6 slots, fixed 334px, slots stretch to fill
+                if (card && !_museCollapsed) card.style.height = '336px';
+                if (slots) { slots.style.gap = '3px'; slots.style.height = '100%'; }
+            } else {
+                // Tall (5 slots) or Wide (6 slots): auto height, aspect-ratio drives slot height
+                if (card) card.style.height = '';
+                if (slots) { slots.style.gap = '2px'; slots.style.height = ''; }
+            }
+            var btn = document.getElementById('muse-layout-btn');
+            if (btn) {
+                var titles = ['Compact (6 ช่อง)', 'Wide (6 ช่อง)', 'Tall (5 ช่อง)'];
+                btn.title = titles[_museLayoutMode] || titles[0];
+            }
+        }
+
+        function _museAutoRotateLoad() {
+            try {
+                var d = JSON.parse(localStorage.getItem(MUSE_AUTOROTATE_KEY) || '{}');
+                _museAutoRotateEnabled = !!d.enabled;
+                if (Array.isArray(d.durations)) {
+                    _museAutoRotateDurations = d.durations.slice(0, MUSE_PRESET_KEYS.length);
+                    while (_museAutoRotateDurations.length < MUSE_PRESET_KEYS.length) _museAutoRotateDurations.push(30);
+                }
+            } catch(_) {}
+        }
+
+        function _museAutoRotateSave() {
+            localStorage.setItem(MUSE_AUTOROTATE_KEY, JSON.stringify({ enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations }));
+            if (typeof _pushToGist === 'function') _pushToGist(true);
+        }
+
+        function _museAutoRotateStart() {
+            if (_museAutoRotateTimer) { clearTimeout(_museAutoRotateTimer); _museAutoRotateTimer = null; }
+            if (!_museAutoRotateEnabled) return;
+            var dur = (_museAutoRotateDurations[_musePresetIdx] || 30) * 1000;
+            _museAutoRotateTimer = setTimeout(_museAutoRotateNext, dur);
+            var indicator = document.getElementById('muse-autorotate-indicator');
+            if (indicator) indicator.style.display = 'flex';
+        }
+
+        function _museAutoRotateStop() {
+            if (_museAutoRotateTimer) { clearTimeout(_museAutoRotateTimer); _museAutoRotateTimer = null; }
+            var indicator = document.getElementById('muse-autorotate-indicator');
+            if (indicator) indicator.style.display = 'none';
+        }
+
+        function _museAutoRotateNext() {
+            _museAutoRotateTimer = null;
+            if (!_museAutoRotateEnabled) return;
+            if (_museEditOpen) { _museAutoRotateStart(); return; } // re-arm without switching — user is editing
+            var pws = _museGetPws();
+            var start = _musePresetIdx;
+            var next = -1;
+            for (var attempt = 1; attempt < MUSE_PRESET_KEYS.length; attempt++) {
+                var candidate = (start + attempt) % MUSE_PRESET_KEYS.length;
+                if (!pws[candidate] || _museUnlockedPresets.has(candidate)) {
+                    next = candidate;
+                    break;
+                }
+            }
+            if (next < 0) { _museAutoRotateStop(); return; } // all locked
+            _museDoLoadPreset(next);
+            _museAutoRotateStart(); // re-arm timer for new preset
+        }
+
+        function _museAutoRotateToggle() {
+            _museAutoRotateEnabled = !_museAutoRotateEnabled;
+            _museAutoRotateSave();
+            if (_museAutoRotateEnabled) {
+                _museAutoRotateStart();
+            } else {
+                _museAutoRotateStop();
+            }
+            _museRenderAutoRotateUI();
+            _museToast(_museAutoRotateEnabled ? 'Auto-rotate เปิดแล้ว' : 'Auto-rotate ปิดแล้ว');
+        }
+
+        var _museAutoRotateSaveTimer = null;
+        function _museAutoRotateSetDuration(idx, val) {
+            var v = parseInt(val) || 30;
+            if (v < 5) v = 5;
+            if (v > 3600) v = 3600;
+            _museAutoRotateDurations[idx] = v;
+            // Save to localStorage immediately, debounce Gist push (avoid push on every keystroke)
+            localStorage.setItem(MUSE_AUTOROTATE_KEY, JSON.stringify({ enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations }));
+            clearTimeout(_museAutoRotateSaveTimer);
+            _museAutoRotateSaveTimer = setTimeout(function() { if (typeof _pushToGist === 'function') _pushToGist(true); }, 1500);
+            // If currently on this preset and timer is running, restart with new duration
+            if (_museAutoRotateEnabled && _musePresetIdx === idx) {
+                _museAutoRotateStart();
+            }
+        }
+
+        function _museRenderAutoRotateUI() {
+            var section = document.getElementById('muse-autorotate-section');
+            if (!section) return;
+            var labels = ['A','B','C','D','E','F'];
+            var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:' + (_museAutoRotateEnabled ? '10' : '0') + 'px;">'
+                + '<span style="font-size:10px;color:var(--text-dim);font-weight:600;opacity:0.7;">Auto-rotate Playlists</span>'
+                + '<label style="position:relative;display:inline-block;width:36px;height:20px;cursor:pointer;">'
+                + '<input type="checkbox" ' + (_museAutoRotateEnabled ? 'checked' : '') + ' onchange="_museAutoRotateToggle()" style="opacity:0;width:0;height:0;position:absolute;">'
+                + '<span style="position:absolute;inset:0;border-radius:10px;transition:background 0.2s;background:' + (_museAutoRotateEnabled ? 'var(--accent)' : 'var(--bg-card)') + ';border:1px solid ' + (_museAutoRotateEnabled ? 'var(--accent)' : 'var(--border)') + ';"></span>'
+                + '<span style="position:absolute;top:2px;left:' + (_museAutoRotateEnabled ? '18px' : '2px') + ';width:16px;height:16px;border-radius:50%;background:white;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>'
+                + '</label>'
+                + '</div>';
+            if (_museAutoRotateEnabled) {
+                html += '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+                for (var i = 0; i < MUSE_PRESET_KEYS.length; i++) {
+                    html += '<div style="display:flex;align-items:center;gap:4px;">'
+                        + '<span style="font-size:9px;font-weight:700;color:var(--text-dim);width:12px;text-align:center;">' + labels[i] + '</span>'
+                        + '<input type="number" min="5" max="3600" value="' + _museAutoRotateDurations[i] + '" oninput="_museAutoRotateSetDuration(' + i + ',this.value)" '
+                        + 'style="width:48px;height:24px;font-size:10px;padding:0 4px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;outline:none;color:var(--text-primary);text-align:center;">'
+                        + '<span style="font-size:8px;color:var(--text-dim);">วิ</span>'
+                        + '</div>';
+                }
+                html += '</div>';
+            }
+            section.innerHTML = html;
+        }
+
+        function _museToast(msg) {
+            var el = _museEditOpen
+                ? document.getElementById('muse-modal-toast')
+                : document.getElementById('muse-toast');
+            if (!el) return;
+            clearTimeout(_museToast._t);
+            el.textContent = msg;
+            el.style.opacity = '1';
+            _museToast._t = setTimeout(function() { el.style.opacity = '0'; }, 2000);
+        }
+
+        function _museToggleLayout() {
+            _museLayoutMode = (_museLayoutMode + 1) % 3;
+            localStorage.setItem(MUSE_LAYOUT_KEY, String(_museLayoutMode));
+            if (typeof _pushToGist === 'function') _pushToGist(true);
+            _museRenderSlots();
+            _museApplyLayout();
+            var labels = ['Compact — 6 ช่อง (334px)', 'Wide — 6 ช่อง (เต็ม)', 'Tall — 5 ช่อง (เต็ม)'];
+            _museToast(labels[_museLayoutMode] || '');
         }
 
         function _museLoadPreset(idx) {
@@ -24248,33 +24625,65 @@ ${_clip(contextSections, 2600)}`;
 
         function _museDoLoadPreset(idx) {
             if (_museTimerInterval) { clearInterval(_museTimerInterval); _museTimerInterval = null; }
+            if (_museTransitionTimer) { clearTimeout(_museTransitionTimer); _museTransitionTimer = null; }
             _musePlayingSlot = -1;
-            _musePresetIdx = idx;
-            localStorage.setItem(MUSE_PRESET_IDX_KEY, String(idx));
-            try { _museClips = JSON.parse(localStorage.getItem(_museCurrentKey()) || '[]'); } catch(_) { _museClips = []; }
-            _museClips.forEach(function(c) {
-                if (!c.hasOwnProperty('duration')) c.duration = 0;
-                if (!c.hasOwnProperty('thumbnail')) c.thumbnail = '';
-                if (!c.hasOwnProperty('replay')) c.replay = false;
-            });
-            _museActiveIdx = _museClips.length > 0 ? 0 : -1;
-            _museRenderSlots();
-            if (_museEditOpen) { _museRenderPresetTabs(); _museRenderEditList(); _museUpdateAddFooter(); _museUpdateLockBtn(); }
-            _museClips.forEach(function(c, i) {
-                if (!c.thumbnail) _museFetchThumbnail(c, function() { _museUpdateSlotCover(i); });
-            });
+            var slots = document.getElementById('muse-slots');
+            // Fade out entire grid
+            if (slots) { slots.style.transition = 'opacity 0.15s'; slots.style.opacity = '0'; }
+            _museTransitionTimer = setTimeout(function() {
+                _musePresetIdx = idx;
+                localStorage.setItem(MUSE_PRESET_IDX_KEY, String(idx));
+                if (typeof _pushToGist === 'function') _pushToGist(true);
+                try { _museClips = JSON.parse(localStorage.getItem(_museCurrentKey()) || '[]'); } catch(_) { _museClips = []; }
+                _museToast('Playlist ' + (['A','B','C','D','E','F'][idx] || (idx+1)) + ' — ' + _museClips.length + ' รายการ');
+                _museClips.forEach(function(c) {
+                    if (!c.hasOwnProperty('duration')) c.duration = 0;
+                    if (!c.hasOwnProperty('thumbnail')) c.thumbnail = '';
+                    if (!c.hasOwnProperty('replay')) c.replay = false;
+                });
+                _museActiveIdx = _museClips.length > 0 ? 0 : -1;
+                _museRenderSlots();
+                if (_museEditOpen) { _museRenderPresetTabs(); _museRenderEditList(); _museUpdateAddFooter(); _museUpdateLockBtn(); }
+                _museClips.forEach(function(c, i) {
+                    if (!c.thumbnail && c.type !== 'image') _museFetchThumbnail(c, function() { _museUpdateSlotCover(i); });
+                });
+                if (_museAutoRotateEnabled) _museAutoRotateStart();
+                // Stagger pop: each slot fades+scales in with 50ms delay per slot
+                var count = _museGetSlotCount();
+                for (var i = 0; i < count; i++) {
+                    (function(slotIdx) {
+                        var el = document.getElementById('muse-slot-' + slotIdx);
+                        if (!el) return;
+                        el.style.opacity = '0';
+                        el.style.transform = 'scale(0.92)';
+                        el.style.transition = 'none';
+                        requestAnimationFrame(function() {
+                            el.style.transition = 'opacity 0.3s, transform 0.3s cubic-bezier(0.34,1.56,0.64,1)';
+                            el.style.transitionDelay = (slotIdx * 65) + 'ms';
+                            requestAnimationFrame(function() {
+                                el.style.opacity = '1';
+                                el.style.transform = 'scale(1)';
+                            });
+                        });
+                    })(i);
+                }
+                // Also restore slots container opacity
+                var s = document.getElementById('muse-slots');
+                if (s) { s.style.transition = 'none'; s.style.opacity = '1'; }
+                _museTransitionTimer = null;
+            }, 150);
         }
 
         function _museRenderCardPresetBtns() {
             var container = document.getElementById('muse-preset-btns');
             if (!container) return;
             var pws = _museGetPws();
-            container.innerHTML = ['A','B','C'].map(function(label, i) {
+            container.innerHTML = ['A','B','C','D','E','F'].map(function(label, i) {
                 var isActive = i === _musePresetIdx;
                 var isLocked = !!(pws[i] && !_museUnlockedPresets.has(i));
                 return '<button onclick="_museLoadPreset(' + i + ')" '
                     + 'title="Playlist ' + label + (isLocked ? ' — ล็อกอยู่' : '') + '" '
-                    + 'style="width:22px;height:22px;border-radius:5px;'
+                    + 'style="width:28px;height:28px;border-radius:6px;'
                     + 'background:' + (isActive ? 'rgba(120,160,255,0.3)' : 'rgba(0,0,0,0.2)') + ';'
                     + 'border:1px solid ' + (isActive ? 'rgba(255,255,255,0.3)' : (isLocked ? 'rgba(255,180,0,0.45)' : 'rgba(255,255,255,0.1)')) + ';'
                     + 'cursor:pointer;font-size:8px;font-weight:800;letter-spacing:0.06em;'
@@ -24288,7 +24697,7 @@ ${_clip(contextSections, 2600)}`;
             var container = document.getElementById('muse-preset-tabs');
             if (!container) return;
             var pws = _museGetPws();
-            container.innerHTML = ['A', 'B', 'C'].map(function(label, i) {
+            container.innerHTML = ['A', 'B', 'C', 'D', 'E'].map(function(label, i) {
                 var isActive = i === _musePresetIdx;
                 var isLocked = !!(pws[i] && !_museUnlockedPresets.has(i));
                 var count = 0;
@@ -24312,22 +24721,65 @@ ${_clip(contextSections, 2600)}`;
             var list = document.getElementById('muse-edit-list');
             if (!list) return;
             if (_museClips.length === 0) {
-                list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:24px 0;text-align:center;opacity:0.6;">ยังไม่มีคลิป — วาง TikTok URL ด้านล่าง</div>';
+                list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:24px 0;text-align:center;opacity:0.6;">ยังไม่มีคลิป — วาง TikTok URL หรือเพิ่มรูปภาพด้านล่าง</div>';
                 return;
             }
             list.innerHTML = _museClips.map(function(c, i) {
                 var isPlaying = i === _musePlayingSlot;
+                var isImage = c.type === 'image';
                 var dur = c.duration > 0 ? c.duration : '';
-                var hasThumbnail = c.thumbnail && c.thumbnail.startsWith('http');
-                var thumbHtml = hasThumbnail
-                    ? '<img src="' + c.thumbnail + '" style="width:42px;height:42px;object-fit:cover;border-radius:8px;flex-shrink:0;display:block;">'
-                    : '<div style="width:42px;height:42px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
-                      + '<svg width="14" height="14" fill="none" stroke="var(--text-dim)" stroke-width="1.5" viewBox="0 0 24 24" stroke-linecap="round"><path d="M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM21 16a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'
-                      + '</div>';
-                var durLabel = c.duration > 0
-                    ? '<span style="color:color-mix(in srgb,var(--accent) 80%,var(--text-dim));font-weight:700;">⏱ ' + c.duration + ' วิ</span>'
-                    : '<button id="muse-dur-fetch-' + i + '" onclick="_museFetchClipDuration(' + i + ')" title="ตรวจสอบความยาวคลิปจาก TikTok" '
-                      + 'style="background:none;border:none;padding:0;cursor:pointer;font-size:9px;color:var(--text-dim);font-weight:600;opacity:0.7;">⏱ ตรวจสอบ</button>';
+                var thumbHtml;
+                if (isImage) {
+                    thumbHtml = '<img src="' + c.src + '" style="width:42px;height:42px;object-fit:cover;border-radius:8px;flex-shrink:0;display:block;">';
+                } else {
+                    var hasThumbnail = c.thumbnail && c.thumbnail.startsWith('http');
+                    thumbHtml = hasThumbnail
+                        ? '<img src="' + c.thumbnail + '" style="width:42px;height:42px;object-fit:cover;border-radius:8px;flex-shrink:0;display:block;">'
+                        : '<div style="width:42px;height:42px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+                          + '<svg width="14" height="14" fill="none" stroke="var(--text-dim)" stroke-width="1.5" viewBox="0 0 24 24" stroke-linecap="round"><path d="M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM21 16a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'
+                          + '</div>';
+                }
+                var middleHtml;
+                if (isImage) {
+                    middleHtml = '<div style="flex:1;min-width:0;">'
+                        + '<input value="' + c.label.replace(/"/g,'&quot;') + '" oninput="_museRenameClip(' + i + ',this.value)" '
+                        + 'style="width:100%;font-size:12px;font-weight:600;color:var(--text-primary);background:transparent;border:none;outline:none;padding:0;line-height:1.3;">'
+                        + '<div style="margin-top:3px;font-size:9px;color:var(--text-dim);opacity:0.6;">📷 รูปภาพ</div>'
+                        + '</div>';
+                } else {
+                    var durLabel = c.duration > 0
+                        ? '<span style="color:color-mix(in srgb,var(--accent) 80%,var(--text-dim));font-weight:700;">⏱ ' + c.duration + ' วิ</span>'
+                        : '<button id="muse-dur-fetch-' + i + '" onclick="_museFetchClipDuration(' + i + ')" title="ตรวจสอบความยาวคลิปจาก TikTok" '
+                          + 'style="background:none;border:none;padding:0;cursor:pointer;font-size:9px;color:var(--text-dim);font-weight:600;opacity:0.7;">⏱ ตรวจสอบ</button>';
+                    middleHtml = '<div style="flex:1;min-width:0;">'
+                        + '<input value="' + c.label.replace(/"/g,'&quot;') + '" oninput="_museRenameClip(' + i + ',this.value)" '
+                        + 'style="width:100%;font-size:12px;font-weight:600;color:var(--text-primary);background:transparent;border:none;outline:none;padding:0;line-height:1.3;">'
+                        + '<div style="display:flex;align-items:center;gap:6px;margin-top:3px;">'
+                        + '<input value="' + c.url.replace(/"/g,'&quot;') + '" '
+                        + 'onblur="_museSetUrl(' + i + ',this.value)" '
+                        + 'onkeydown="if(event.key===\'Enter\'){_museSetUrl(' + i + ',this.value);this.blur();}" '
+                        + 'style="font-size:9px;color:var(--text-dim);background:transparent;border:none;outline:none;flex:1;min-width:0;padding:0;opacity:0.7;" '
+                        + 'title="แก้ไข URL แล้วกด Enter เพื่อบันทึก">'
+                        + '<span style="font-size:9px;flex-shrink:0;">' + durLabel + '</span>'
+                        + '</div>'
+                        + '</div>';
+                }
+                var controlsHtml = '';
+                if (!isImage) {
+                    controlsHtml = '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
+                        + '<button onclick="_museToggleReplay(' + i + ')" title="' + (c.replay ? 'Replay ON — คลิกปิด' : 'Replay OFF — คลิกเปิด') + '" '
+                        + 'style="height:28px;padding:0 9px;border-radius:7px;font-size:10px;font-weight:700;letter-spacing:0.04em;cursor:pointer;transition:all 0.15s;white-space:nowrap;'
+                        + (c.replay
+                            ? 'background:color-mix(in srgb,var(--accent) 15%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent);'
+                            : 'background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim);')
+                        + '">↺ ' + (c.replay ? 'ON' : 'OFF') + '</button>'
+                        + '<div style="display:flex;align-items:center;gap:3px;" title="ความยาวคลิป (วินาที) — เปิด TikTok เพื่อเช็ค">'
+                        + '<input type="number" min="1" max="3600" value="' + dur + '" placeholder="—" oninput="_museSetDuration(' + i + ',this.value)" '
+                        + 'style="width:52px;height:28px;font-size:11px;padding:0 6px;background:var(--bg-card2);border:1px solid var(--border);border-radius:7px;outline:none;color:var(--text-primary);text-align:center;">'
+                        + '<span style="font-size:9px;color:var(--text-dim);font-weight:600;">วิ</span>'
+                        + '</div>'
+                        + '</div>';
+                }
                 return '<div id="muse-row-' + i + '" '
                     + 'ondragover="_museDragOver(event,' + i + ')" '
                     + 'ondrop="_museDrop(event,' + i + ')" '
@@ -24340,31 +24792,8 @@ ${_clip(contextSections, 2600)}`;
                     + 'style="cursor:grab;color:var(--text-dim);opacity:0.35;font-size:14px;flex-shrink:0;user-select:none;padding:0 1px;line-height:1;" '
                     + 'title="ลากเพื่อเรียงลำดับ">⠿</div>'
                     + thumbHtml
-                    + '<div style="flex:1;min-width:0;">'
-                    + '<input value="' + c.label.replace(/"/g,'&quot;') + '" oninput="_museRenameClip(' + i + ',this.value)" '
-                    + 'style="width:100%;font-size:12px;font-weight:600;color:var(--text-primary);background:transparent;border:none;outline:none;padding:0;line-height:1.3;">'
-                    + '<div style="display:flex;align-items:center;gap:6px;margin-top:3px;">'
-                    + '<input value="' + c.url.replace(/"/g,'&quot;') + '" '
-                    + 'onblur="_museSetUrl(' + i + ',this.value)" '
-                    + 'onkeydown="if(event.key===\'Enter\'){_museSetUrl(' + i + ',this.value);this.blur();}" '
-                    + 'style="font-size:9px;color:var(--text-dim);background:transparent;border:none;outline:none;flex:1;min-width:0;padding:0;opacity:0.7;" '
-                    + 'title="แก้ไข URL แล้วกด Enter เพื่อบันทึก">'
-                    + '<span style="font-size:9px;flex-shrink:0;">' + durLabel + '</span>'
-                    + '</div>'
-                    + '</div>'
-                    + '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
-                    + '<button onclick="_museToggleReplay(' + i + ')" title="' + (c.replay ? 'Replay ON — คลิกปิด' : 'Replay OFF — คลิกเปิด') + '" '
-                    + 'style="height:28px;padding:0 9px;border-radius:7px;font-size:10px;font-weight:700;letter-spacing:0.04em;cursor:pointer;transition:all 0.15s;white-space:nowrap;'
-                    + (c.replay
-                        ? 'background:color-mix(in srgb,var(--accent) 15%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent);'
-                        : 'background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim);')
-                    + '">↺ ' + (c.replay ? 'ON' : 'OFF') + '</button>'
-                    + '<div style="display:flex;align-items:center;gap:3px;" title="ความยาวคลิป (วินาที) — เปิด TikTok เพื่อเช็ค">'
-                    + '<input type="number" min="1" max="3600" value="' + dur + '" placeholder="—" oninput="_museSetDuration(' + i + ',this.value)" '
-                    + 'style="width:52px;height:28px;font-size:11px;padding:0 6px;background:var(--bg-card2);border:1px solid var(--border);border-radius:7px;outline:none;color:var(--text-primary);text-align:center;">'
-                    + '<span style="font-size:9px;color:var(--text-dim);font-weight:600;">วิ</span>'
-                    + '</div>'
-                    + '</div>'
+                    + middleHtml
+                    + controlsHtml
                     + '<button onclick="_museRemoveClip(' + i + ')" '
                     + 'style="width:28px;height:28px;background:none;border:1px solid transparent;border-radius:7px;cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;" '
                     + 'onmouseover="this.style.background=\'color-mix(in srgb,var(--danger,#f23645) 12%,transparent)\';this.style.borderColor=\'color-mix(in srgb,var(--danger,#f23645) 25%,transparent)\';this.style.color=\'var(--danger,#f23645)\'" '
@@ -24377,23 +24806,31 @@ ${_clip(contextSections, 2600)}`;
         function _museToggleEdit() {
             _museEditOpen = !_museEditOpen;
             var backdrop = document.getElementById('muse-modal-backdrop');
+            if (backdrop && _museEditOpen && backdrop.parentElement !== document.body) {
+                document.body.appendChild(backdrop); // move to body for full-viewport fixed coverage
+            }
             if (backdrop) backdrop.style.display = _museEditOpen ? 'block' : 'none';
             if (_museEditOpen) {
+                _museAutoRotateStop(); // pause auto-rotate while editing
                 _museRenderPresetTabs();
                 _museRenderEditList();
                 _museUpdateAddFooter();
                 _museUpdateLockBtn();
+                _museRenderAutoRotateUI();
                 // focus URL input for quick add
                 setTimeout(function() { var inp = document.getElementById('muse-url-input'); if (inp && !inp.disabled) inp.focus(); }, 80);
+            } else {
+                if (_museAutoRotateEnabled) _museAutoRotateStart(); // resume when modal closes
             }
         }
 
         function _museAddClip() {
             var input = document.getElementById('muse-url-input');
             if (!input) return;
-            if (_museClips.length >= MUSE_SLOTS) {
+            if (_museClips.length >= _museGetSlotCount()) {
                 var addBtn = document.getElementById('muse-add-btn');
                 if (addBtn) { addBtn.style.background = 'var(--danger,#f23645)'; setTimeout(function() { addBtn.style.background = 'var(--accent)'; }, 800); }
+                _museToast('Playlist เต็มแล้ว ' + _museClips.length + '/' + _museGetSlotCount());
                 return;
             }
             var url = input.value.trim();
@@ -24402,18 +24839,86 @@ ${_clip(contextSections, 2600)}`;
             if (!id) {
                 input.style.outline = '2px solid var(--danger,#f23645)';
                 setTimeout(function() { input.style.outline = ''; }, 1500);
+                _museToast('URL ไม่ถูกต้อง — ต้องเป็น TikTok link');
                 return;
             }
             var label = 'Clip ' + (_museClips.length + 1);
             var clip = { url: url, label: label, duration: 0, thumbnail: '', replay: false };
             _museClips.push(clip);
-            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            _museSaveCurrentPreset();
+            _museToast('เพิ่ม Video ' + _museClips.length + '/' + _museGetSlotCount() + ' แล้ว');
             input.value = '';
             _museRenderSlots();
             if (_museEditOpen) _museRenderEditList();
             _museUpdateAddFooter();
             var newIdx = _museClips.length - 1;
             _museFetchThumbnail(clip, function() { _museUpdateSlotCover(newIdx); if (_museEditOpen) _museRenderEditList(); });
+        }
+
+        function _museCompressImage(file, callback) {
+            var reader = new FileReader();
+            reader.onload = function() {
+                var tmpImg = new Image();
+                tmpImg.onload = function() {
+                    var TARGET_W = 800;
+                    var ratio = tmpImg.height / tmpImg.width;
+                    var TARGET_H = Math.round(TARGET_W * ratio);
+                    var curW = tmpImg.width, curH = tmpImg.height;
+                    var cur = document.createElement('canvas');
+                    cur.width = curW; cur.height = curH;
+                    cur.getContext('2d').drawImage(tmpImg, 0, 0, curW, curH);
+                    while (curW > TARGET_W * 1.4 && curH > TARGET_H * 1.4) {
+                        var nextW = Math.round(curW * 0.7);
+                        var nextH = Math.round(curH * 0.7);
+                        var next = document.createElement('canvas');
+                        next.width = nextW; next.height = nextH;
+                        var ctx = next.getContext('2d');
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.drawImage(cur, 0, 0, nextW, nextH);
+                        cur = next; curW = nextW; curH = nextH;
+                    }
+                    if (curW > TARGET_W) {
+                        var out = document.createElement('canvas');
+                        out.width = TARGET_W; out.height = TARGET_H;
+                        var ctx2 = out.getContext('2d');
+                        ctx2.imageSmoothingEnabled = true;
+                        ctx2.imageSmoothingQuality = 'high';
+                        ctx2.drawImage(cur, 0, 0, TARGET_W, TARGET_H);
+                        callback(out.toDataURL('image/jpeg', 0.96));
+                    } else {
+                        callback(cur.toDataURL('image/jpeg', 0.96));
+                    }
+                };
+                tmpImg.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function _museAddImageClip(file) {
+            if (_museClips.length >= _museGetSlotCount()) { _museToast('Playlist เต็มแล้ว ' + _museClips.length + '/' + _museGetSlotCount()); return; }
+            _museToast('กำลังบีบอัดรูปภาพ...');
+            _museCompressImage(file, function(dataUrl) {
+                var label = file.name.replace(/\.[^.]+$/, '').substring(0, 40) || 'Image';
+                var clip = { type: 'image', src: dataUrl, label: label };
+                _museClips.push(clip);
+                _museSaveCurrentPreset();
+                _museRenderSlots();
+                if (_museEditOpen) _museRenderEditList();
+                _museUpdateAddFooter();
+                _museToast('เพิ่มรูปภาพ ' + _museClips.length + '/' + _museGetSlotCount() + ' แล้ว');
+            });
+        }
+
+        function _museImageFileInput() {
+            var inp = document.getElementById('muse-image-file');
+            if (inp) inp.click();
+        }
+
+        function _museHandleImageFile(input) {
+            if (!input.files || !input.files[0]) return;
+            _museAddImageClip(input.files[0]);
+            input.value = '';
         }
 
         function _museFetchThumbnail(clip, cb) {
@@ -24427,7 +24932,7 @@ ${_clip(contextSections, 2600)}`;
                 if (data && data.duration && !clip.duration) {
                     clip.duration = parseInt(data.duration) || 0;
                 }
-                localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+                _museSaveCurrentPreset();
                 if (cb) cb();
             }).catch(function() { if (cb) cb(); });
         }
@@ -24464,7 +24969,7 @@ ${_clip(contextSections, 2600)}`;
 
                 if (dur > 0) {
                     clip.duration = dur;
-                    localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+                    _museSaveCurrentPreset();
                     if (_museEditOpen) _museRenderEditList();
                 } else {
                     if (btn) { btn.textContent = '⏱ ไม่พบ'; btn.disabled = false; btn.style.opacity = '0.6'; btn.title = 'ไม่พบข้อมูลใน TikTok — กรอกเองได้'; }
@@ -24477,25 +24982,28 @@ ${_clip(contextSections, 2600)}`;
         function _museToggleReplay(idx) {
             if (!_museClips[idx]) return;
             _museClips[idx].replay = !_museClips[idx].replay;
-            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            _museSaveCurrentPreset();
             _museRenderEditList();
+            _museToast(_museClips[idx].replay ? 'Replay เปิด' : 'Replay ปิด');
         }
 
         function _museRemoveClip(idx) {
             if (_musePlayingSlot === idx) { if (_museTimerInterval) { clearInterval(_museTimerInterval); _museTimerInterval = null; } _musePlayingSlot = -1; }
+            var removed = _museClips[idx];
             _museClips.splice(idx, 1);
-            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            _museSaveCurrentPreset();
             _museActiveIdx = _museClips.length > 0 ? Math.min(_museActiveIdx, _museClips.length - 1) : -1;
             _museRenderSlots();
             if (_museEditOpen) _museRenderEditList();
+            _museToast('ลบ ' + (removed && removed.type === 'image' ? 'รูปภาพ' : 'Video') + ' แล้ว — เหลือ ' + _museClips.length + '/' + _museGetSlotCount());
         }
 
         function _museRenameClip(idx, val) {
-            if (_museClips[idx]) { _museClips[idx].label = val; localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips)); }
+            if (_museClips[idx]) { _museClips[idx].label = val; _museSaveCurrentPreset(); }
         }
 
         function _museSetDuration(idx, val) {
-            if (_museClips[idx]) { _museClips[idx].duration = parseInt(val) || 0; localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips)); }
+            if (_museClips[idx]) { _museClips[idx].duration = parseInt(val) || 0; _museSaveCurrentPreset(); }
         }
 
         function _museSetUrl(idx, newUrl) {
@@ -24508,7 +25016,8 @@ ${_clip(contextSections, 2600)}`;
             clip.url = newUrl;
             clip.thumbnail = '';
             clip.duration = 0;
-            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            _museSaveCurrentPreset();
+            _museToast('อัปเดต URL แล้ว');
             _museRenderSlots();
             if (_museEditOpen) _museRenderEditList();
             _museFetchThumbnail(clip, function() {
@@ -24539,7 +25048,7 @@ ${_clip(contextSections, 2600)}`;
         }
 
         function _museDragEnd() {
-            for (var i = 0; i < MUSE_SLOTS; i++) {
+            for (var i = 0; i < _museGetSlotCount(); i++) {
                 var row = document.getElementById('muse-row-' + i);
                 if (row) { row.style.opacity = ''; row.style.outline = ''; }
             }
@@ -24550,7 +25059,7 @@ ${_clip(contextSections, 2600)}`;
             e.preventDefault();
             var src = _museDragSrcIdx;
             _museDragSrcIdx = -1;
-            for (var j = 0; j < MUSE_SLOTS; j++) {
+            for (var j = 0; j < _museGetSlotCount(); j++) {
                 var r = document.getElementById('muse-row-' + j);
                 if (r) { r.style.opacity = ''; r.style.outline = ''; }
             }
@@ -24560,7 +25069,7 @@ ${_clip(contextSections, 2600)}`;
             if (_musePlayingSlot === src) _musePlayingSlot = idx;
             else if (src < idx && _musePlayingSlot > src && _musePlayingSlot <= idx) _musePlayingSlot--;
             else if (src > idx && _musePlayingSlot < src && _musePlayingSlot >= idx) _musePlayingSlot++;
-            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            _museSaveCurrentPreset();
             _museRenderSlots();
             if (_museEditOpen) _museRenderEditList();
             _museUpdateAddFooter();
@@ -24593,7 +25102,7 @@ ${_clip(contextSections, 2600)}`;
             if (src < 0 || src >= _museClips.length || destIdx === _musePresetIdx) return;
             var destClips = [];
             try { destClips = JSON.parse(localStorage.getItem(MUSE_PRESET_KEYS[destIdx]) || '[]'); } catch(_) {}
-            if (destClips.length >= MUSE_SLOTS) return; // destination full — silently ignore
+            if (destClips.length >= _museGetSlotCount()) return; // destination full — silently ignore
             var moved = _museClips.splice(src, 1)[0];
             destClips.push(moved);
             if (_musePlayingSlot === src) {
@@ -24602,8 +25111,9 @@ ${_clip(contextSections, 2600)}`;
             } else if (_musePlayingSlot > src) {
                 _musePlayingSlot--;
             }
-            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            _museSaveCurrentPreset();
             localStorage.setItem(MUSE_PRESET_KEYS[destIdx], JSON.stringify(destClips));
+            _museToast('ย้ายรายการไป Playlist ' + ['A','B','C','D','E','F'][destIdx] + ' แล้ว');
             _museRenderSlots();
             if (_museEditOpen) { _museRenderPresetTabs(); _museRenderEditList(); }
             _museUpdateAddFooter();
@@ -24614,10 +25124,11 @@ ${_clip(contextSections, 2600)}`;
             var input = document.getElementById('muse-url-input');
             var btn = document.getElementById('muse-add-btn');
             var counter = document.getElementById('muse-clip-count');
-            var atMax = _museClips.length >= MUSE_SLOTS;
+            var imgBtn = document.getElementById('muse-image-file');
+            var atMax = _museClips.length >= _museGetSlotCount();
             if (input) {
                 input.disabled = atMax;
-                input.placeholder = atMax ? 'Playlist เต็มแล้ว (5/5) — ลบคลิปก่อนเพื่อเพิ่มใหม่' : 'วาง TikTok URL — https://www.tiktok.com/@user/video/...';
+                input.placeholder = atMax ? 'Playlist เต็มแล้ว (' + _museGetSlotCount() + '/' + _museGetSlotCount() + ') — ลบคลิปก่อนเพื่อเพิ่มใหม่' : 'วาง TikTok URL — https://www.tiktok.com/@user/video/...';
                 input.style.opacity = atMax ? '0.45' : '';
             }
             if (btn) {
@@ -24625,11 +25136,16 @@ ${_clip(contextSections, 2600)}`;
                 btn.style.opacity = atMax ? '0.4' : '';
                 btn.style.cursor = atMax ? 'not-allowed' : '';
             }
-            if (counter) counter.textContent = _museClips.length + '/' + MUSE_SLOTS;
+            if (imgBtn && imgBtn.previousElementSibling) {
+                imgBtn.previousElementSibling.disabled = atMax;
+                imgBtn.previousElementSibling.style.opacity = atMax ? '0.4' : '';
+                imgBtn.previousElementSibling.style.cursor = atMax ? 'not-allowed' : '';
+            }
+            if (counter) counter.textContent = _museClips.length + '/' + _museGetSlotCount();
         }
 
         function _museGetPws() {
-            try { return JSON.parse(localStorage.getItem('ps_muse_pws') || '[null,null,null]'); } catch(e) { return [null,null,null]; }
+            try { var _p = JSON.parse(localStorage.getItem('ps_muse_pws') || '[]'); while (_p.length < MUSE_PRESET_KEYS.length) _p.push(null); return _p; } catch(e) { return MUSE_PRESET_KEYS.map(function() { return null; }); }
         }
 
         function _museSavePws(pws) {
@@ -24643,7 +25159,7 @@ ${_clip(contextSections, 2600)}`;
             var label = document.getElementById('muse-pw-label');
             var input = document.getElementById('muse-pw-input');
             var err = document.getElementById('muse-pw-err');
-            if (label) label.textContent = 'Playlist ' + ['A','B','C'][idx] + ' ถูกล็อก';
+            if (label) label.textContent = 'Playlist ' + ['A','B','C','D','E','F'][idx] + ' ถูกล็อก';
             if (err) err.style.display = 'none';
             if (input) input.value = '';
             if (overlay) overlay.style.display = 'flex';
@@ -24681,17 +25197,20 @@ ${_clip(contextSections, 2600)}`;
             if (!btn) return;
             var pws = _museGetPws();
             var locked = !!pws[_musePresetIdx];
-            btn.textContent = locked ? '🔒' : '🔓';
+            btn.innerHTML = locked
+                ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+                : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
             btn.title = locked
-                ? 'Playlist ' + ['A','B','C'][_musePresetIdx] + ' — คลิกเพื่อลบ password'
-                : 'คลิกเพื่อตั้ง password สำหรับ Playlist ' + ['A','B','C'][_musePresetIdx];
+                ? 'Playlist ' + ['A','B','C','D','E','F'][_musePresetIdx] + ' — คลิกเพื่อลบ password'
+                : 'คลิกเพื่อตั้ง password สำหรับ Playlist ' + ['A','B','C','D','E','F'][_musePresetIdx];
             btn.style.borderColor = locked ? 'rgba(255,180,0,0.4)' : '';
+            btn.style.color = locked ? 'rgba(255,180,0,0.85)' : '';
         }
 
         async function _museToggleLock() {
             var pws = _museGetPws();
             var idx = _musePresetIdx;
-            var label = ['A','B','C'][idx];
+            var label = ['A','B','C','D','E','F'][idx];
             // Hide MUSE modal while password dialog is open to avoid double-layer visual
             var museBackdrop = document.getElementById('muse-modal-backdrop');
             if (museBackdrop) museBackdrop.style.display = 'none';
@@ -24716,12 +25235,15 @@ ${_clip(contextSections, 2600)}`;
             _museSavePws(pws);
             _museRenderPresetTabs();
             _museUpdateLockBtn();
+            _museToast(pws[idx] === null ? 'ลบ Password Playlist ' + label + ' แล้ว' : 'ตั้ง Password Playlist ' + label + ' แล้ว');
         }
 
         function _museShuffle() {
             if (_museClips.length < 2) return;
             var next; do { next = Math.floor(Math.random() * _museClips.length); } while (next === _museActiveIdx);
             _museSlotClick(next);
+            var c = _museClips[next];
+            _museToast('▶ ' + (c ? c.label || (c.type === 'image' ? 'รูปภาพ ' + (next + 1) : 'Video ' + (next + 1)) : 'รายการ ' + (next + 1)));
         }
 
         function _pillsGetHidden() {
@@ -26182,6 +26704,7 @@ ${_clip(contextSections, 2600)}`;
             }
             _psPresetIdx = idx;
             localStorage.setItem('ps_profile_preset_idx', String(idx));
+            if (typeof _pushToGist === 'function') _pushToGist(true);
             _psPresetApply(_psPresets[idx]);
             _psPresetsRenderDots();
             _psRefreshEditPanel();
@@ -26230,6 +26753,7 @@ ${_clip(contextSections, 2600)}`;
             _psPresets.push(newP);
             _psPresetIdx = _psPresets.length - 1;
             _psPresetsSave();
+            if (typeof _pushToGist === 'function') _pushToGist(true);
             _psPresetApply(newP);
             _psPresetsRenderDots();
             const nameInput = document.getElementById('profile-preset-name');
@@ -26276,6 +26800,7 @@ ${_clip(contextSections, 2600)}`;
             }
             _psPresetIdx = newIdx;
             _psPresetsSave();
+            if (typeof _pushToGist === 'function') _pushToGist(true);
             _psPresetApply(_psPresets[_psPresetIdx]);
             _psPresetsRenderDots();
             _psRefreshEditPanel();
@@ -26399,6 +26924,7 @@ ${_clip(contextSections, 2600)}`;
                 if (btn) btn.textContent = '🔒';
             }
             _psPresetsSave();
+            if (typeof _pushToGist === 'function') _pushToGist(true);
             _psPresetsRenderDots();
         }
 
@@ -26733,18 +27259,32 @@ ${_clip(contextSections, 2600)}`;
                     if (data.museData) {
                         const md = data.museData;
                         if (Array.isArray(md.presets)) {
-                            for (let i = 0; i < 3; i++) {
-                                try { localStorage.setItem(MUSE_PRESET_KEYS[i], JSON.stringify(Array.isArray(md.presets[i]) ? md.presets[i] : [])); } catch(e) {}
+                            for (let i = 0; i < MUSE_PRESET_KEYS.length; i++) {
+                                const presetData = i < md.presets.length ? md.presets[i] : [];
+                                try { localStorage.setItem(MUSE_PRESET_KEYS[i], JSON.stringify(Array.isArray(presetData) ? presetData : [])); } catch(e) {}
                             }
                         }
-                        if (typeof md.activePresetIdx === 'number') {
+                        if (typeof md.activePresetIdx === 'number' && localStorage.getItem(MUSE_PRESET_IDX_KEY) === null) {
                             try { localStorage.setItem(MUSE_PRESET_IDX_KEY, String(md.activePresetIdx)); } catch(e) {}
                         }
                         if (typeof md.collapsed === 'boolean' && localStorage.getItem(MUSE_COLLAPSED_KEY) === null) {
                             try { localStorage.setItem(MUSE_COLLAPSED_KEY, md.collapsed ? '1' : '0'); } catch(e) {}
                         }
                         if (Array.isArray(md.passwordHashes)) {
+                            while (md.passwordHashes.length < MUSE_PRESET_KEYS.length) md.passwordHashes.push(null);
                             try { localStorage.setItem('ps_muse_pws', JSON.stringify(md.passwordHashes)); } catch(e) {}
+                        }
+                        if (typeof md.layoutMode === 'number' && localStorage.getItem(MUSE_LAYOUT_KEY) === null) {
+                            _museLayoutMode = md.layoutMode;
+                            try { localStorage.setItem(MUSE_LAYOUT_KEY, String(md.layoutMode)); } catch(e) {}
+                        }
+                        if (md.autoRotate && localStorage.getItem(MUSE_AUTOROTATE_KEY) === null) {
+                            _museAutoRotateEnabled = !!md.autoRotate.enabled;
+                            if (Array.isArray(md.autoRotate.durations)) {
+                                _museAutoRotateDurations = md.autoRotate.durations.slice(0, MUSE_PRESET_KEYS.length);
+                                while (_museAutoRotateDurations.length < MUSE_PRESET_KEYS.length) _museAutoRotateDurations.push(30);
+                            }
+                            try { localStorage.setItem(MUSE_AUTOROTATE_KEY, JSON.stringify({ enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations })); } catch(e) {}
                         }
                         // Re-apply if card already initialized (Gist sync on running session)
                         if (_museInited) {
@@ -26773,7 +27313,7 @@ ${_clip(contextSections, 2600)}`;
                         if (Array.isArray(pp.presets) && pp.presets.length > 0) {
                             try { localStorage.setItem('ps_profile_presets', JSON.stringify(pp.presets)); } catch(e) {}
                         }
-                        if (typeof pp.activeIdx === 'number') {
+                        if (typeof pp.activeIdx === 'number' && localStorage.getItem('ps_profile_preset_idx') === null) {
                             try { localStorage.setItem('ps_profile_preset_idx', String(pp.activeIdx)); } catch(e) {}
                         }
                         // Re-apply if already initialized in this session
@@ -27075,6 +27615,18 @@ ${_clip(contextSections, 2600)}`;
                 },
                 records,
                 watchlist,
+                museData: {
+                    presets: MUSE_PRESET_KEYS.map(function(k) { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch(e) { return []; } }),
+                    activePresetIdx: parseInt(localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0', 10) || 0,
+                    collapsed: localStorage.getItem(MUSE_COLLAPSED_KEY) === '1',
+                    passwordHashes: (function() { try { var _p = JSON.parse(localStorage.getItem('ps_muse_pws') || '[]'); while (_p.length < MUSE_PRESET_KEYS.length) _p.push(null); return _p; } catch(e) { return MUSE_PRESET_KEYS.map(function() { return null; }); } })(),
+                    layoutMode: _museLayoutMode,
+                    autoRotate: { enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations },
+                },
+                profilePresets: {
+                    presets:   (function() { try { return JSON.parse(localStorage.getItem('ps_profile_presets') || '[]'); } catch(e) { return []; } })(),
+                    activeIdx: parseInt(localStorage.getItem('ps_profile_preset_idx') || '0', 10) || 0,
+                },
                 movementCache: { version: 5, ts: Date.now(), data: _collectSparklineCacheData() },
                 logoDataCache: _collectLogoDataCacheData(),
                 symbolLogoCache: _collectSymbolLogoCacheData(),
@@ -27166,6 +27718,54 @@ ${_clip(contextSections, 2600)}`;
                             if (pc.pillsHidden) { try { localStorage.setItem('ps_profile_pills_hidden', pc.pillsHidden); } catch(e) {} }
                             if (pc.pinnedWl)    { try { localStorage.setItem('ps_pinned_wl', pc.pinnedWl); } catch(e) {} }
                             _loadProfileCard();
+                        }
+                        // Muse Card: all 6 presets, settings, re-apply UI
+                        if (data.museData) {
+                            const md = data.museData;
+                            if (Array.isArray(md.presets)) {
+                                for (let i = 0; i < MUSE_PRESET_KEYS.length; i++) {
+                                    const pd = i < md.presets.length ? md.presets[i] : [];
+                                    try { localStorage.setItem(MUSE_PRESET_KEYS[i], JSON.stringify(Array.isArray(pd) ? pd : [])); } catch(e) {}
+                                }
+                            }
+                            if (typeof md.activePresetIdx === 'number') try { localStorage.setItem(MUSE_PRESET_IDX_KEY, String(md.activePresetIdx)); } catch(e) {}
+                            if (typeof md.collapsed === 'boolean') try { localStorage.setItem(MUSE_COLLAPSED_KEY, md.collapsed ? '1' : '0'); } catch(e) {}
+                            if (Array.isArray(md.passwordHashes)) {
+                                while (md.passwordHashes.length < MUSE_PRESET_KEYS.length) md.passwordHashes.push(null);
+                                try { localStorage.setItem('ps_muse_pws', JSON.stringify(md.passwordHashes)); } catch(e) {}
+                            }
+                            if (typeof md.layoutMode === 'number') { _museLayoutMode = md.layoutMode; try { localStorage.setItem(MUSE_LAYOUT_KEY, String(md.layoutMode)); } catch(e) {} }
+                            if (md.autoRotate) {
+                                _museAutoRotateEnabled = !!md.autoRotate.enabled;
+                                if (Array.isArray(md.autoRotate.durations)) {
+                                    _museAutoRotateDurations = md.autoRotate.durations.slice(0, MUSE_PRESET_KEYS.length);
+                                    while (_museAutoRotateDurations.length < MUSE_PRESET_KEYS.length) _museAutoRotateDurations.push(30);
+                                }
+                                try { localStorage.setItem(MUSE_AUTOROTATE_KEY, JSON.stringify({ enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations })); } catch(e) {}
+                            }
+                            if (_museInited) {
+                                _musePresetIdx = parseInt(localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0') || 0;
+                                try { _museClips = JSON.parse(localStorage.getItem(_museCurrentKey()) || '[]'); } catch(_) { _museClips = []; }
+                                _museRenderSlots(); _museApplyLayout(); _museApplyCollapse();
+                            }
+                        }
+                        // Profile Presets: full restore + UI re-apply
+                        if (data.profilePresets) {
+                            const pp = data.profilePresets;
+                            if (Array.isArray(pp.presets) && pp.presets.length > 0) try { localStorage.setItem('ps_profile_presets', JSON.stringify(pp.presets)); } catch(e) {}
+                            if (typeof pp.activeIdx === 'number') try { localStorage.setItem('ps_profile_preset_idx', String(pp.activeIdx)); } catch(e) {}
+                            if (typeof _psPresets !== 'undefined' && typeof _psPresetApply === 'function') {
+                                try {
+                                    const _rp = JSON.parse(localStorage.getItem('ps_profile_presets') || '[]');
+                                    if (_rp.length > 0) {
+                                        _psPresets = _rp;
+                                        _psPresetIdx = parseInt(localStorage.getItem('ps_profile_preset_idx') || '0', 10) || 0;
+                                        if (_psPresetIdx >= _psPresets.length) _psPresetIdx = 0;
+                                        _psPresetApply(_psPresets[_psPresetIdx]);
+                                        if (typeof _psPresetsRenderDots === 'function') _psPresetsRenderDots();
+                                    }
+                                } catch(e2) {}
+                            }
                         }
                     } else {
                         alert('ไฟล์ไม่ถูกต้อง'); return;
@@ -27504,6 +28104,24 @@ ${_clip(contextSections, 2600)}`;
                 showGistStatus(hasLocal ? 'LOCAL DATA ✓' : 'LOCAL MODE', hasLocal ? 'text-blue-400' : 'text-gray-400');
             }
 
+            // Helper: load sparklines then hide splash — used by both Gist and no-Gist boot paths
+            function _splashFinalStep() {
+                // Pick up sparkline data that syncFromGist just wrote to localStorage
+                loadSparklineCache({ skipStale: true });
+                // Fetch fresh bars from Alpaca (Approach 2: REST as primary source)
+                _splashStatus('โหลด Sparkline...');
+                var _sp = typeof refreshSparklineForTopSymbols === 'function'
+                    ? refreshSparklineForTopSymbols()
+                    : null;
+                Promise.race([
+                    _sp || Promise.resolve(),
+                    new Promise(function(r) { setTimeout(r, 10000); }) // 10s max
+                ]).then(function() {
+                    _splashStatus('พร้อมใช้งาน ✓');
+                    setTimeout(_hideSplash, 300);
+                });
+            }
+
             if (getGistToken()) {
                 if (savedTab === 'watchlist' && watchlist.length > 0) {
                     watchlist.forEach(sym => {
@@ -27550,13 +28168,9 @@ ${_clip(contextSections, 2600)}`;
                         Promise.race([
                             Promise.all(_logoPromises),
                             new Promise(function(r) { setTimeout(r, 4000); })
-                        ]).then(function() {
-                            _splashStatus('พร้อมใช้งาน ✓');
-                            setTimeout(_hideSplash, 300);
-                        });
+                        ]).then(_splashFinalStep);
                     } else {
-                        _splashStatus('พร้อมใช้งาน ✓');
-                        setTimeout(_hideSplash, 300);
+                        _splashFinalStep();
                     }
                 });
             } else {
@@ -27604,13 +28218,9 @@ ${_clip(contextSections, 2600)}`;
                     Promise.race([
                         Promise.all(_logoPromises2),
                         new Promise(function(r) { setTimeout(r, 4000); })
-                    ]).then(function() {
-                        _splashStatus('พร้อมใช้งาน ✓');
-                        setTimeout(_hideSplash, 300);
-                    });
+                    ]).then(_splashFinalStep);
                 } else {
-                    _splashStatus(records.length > 0 || watchlist.length > 0 ? 'โหลดข้อมูล local แล้ว ✓' : 'พร้อมใช้งาน ✓');
-                    setTimeout(_hideSplash, 300);
+                    _splashFinalStep();
                 }
             }
 
@@ -27790,7 +28400,7 @@ ${_clip(contextSections, 2600)}`;
             );
             const iv = crypto.getRandomValues(new Uint8Array(12));
             const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(plainObj)));
-            const b64 = arr => btoa(String.fromCharCode(...new Uint8Array(arr)));
+            const b64 = arr => { const u = new Uint8Array(arr); let s = ''; for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); };
             return JSON.stringify({ enc: 1, iv: b64(iv), d: b64(ct) });
         }
 
@@ -27844,7 +28454,9 @@ ${_clip(contextSections, 2600)}`;
                     presets: MUSE_PRESET_KEYS.map(function(k) { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch(e) { return []; } }),
                     activePresetIdx: parseInt(localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0', 10) || 0,
                     collapsed: localStorage.getItem(MUSE_COLLAPSED_KEY) === '1',
-                    passwordHashes: (function() { try { return JSON.parse(localStorage.getItem('ps_muse_pws') || '[null,null,null]'); } catch(e) { return [null,null,null]; } })(),
+                    passwordHashes: (function() { try { var _p = JSON.parse(localStorage.getItem('ps_muse_pws') || '[]'); while (_p.length < MUSE_PRESET_KEYS.length) _p.push(null); return _p; } catch(e) { return MUSE_PRESET_KEYS.map(function() { return null; }); } })(),
+                    layoutMode: _museLayoutMode,
+                    autoRotate: { enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations },
                 },
                 profilePresets: {
                     presets:   (function() { try { return JSON.parse(localStorage.getItem('ps_profile_presets') || '[]'); } catch(e) { return []; } })(),
@@ -27886,7 +28498,8 @@ ${_clip(contextSections, 2600)}`;
                     const t = new Date(); const hm = t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
                     showGistStatus('AUTO SAVED ✓ ' + hm, 'text-emerald-400');
                 } else {
-                    showGistStatus('SAVE FAILED ✗', 'text-rose-500');
+                    showGistStatus('SAVE FAILED ✗ (' + res.status + ')', 'text-rose-500');
+                    console.warn('[Gist] SAVE FAILED', res.status, await res.text().catch(()=>''));
                 }
             } catch(e) {
                 if (!silent) showGistStatus('OFFLINE — saved locally', 'text-amber-400');
@@ -27971,7 +28584,7 @@ ${_clip(contextSections, 2600)}`;
                 + '|' + (localStorage.getItem('ps_muse_pws') || '');
             const psPresetsHash = (localStorage.getItem('ps_profile_presets') || '').length
                 + '|' + (localStorage.getItem('ps_profile_preset_idx') || '0');
-            return rHash + '::wl:' + watchlist.join(',') + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash + '::muse:' + museHash + '::psp:' + psPresetsHash;
+            return rHash + '::wl:' + watchlist.join(',') + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash + '::muse:' + museHash + '::psp:' + psPresetsHash + '::ml:' + _museLayoutMode + '::ar:' + _museAutoRotateEnabled + ':' + _museAutoRotateDurations.join(',');
         }
         setInterval(() => {
             if (!getGistToken()) return;
@@ -29043,8 +29656,9 @@ ${_clip(contextSections, 2600)}`;
         }
         window._hideSplash   = _hideSplash;
         window._splashStatus = _splashStatus;
-        // Fallback: hide after 7s in case any path fails to call _hideSplash
-        setTimeout(_hideSplash, 7000);
+        // Fallback: hide after 20s in case any path fails to call _hideSplash
+        // 20s accounts for: Gist sync (~3s) + logos (~2s) + sparkline fetch (~10s) = ~15s max
+        setTimeout(_hideSplash, 20000);
     })();
     </script>
 
