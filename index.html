@@ -27341,6 +27341,11 @@ ${_clip(contextSections, 2600)}`;
                 showGistStatus('⚠ เปิดจาก file:// — ต้อง host บน https://', 'text-amber-400');
                 return;
             }
+            // Block if initial Gist sync is still running — data not fully loaded yet
+            if (_isSyncing) {
+                showGistStatus('กำลัง SYNC อยู่ — รอสักครู่', 'text-amber-400');
+                return;
+            }
             // Rate-limit guard: respect the same cooldown as _pushToGist
             const now = Date.now();
             const elapsed = now - _lastGistPushTime;
