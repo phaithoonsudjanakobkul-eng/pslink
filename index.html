@@ -27480,16 +27480,22 @@ ${_clip(contextSections, 2600)}`;
                 } else {
                     if (Array.isArray(data.records)) {
                         if (isInitialLoad) {
-                            // Merge: keep months that exist locally but not in Gist.
-                            // Handles importRecordsOnly push being deferred/rate-gated before a refresh.
-                            const _localRecRaw = localStorage.getItem('ps_records');
-                            const _localRec = _localRecRaw ? (() => { try { return JSON.parse(_localRecRaw); } catch(e) { return []; } })() : [];
-                            const _gistIds = new Set(data.records.map(r => r && r.id));
-                            const _extraRec = Array.isArray(_localRec) ? _localRec.filter(r => r && r.id && !_gistIds.has(r.id)) : [];
-                            if (_extraRec.length > 0) {
-                                records = [...data.records, ..._extraRec];
-                                _wlMergedExtras = true; // force push so Gist gets the merged months
-                                console.log('[Gist] Merged', _extraRec.length, 'local-only record month(s):', _extraRec.map(r => r.id));
+                            // Only merge local-only months if this device has synced Gist before.
+                            // Fresh device/origin (ps_gist_sync_ts absent) → use Gist directly;
+                            // merging stale localStorage from an old session would push zombie data back.
+                            const _hasSyncHistory = !!localStorage.getItem('ps_gist_sync_ts');
+                            if (_hasSyncHistory) {
+                                const _localRecRaw = localStorage.getItem('ps_records');
+                                const _localRec = _localRecRaw ? (() => { try { return JSON.parse(_localRecRaw); } catch(e) { return []; } })() : [];
+                                const _gistIds = new Set(data.records.map(r => r && r.id));
+                                const _extraRec = Array.isArray(_localRec) ? _localRec.filter(r => r && r.id && !_gistIds.has(r.id)) : [];
+                                if (_extraRec.length > 0) {
+                                    records = [...data.records, ..._extraRec];
+                                    _wlMergedExtras = true;
+                                    console.log('[Gist] Merged', _extraRec.length, 'local-only record month(s):', _extraRec.map(r => r.id));
+                                } else {
+                                    records = data.records;
+                                }
                             } else {
                                 records = data.records;
                             }
@@ -27499,18 +27505,21 @@ ${_clip(contextSections, 2600)}`;
                     }
                     if (Array.isArray(data.watchlist) && !hasLocalChanges) {
                         if (isInitialLoad) {
-                            // Merge: keep any stocks that were saved locally but not yet pushed to Gist.
-                            // Handles the case where a push was deferred/failed and the page was refreshed —
-                            // without this, the orphaned localStorage stocks are silently lost because
-                            // _lastSavedHash is set to match the Gist state after sync.
-                            const _localWlRaw = localStorage.getItem('ps_watchlist');
-                            const _localWl = _localWlRaw ? (() => { try { return JSON.parse(_localWlRaw); } catch(e) { return []; } })() : [];
-                            const _gistSet = new Set(data.watchlist);
-                            const _extras = Array.isArray(_localWl) ? _localWl.filter(s => typeof s === 'string' && !_gistSet.has(s)) : [];
-                            if (_extras.length > 0) {
-                                watchlist = [...data.watchlist, ..._extras];
-                                _wlMergedExtras = true; // will force a push below so Gist gets the merged data
-                                console.log('[Gist] Merged', _extras.length, 'local-only stock(s) into watchlist:', _extras);
+                            // Only merge local-only stocks if this device has synced Gist before.
+                            // Fresh device/origin → use Gist directly to avoid pushing stale localStorage back.
+                            const _hasSyncHistoryWl = !!localStorage.getItem('ps_gist_sync_ts');
+                            if (_hasSyncHistoryWl) {
+                                const _localWlRaw = localStorage.getItem('ps_watchlist');
+                                const _localWl = _localWlRaw ? (() => { try { return JSON.parse(_localWlRaw); } catch(e) { return []; } })() : [];
+                                const _gistSet = new Set(data.watchlist);
+                                const _extras = Array.isArray(_localWl) ? _localWl.filter(s => typeof s === 'string' && !_gistSet.has(s)) : [];
+                                if (_extras.length > 0) {
+                                    watchlist = [...data.watchlist, ..._extras];
+                                    _wlMergedExtras = true;
+                                    console.log('[Gist] Merged', _extras.length, 'local-only stock(s) into watchlist:', _extras);
+                                } else {
+                                    watchlist = data.watchlist;
+                                }
                             } else {
                                 watchlist = data.watchlist;
                             }
@@ -27773,6 +27782,7 @@ ${_clip(contextSections, 2600)}`;
                 } else {
                     _lastSavedHash = _dataHash();
                 }
+                try { localStorage.setItem('ps_gist_sync_ts', String(Date.now())); } catch(e) {}
                 showGistStatus('SYNCED ✓', 'text-emerald-500');
             } catch(e) {
                 console.error('[Gist] syncFromGist error:', e);
