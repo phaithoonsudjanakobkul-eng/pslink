@@ -2033,6 +2033,25 @@
         #profile-photo-wrap { height: 100%; min-height: 0; }
         #profile-photo-edit-btn { opacity: 0; pointer-events: none; transition: opacity 0.2s; }
         #profile-photo-wrap:hover #profile-photo-edit-btn { opacity: 1; pointer-events: auto; }
+        /* Muse Card */
+        #muse-btn-row { opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+        #muse-card:hover #muse-btn-row { opacity: 1; pointer-events: auto; }
+        #muse-card.muse-collapsed #muse-btn-row { opacity: 0.75 !important; pointer-events: auto !important; }
+        #muse-card.muse-collapsed #muse-edit-btn,
+        #muse-card.muse-collapsed #muse-preset-btns { opacity: 0; pointer-events: none; }
+        #muse-collapse-btn:hover { background: rgba(10,10,15,0.5) !important; border-color: rgba(255,255,255,0.18) !important; }
+        #muse-edit-btn:hover { background: rgba(0,0,0,0.4) !important; border-color: rgba(255,255,255,0.2) !important; }
+        #muse-slots { transition: opacity 0.15s; }
+        @keyframes museModalIn { from { opacity:0; transform:translate(-50%,-50%) scale(0.96); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
+        @keyframes museBackdropIn { from { opacity:0; } to { opacity:1; } }
+        #muse-modal-backdrop { animation: museBackdropIn 0.18s ease; }
+        #muse-modal { animation: museModalIn 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+        #muse-edit-list::-webkit-scrollbar { width:4px; }
+        #muse-edit-list::-webkit-scrollbar-track { background: transparent; }
+        #muse-edit-list::-webkit-scrollbar-thumb { background: var(--border); border-radius:2px; }
+        .muse-dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.45); cursor: pointer; transition: all 0.15s; background: transparent; flex-shrink: 0; }
+        .muse-dot:hover { border-color: rgba(255,255,255,0.9); }
+        .muse-dot.active { background: white; border-color: white; transform: scale(1.25); }
         /* Desktop: lock grid row height so WL Alerts card cannot stretch beyond profile card */
         #dash-row1 { grid-template-rows: calc(256px + 80px); }
         #profile-wl-console { overflow: hidden; }
@@ -5186,6 +5205,21 @@
     </div>
 
     <!-- Password modal for preset lock/unlock management -->
+    <!-- MUSE playlist password unlock overlay — fully independent fixed overlay, z-index:9100 -->
+    <div id="muse-pw-overlay" style="display:none;position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,0.52);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+        <div style="background:var(--bg-card2);border-radius:20px;border:1px solid var(--border);box-shadow:0 32px 80px rgba(0,0,0,0.55);padding:40px 32px;display:flex;flex-direction:column;align-items:center;gap:14px;width:360px;max-width:calc(100vw - 32px);">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            <div id="muse-pw-label" style="font-size:13px;font-weight:700;color:var(--text-primary);">Playlist A ถูกล็อก</div>
+            <input id="muse-pw-input" type="password" placeholder="ใส่รหัสผ่าน..." maxlength="64" autocomplete="off"
+                onkeydown="if(event.key==='Enter')_musePwConfirm()"
+                style="width:100%;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:13px;padding:0 14px;outline:none;text-align:center;letter-spacing:0.12em;">
+            <div id="muse-pw-err" style="font-size:10px;color:#ef4444;display:none;font-weight:600;">รหัสผ่านไม่ถูกต้อง</div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="_musePwConfirm()" style="height:34px;padding:0 20px;border-radius:9px;background:var(--accent);border:none;cursor:pointer;color:white;font-size:11px;font-weight:700;">ยืนยัน</button>
+                <button onclick="_museHidePwOverlay()" style="height:34px;padding:0 16px;border-radius:9px;background:var(--bg-card);border:1px solid var(--border);cursor:pointer;color:var(--text-dim);font-size:11px;font-weight:600;">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
     <div id="ps-lock-modal" style="display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);align-items:center;justify-content:center;">
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:24px 28px;width:300px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.4);display:flex;flex-direction:column;gap:14px;position:relative;">
             <div style="font-size:13px;font-weight:700;color:var(--text-primary)" id="ps-lock-modal-title">ตั้งรหัสผ่าน</div>
@@ -5391,7 +5425,7 @@
                             <!-- Preset dot indicator — sits in the 16px left gap beside the photo -->
                             <div id="profile-preset-dots"></div>
                             <img id="profilePhotoImg" src="" alt="" style="object-fit:cover;object-position:center top;display:none;position:absolute;inset:0 0 0 16px;width:calc(100% - 16px);height:100%;border-radius:12px 0 0 12px;box-shadow:0 4px 16px rgba(0,0,0,0.18)">
-                            <div id="profilePhotoPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2 cursor-pointer" style="color:var(--text-dim)" onclick="document.getElementById('profilePhotoInput').click()" title="คลิกเพื่ออัปโหลดรูป">
+                            <div id="profilePhotoPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2" style="color:var(--text-dim)">
                                 <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                 <span style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase">อัปโหลดรูป</span>
                             </div>
@@ -5552,6 +5586,70 @@
                                     <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);">Recent</span>
                                     <div id="profile-rte-recent" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;"></div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Muse Card — 5 slots -->
+                <div id="muse-card" class="dash-card" style="overflow:hidden;padding:0;position:relative;">
+                    <div id="muse-slots" style="display:flex;width:100%;gap:2px;align-items:stretch;"></div>
+                    <!-- Button row: [A][B][C] [pencil] [↑ MUSE] -->
+                    <div id="muse-btn-row" style="position:absolute;top:10px;right:10px;z-index:20;display:flex;align-items:center;gap:5px;">
+                        <div id="muse-preset-btns" style="display:flex;gap:3px;align-items:center;"></div>
+                        <button id="muse-edit-btn" onclick="_museToggleEdit()" title="จัดการคลิป"
+                            style="width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);flex-shrink:0;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button id="muse-collapse-btn" onclick="_museToggleCollapse()" title="ซ่อน/แสดง Muse"
+                            style="height:28px;padding:0 10px 0 8px;border-radius:14px;background:rgba(10,10,15,0.28);border:1px solid rgba(255,255,255,0.08);cursor:pointer;display:flex;align-items:center;gap:5px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);flex-shrink:0;">
+                            <svg id="muse-chevron-svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline id="muse-chevron-pts" points="18 15 12 9 6 15"/></svg>
+                            <span style="font-size:9px;font-weight:800;letter-spacing:0.12em;color:rgba(255,255,255,0.38);text-transform:uppercase;line-height:1;">MUSE</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Muse Modal (position:fixed, sits outside layout flow) -->
+                <div id="muse-modal-backdrop" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.48);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);" onclick="if(event.target===this)_museToggleEdit()">
+                    <div id="muse-modal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:540px;max-width:calc(100vw - 32px);max-height:82vh;background:var(--bg-card2);border-radius:20px;border:1px solid var(--border);box-shadow:0 32px 80px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.04);display:flex;flex-direction:column;overflow:hidden;">
+                        <!-- Header -->
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 16px;flex-shrink:0;">
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div style="width:32px;height:32px;border-radius:10px;background:color-mix(in srgb,var(--accent) 15%,transparent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);display:flex;align-items:center;justify-content:center;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><path d="M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM21 16a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                </div>
+                                <div>
+                                    <div style="font-size:14px;font-weight:800;letter-spacing:0.04em;color:var(--text-primary);line-height:1.2;">MUSE</div>
+                                    <div style="font-size:10px;color:var(--text-dim);font-weight:500;line-height:1.2;">Clip Manager</div>
+                                </div>
+                            </div>
+                            <button onclick="_museToggleEdit()" style="width:30px;height:30px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-dim);">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        <!-- Preset + Shuffle row -->
+                        <div style="display:flex;align-items:center;gap:8px;padding:10px 20px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-shrink:0;">
+                            <span style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-dim);text-transform:uppercase;flex-shrink:0;">PLAYLIST</span>
+                            <div id="muse-preset-tabs" style="display:flex;gap:4px;flex:1;"></div>
+                            <button id="muse-lock-btn" onclick="_museToggleLock()" title="ตั้ง/ลบ password สำหรับ playlist นี้" style="width:26px;height:26px;border-radius:7px;background:var(--bg-card);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;transition:background 0.15s,border-color 0.15s;">🔓</button>
+                            <button onclick="_museShuffle()" style="height:26px;padding:0 10px;border-radius:7px;background:var(--bg-card);border:1px solid var(--border);cursor:pointer;font-size:9px;font-weight:700;color:var(--text-secondary);display:flex;align-items:center;gap:5px;flex-shrink:0;letter-spacing:0.04em;">
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+                                Shuffle
+                            </button>
+                        </div>
+                        <!-- Clip list (scrollable) -->
+                        <div id="muse-edit-list" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:6px;min-height:0;"></div>
+                        <!-- Add URL footer -->
+                        <div style="padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                <span style="font-size:10px;color:var(--text-dim);font-weight:600;opacity:0.7;">เพิ่มคลิป</span>
+                                <span id="muse-clip-count" style="font-size:10px;color:var(--text-dim);font-weight:700;opacity:0.6;">0/5</span>
+                            </div>
+                            <div style="display:flex;gap:8px;">
+                                <input id="muse-url-input" type="text" placeholder="วาง TikTok URL — https://www.tiktok.com/@user/video/..." maxlength="512"
+                                    onkeydown="if(event.key==='Enter')_museAddClip()"
+                                    style="flex:1;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:11px;padding:0 12px;outline:none;min-width:0;transition:border-color 0.15s,opacity 0.15s;">
+                                <button id="muse-add-btn" onclick="_museAddClip()" style="height:36px;padding:0 18px;border-radius:9px;background:var(--accent);border:none;cursor:pointer;color:white;font-size:11px;font-weight:700;flex-shrink:0;letter-spacing:0.03em;transition:background 0.2s,opacity 0.15s;">+ Add</button>
                             </div>
                         </div>
                     </div>
@@ -5755,7 +5853,7 @@
                         const rr = await fetch(fileObj.raw_url + '?_=' + Date.now(), { cache: 'no-store' });
                         if (rr.ok) content = await rr.text();
                     }
-                    const data = JSON.parse(content);
+                    const data = await _gistDecrypt(token, content);
 
                     // Immediately restore records/watchlist into memory from already-fetched Gist data
                     // (belt-and-suspenders: syncFromGist below also does this, but if it silently fails
@@ -5781,26 +5879,68 @@
                     }
                     if (btn) { btn.textContent = 'เข้าสู่ Dashboard...'; btn.style.background = '#10b981'; }
 
-                    // Run full syncFromGist to restore everything (records, watchlist, settings, etc.)
-                    // isInitialLoad=true bypasses the race-condition guard so Gist data overwrites empty state
+                    // Re-activate splash BEFORE syncFromGist so its isInitialLoad status messages are visible
+                    const _wzSplash = document.getElementById('ps-splash');
+                    if (_wzSplash) {
+                        const _wzLog = document.getElementById('ps-splash-log');
+                        if (_wzLog) _wzLog.innerHTML = '';
+                        _wzSplash.style.display = 'flex';
+                        _wzSplash.style.opacity = '1';
+                        _wzSplash.style.visibility = 'visible';
+                    }
+
+                    // Run full syncFromGist — its isInitialLoad=true status messages now show in splash
                     await syncFromGist(true);
 
-                    // Mark wizard done + transition to Dashboard
+                    // Mark wizard done + boot dashboard via splash screen
                     localStorage.setItem('ps_wizard_done', '1');
-                    setTimeout(() => {
-                        document.getElementById('empty-state').classList.add('hidden');
-                        showTab('dashboard', false, true);
-                        if (typeof loadDashboard === 'function') loadDashboard();
-                        if (typeof initSettings === 'function') initSettings();
-                        if (typeof updateSettingsBadges === 'function') updateSettingsBadges();
-                        // Connect WS + refresh if keys available
-                        if (isMarketOpen() && getAlpacaKey() && getAlpacaSecret()) {
-                            connectWs(); _startWsWatchdog();
-                        }
+                    _splashStatus('กำลังโหลด Dashboard...');
+
+                    // Render dashboard behind splash
+                    document.getElementById('empty-state').classList.add('hidden');
+                    _dashboardDirty = true;
+                    showTab('dashboard', false, true);
+                    if (typeof initSettings === 'function') initSettings();
+                    if (typeof updateSettingsBadges === 'function') updateSettingsBadges();
+                    if (isMarketOpen() && getAlpacaKey() && getAlpacaSecret()) {
+                        connectWs(); _startWsWatchdog();
+                    }
+
+                    // Load market data + preload logos then reveal dashboard
+                    (async () => {
                         if (getFinnhubKey() || (getAlpacaKey() && getAlpacaSecret())) {
-                            refreshWatchlist().then(() => refreshSparklineForTopSymbols());
+                            _splashStatus('กำลังโหลดข้อมูลตลาด...');
+                            try {
+                                await refreshWatchlist();
+                                await refreshSparklineForTopSymbols();
+                            } catch (_) {}
                         }
-                    }, 800);
+                        // Preload all watchlist logos before revealing — same as normal startup
+                        const _FHLOGO = 'https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/';
+                        const _logoPromises = [];
+                        watchlist.forEach(function(sym) {
+                            const url = wlDataCache[sym]?.logo || profileCache[sym]?.logo || (_FHLOGO + sym + '.png');
+                            const existing = logoCache[url];
+                            if (existing && existing.complete && existing.naturalWidth > 0) return;
+                            const p = new Promise(function(resolve) {
+                                const img = new Image();
+                                img.onload = function() { logoCache[url] = img; resolve(); };
+                                img.onerror = function() { resolve(); };
+                                logoCache[url] = img;
+                                img.src = url;
+                            });
+                            _logoPromises.push(p);
+                        });
+                        if (_logoPromises.length > 0) {
+                            _splashStatus('โหลด Logo ' + _logoPromises.length + '/' + watchlist.length + ' หุ้น...');
+                            await Promise.race([
+                                Promise.all(_logoPromises),
+                                new Promise(r => setTimeout(r, 4000))
+                            ]);
+                        }
+                        _splashStatus('พร้อมใช้งาน ✓');
+                        setTimeout(_hideSplash, 400);
+                    })();
 
                 } catch(e) {
                     if (statusEl) { statusEl.textContent = (e.message || 'Error').slice(0, 50); statusEl.style.color = '#f43f5e'; }
@@ -12657,14 +12797,14 @@
         const logoDataUrlCache = {}; // url -> data URL (strong cache for NEWS re-renders)
         const logoDataInflight = {}; // url -> Promise
         const logoDataMeta = {}; // url -> last-used timestamp
-        const LOGO_DATA_CACHE_KEY = 'ps_logo_data_cache_v5';
+        const LOGO_DATA_CACHE_KEY = 'ps_logo_data_cache_v6';
         const LOGO_DATA_CACHE_MAX_ITEMS = 120;
         const LOGO_DATA_CACHE_MAX_ITEM_LEN = 120 * 1024;
         const LOGO_DATA_CACHE_MAX_TOTAL_LEN = 900 * 1024;
         const LOGO_DATA_CACHE_TTL_MS = 45 * 24 * 60 * 60 * 1000;
         const symbolLogoDataCache = {}; // sym -> data URL for instant NEWS logo after F5
         const symbolLogoMeta = {}; // sym -> last-used timestamp
-        const SYMBOL_LOGO_CACHE_KEY = 'ps_symbol_logo_cache_v4';
+        const SYMBOL_LOGO_CACHE_KEY = 'ps_symbol_logo_cache_v5';
         const SYMBOL_LOGO_CACHE_MAX_ITEMS = 120;
         const SYMBOL_LOGO_CACHE_MAX_ITEM_LEN = 110 * 1024;
         const SYMBOL_LOGO_CACHE_MAX_TOTAL_LEN = 700 * 1024;
@@ -12712,7 +12852,7 @@
                 items[url] = dataUrl;
                 total += dataUrl.length;
             }
-            return { version: 11, ts: Date.now(), items };
+            return { version: 12, ts: Date.now(), items };
         }
         function _saveLogoDataCacheLocal(immediate = false) {
             const run = () => {
@@ -12741,7 +12881,7 @@
         }
         function _applyLogoDataCacheData(payload, { persistLocal = false } = {}) {
             try {
-                if (!payload || (payload.version || 0) < 11) return;
+                if (!payload || (payload.version || 0) < 12) return;
                 const srcItems = (payload && payload.items && typeof payload.items === 'object')
                     ? payload.items
                     : (payload && typeof payload === 'object' ? payload : {});
@@ -12768,11 +12908,11 @@
                 items[sym] = dataUrl;
                 total += dataUrl.length;
             }
-            return { version: 11, ts: Date.now(), items };
+            return { version: 12, ts: Date.now(), items };
         }
         function _applySymbolLogoCacheData(payload, { persistLocal = false } = {}) {
             try {
-                if (!payload || (payload.version || 0) < 11) return;
+                if (!payload || (payload.version || 0) < 12) return;
                 const srcItems = (payload && payload.items && typeof payload.items === 'object')
                     ? payload.items
                     : (payload && typeof payload === 'object' ? payload : {});
@@ -12883,19 +13023,22 @@
                     resolve();
                 };
                 img.onerror = function() {
-                    // CORS blocked — use images.weserv.nl (trim whitespace + resize + CORS)
+                    // CORS blocked — use images.weserv.nl (resize only, preserve original background)
                     var proxy = new Image();
                     proxy.crossOrigin = 'anonymous';
                     proxy.onload = function() {
                         try {
-                            var dataUrl = _imgToDataUrl(proxy);
+                            var c = document.createElement('canvas');
+                            c.width = 128; c.height = 128;
+                            c.getContext('2d').drawImage(proxy, 0, 0, 128, 128);
+                            var dataUrl = c.toDataURL('image/png');
                             if (dataUrl) { logoDataUrlCache[url] = dataUrl; _touchLogoDataUsage(url); _saveLogoDataCacheLocal(false); }
                         } catch(e) {}
                         resolve();
                     };
                     proxy.onerror = function() { resolve(); };
                     var cleanUrl = url.replace(/^https?:\/\//, '');
-                    proxy.src = 'https://images.weserv.nl/?url=' + encodeURIComponent(cleanUrl) + '&w=128&h=128&fit=contain&trim=10&cbg=white&output=png';
+                    proxy.src = 'https://images.weserv.nl/?url=' + encodeURIComponent(cleanUrl) + '&w=128&h=128&fit=contain&output=png';
                 };
                 img.src = url;
             }).finally(function() { delete logoDataInflight[url]; });
@@ -23826,7 +23969,7 @@ ${_clip(contextSections, 2600)}`;
             const editBtn = document.getElementById('profile-photo-edit-btn');
             if (cardImg) { cardImg.src = ''; cardImg.style.display = 'none'; }
             if (cardPh) cardPh.style.display = '';
-            if (editBtn) editBtn.style.display = 'none';
+            if (editBtn) editBtn.style.display = 'flex';
         }
 
         // ── Profile Card ──────────────────────────────────────────────────────
@@ -23871,6 +24014,714 @@ ${_clip(contextSections, 2600)}`;
             } catch(_) {}
             _profileImgLayerSetEditable(isEditing);
             _renderProfilePills();
+            _initMuseCard();
+        }
+
+        // ── Muse Card ────────────────────────────────────────────────────────
+        const MUSE_KEY = 'ps_muse_clips'; // legacy key (migrated to preset A on first load)
+        const MUSE_PRESET_KEYS = ['ps_muse_clips_a', 'ps_muse_clips_b', 'ps_muse_clips_c'];
+        const MUSE_PRESET_IDX_KEY = 'ps_muse_preset_idx';
+        const MUSE_COLLAPSED_KEY = 'ps_muse_collapsed';
+        const MUSE_SLOTS = 5;
+        var _museClips = [];
+        var _museActiveIdx = -1;
+        var _museInited = false;
+        var _museEditOpen = false;
+        var _museTimerInterval = null;
+        var _museTimerRemaining = 0;
+        var _musePlayingSlot = -1;
+        var _musePresetIdx = 0;
+        var _museCollapsed = false;
+        var _museDragSrcIdx = -1;
+        var _museUnlockedPresets = new Set();
+        var _musePwTarget = -1;
+        var _musePwOpenedBackdrop = false;
+        function _museCurrentKey() { return MUSE_PRESET_KEYS[_musePresetIdx] || MUSE_PRESET_KEYS[0]; }
+
+        function _initMuseCard() {
+            if (_museInited) return;
+            _museInited = true;
+            _musePresetIdx = parseInt(localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0') || 0;
+            _museCollapsed = localStorage.getItem(MUSE_COLLAPSED_KEY) === '1';
+            // Migrate legacy key → preset A on first load
+            if (!localStorage.getItem(MUSE_PRESET_KEYS[0]) && localStorage.getItem(MUSE_KEY)) {
+                localStorage.setItem(MUSE_PRESET_KEYS[0], localStorage.getItem(MUSE_KEY));
+            }
+            // If active preset is password-protected, auto-switch to first unlocked preset
+            var _initPws = _museGetPws();
+            if (_initPws[_musePresetIdx]) {
+                for (var _fi = 0; _fi < MUSE_PRESET_KEYS.length; _fi++) {
+                    if (!_initPws[_fi]) { _musePresetIdx = _fi; break; }
+                }
+                // If ALL presets are locked, stay on current with empty clips
+                if (_initPws[_musePresetIdx]) { _museClips = []; }
+            }
+            if (!_initPws[_musePresetIdx]) {
+                try { _museClips = JSON.parse(localStorage.getItem(_museCurrentKey()) || '[]'); } catch(_) { _museClips = []; }
+                _museClips.forEach(function(c) {
+                    if (!c.hasOwnProperty('duration')) c.duration = 0;
+                    if (!c.hasOwnProperty('thumbnail')) c.thumbnail = '';
+                    if (!c.hasOwnProperty('replay')) c.replay = false;
+                });
+            }
+            _museActiveIdx = _museClips.length > 0 ? 0 : -1;
+            _museRenderSlots();
+            _museApplyCollapse();
+            // Fetch missing thumbnails
+            _museClips.forEach(function(c, i) {
+                if (!c.thumbnail) _museFetchThumbnail(c, function() { _museUpdateSlotCover(i); });
+            });
+        }
+
+        function _museParseTikTokId(url) {
+            var m = (url || '').match(/tiktok\.com\/@[^/?#]+\/video\/(\d+)/);
+            return m ? m[1] : null;
+        }
+
+        function _museRenderSlots() {
+            var container = document.getElementById('muse-slots');
+            if (!container) return;
+            var html = '';
+            for (var i = 0; i < MUSE_SLOTS; i++) {
+                var clip = i < _museClips.length ? _museClips[i] : null;
+                if (clip) {
+                    var hasThumbnail = clip.thumbnail && clip.thumbnail.startsWith('http');
+                    html += '<div id="muse-slot-' + i + '" style="flex:1;aspect-ratio:9/16;position:relative;background:#111;overflow:hidden;cursor:pointer;" onclick="_museSlotClick(' + i + ')">'
+                        + '<iframe id="muse-iframe-' + i + '" src="about:blank" frameborder="0" scrolling="no" allow="autoplay;clipboard-write;encrypted-media;picture-in-picture;web-share" allowfullscreen style="display:none;position:absolute;top:0;left:0;width:325px;height:578px;border:none;transform-origin:top left;"></iframe>'
+                        + '<div id="muse-cover-' + i + '" style="position:absolute;inset:0;">'
+                        + (hasThumbnail ? '<img src="' + clip.thumbnail + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">' : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><svg width="28" height="28" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM21 16a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>')
+                        + '<div style="position:absolute;bottom:8px;left:8px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);"><svg width="8" height="8" viewBox="0 0 24 24" fill="rgba(255,255,255,0.8)" stroke="none"><polygon points="7,4 20,12 7,20"/></svg></div>'
+                        + '</div>'
+                        + '<div id="muse-timer-' + i + '" style="display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.55);color:white;font-size:10px;font-weight:700;font-family:monospace;padding:2px 8px;border-radius:10px;z-index:10;backdrop-filter:blur(4px);white-space:nowrap;letter-spacing:0.05em;"></div>'
+                        + '</div>';
+                } else {
+                    html += '<div style="flex:1;aspect-ratio:9/16;position:relative;background:color-mix(in srgb,var(--bg-card2) 60%,#000 40%);overflow:hidden;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,0.04);">'
+                        + '<span style="color:rgba(255,255,255,0.1);font-size:22px;font-weight:200;line-height:1;">+</span>'
+                        + '</div>';
+                }
+            }
+            container.innerHTML = html;
+            // Scale all iframes
+            for (var j = 0; j < Math.min(MUSE_SLOTS, _museClips.length); j++) {
+                _museScaleSlotIframe(j);
+            }
+            _museRenderCardPresetBtns();
+        }
+
+        function _museScaleSlotIframe(idx) {
+            requestAnimationFrame(function() {
+                var slot = document.getElementById('muse-slot-' + idx);
+                var iframe = document.getElementById('muse-iframe-' + idx);
+                if (!slot || !iframe) return;
+                var w = slot.offsetWidth;
+                if (w === 0) return;
+                iframe.style.transform = 'scale(' + (w / 325) + ')';
+            });
+        }
+
+        function _museUpdateSlotCover(idx) {
+            var clip = _museClips[idx];
+            if (!clip) return;
+            var cover = document.getElementById('muse-cover-' + idx);
+            if (!cover) return;
+            if (clip.thumbnail && clip.thumbnail.startsWith('http')) {
+                var img = cover.querySelector('img');
+                if (!img) {
+                    img = document.createElement('img');
+                    img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+                    cover.insertBefore(img, cover.firstChild);
+                }
+                img.src = clip.thumbnail;
+                var icon = cover.querySelector('div > svg');
+                if (icon && icon.parentElement) icon.parentElement.style.display = 'none';
+            }
+        }
+
+        function _museSlotClick(idx) {
+            if (idx >= _museClips.length) return;
+            var clip = _museClips[idx];
+            var id = _museParseTikTokId(clip.url);
+            if (!id) return;
+            // Stop previous playing slot
+            if (_musePlayingSlot >= 0 && _musePlayingSlot !== idx) {
+                var oldIframe = document.getElementById('muse-iframe-' + _musePlayingSlot);
+                var oldCover = document.getElementById('muse-cover-' + _musePlayingSlot);
+                var oldTimer = document.getElementById('muse-timer-' + _musePlayingSlot);
+                if (oldIframe) { oldIframe.onload = null; oldIframe.src = 'about:blank'; oldIframe.style.display = 'none'; }
+                if (oldCover) oldCover.style.display = '';
+                if (oldTimer) oldTimer.style.display = 'none';
+            }
+            if (_museTimerInterval) { clearInterval(_museTimerInterval); _museTimerInterval = null; }
+            _museActiveIdx = idx;
+            _musePlayingSlot = idx;
+            // Show iframe, hide cover
+            var iframe = document.getElementById('muse-iframe-' + idx);
+            var cover = document.getElementById('muse-cover-' + idx);
+            if (iframe) {
+                iframe.onload = null; // clear old handler
+                iframe.style.display = 'block';
+                // Set onload BEFORE src to avoid race condition on cached pages
+                if (clip.duration > 0) {
+                    (function(capturedIdx, capturedDur) {
+                        iframe.onload = function() {
+                            iframe.onload = null;
+                            if (_musePlayingSlot === capturedIdx) {
+                                _museStartTimer(capturedDur, capturedIdx);
+                            }
+                        };
+                    })(idx, clip.duration);
+                }
+                iframe.src = 'https://www.tiktok.com/player/v1/' + id + '?autoplay=1&loop=' + (clip.replay ? '1' : '0') + '&music_info=1&description=0&rel=0';
+            }
+            if (cover) cover.style.display = 'none';
+            _museScaleSlotIframe(idx);
+            if (_museEditOpen) _museRenderEditList();
+        }
+
+        function _museStartTimer(secs, slotIdx) {
+            if (_museTimerInterval) clearInterval(_museTimerInterval);
+            _museTimerRemaining = secs;
+            var timerEl = document.getElementById('muse-timer-' + slotIdx);
+            if (timerEl) { timerEl.style.display = 'block'; }
+            _museUpdateTimerDisplay(slotIdx);
+            _museTimerInterval = setInterval(function() {
+                _museTimerRemaining--;
+                _museUpdateTimerDisplay(slotIdx);
+                if (_museTimerRemaining <= 0) {
+                    clearInterval(_museTimerInterval); _museTimerInterval = null;
+                    var iframe = document.getElementById('muse-iframe-' + slotIdx);
+                    var cover = document.getElementById('muse-cover-' + slotIdx);
+                    var timer = document.getElementById('muse-timer-' + slotIdx);
+                    var clip = _museClips[slotIdx];
+                    if (clip && clip.replay) {
+                        // Replay: TikTok handles loop internally (loop=1), just restart timer visual
+                        _museStartTimer(secs, slotIdx);
+                    } else {
+                        // Non-replay: unload iframe, show cover
+                        if (iframe) { iframe.onload = null; iframe.src = 'about:blank'; iframe.style.display = 'none'; }
+                        if (cover) cover.style.display = '';
+                        if (timer) timer.style.display = 'none';
+                        _musePlayingSlot = -1;
+                    }
+                }
+            }, 1000);
+        }
+
+        function _museUpdateTimerDisplay(slotIdx) {
+            var el = document.getElementById('muse-timer-' + slotIdx);
+            if (!el) return;
+            var s = Math.max(0, _museTimerRemaining);
+            var m = Math.floor(s / 60); var ss = s % 60;
+            el.textContent = '↺ ' + m + ':' + (ss < 10 ? '0' : '') + ss;
+        }
+
+        function _museToggleCollapse() {
+            _museCollapsed = !_museCollapsed;
+            localStorage.setItem(MUSE_COLLAPSED_KEY, _museCollapsed ? '1' : '0');
+            _museApplyCollapse();
+        }
+
+        function _museApplyCollapse() {
+            var card = document.getElementById('muse-card');
+            var slots = document.getElementById('muse-slots');
+            var pts = document.getElementById('muse-chevron-pts');
+            if (_museCollapsed) {
+                if (slots) slots.style.display = 'none';
+                if (card) { card.classList.add('muse-collapsed'); card.style.minHeight = '48px'; }
+                if (pts) pts.setAttribute('points', '6 9 12 15 18 9');
+            } else {
+                if (slots) slots.style.display = 'flex';
+                if (card) { card.classList.remove('muse-collapsed'); card.style.minHeight = ''; }
+                if (pts) pts.setAttribute('points', '18 15 12 9 6 15');
+            }
+        }
+
+        function _museLoadPreset(idx) {
+            if (idx < 0 || idx >= MUSE_PRESET_KEYS.length) return;
+            var pws = _museGetPws();
+            if (pws[idx] && !_museUnlockedPresets.has(idx)) {
+                _museShowPwOverlay(idx);
+                return;
+            }
+            _museDoLoadPreset(idx);
+        }
+
+        function _museDoLoadPreset(idx) {
+            if (_museTimerInterval) { clearInterval(_museTimerInterval); _museTimerInterval = null; }
+            _musePlayingSlot = -1;
+            _musePresetIdx = idx;
+            localStorage.setItem(MUSE_PRESET_IDX_KEY, String(idx));
+            try { _museClips = JSON.parse(localStorage.getItem(_museCurrentKey()) || '[]'); } catch(_) { _museClips = []; }
+            _museClips.forEach(function(c) {
+                if (!c.hasOwnProperty('duration')) c.duration = 0;
+                if (!c.hasOwnProperty('thumbnail')) c.thumbnail = '';
+                if (!c.hasOwnProperty('replay')) c.replay = false;
+            });
+            _museActiveIdx = _museClips.length > 0 ? 0 : -1;
+            _museRenderSlots();
+            if (_museEditOpen) { _museRenderPresetTabs(); _museRenderEditList(); _museUpdateAddFooter(); _museUpdateLockBtn(); }
+            _museClips.forEach(function(c, i) {
+                if (!c.thumbnail) _museFetchThumbnail(c, function() { _museUpdateSlotCover(i); });
+            });
+        }
+
+        function _museRenderCardPresetBtns() {
+            var container = document.getElementById('muse-preset-btns');
+            if (!container) return;
+            var pws = _museGetPws();
+            container.innerHTML = ['A','B','C'].map(function(label, i) {
+                var isActive = i === _musePresetIdx;
+                var isLocked = !!(pws[i] && !_museUnlockedPresets.has(i));
+                return '<button onclick="_museLoadPreset(' + i + ')" '
+                    + 'title="Playlist ' + label + (isLocked ? ' — ล็อกอยู่' : '') + '" '
+                    + 'style="width:22px;height:22px;border-radius:5px;'
+                    + 'background:' + (isActive ? 'rgba(120,160,255,0.3)' : 'rgba(0,0,0,0.2)') + ';'
+                    + 'border:1px solid ' + (isActive ? 'rgba(255,255,255,0.3)' : (isLocked ? 'rgba(255,180,0,0.45)' : 'rgba(255,255,255,0.1)')) + ';'
+                    + 'cursor:pointer;font-size:8px;font-weight:800;letter-spacing:0.06em;'
+                    + 'color:' + (isActive ? 'rgba(255,255,255,0.9)' : (isLocked ? 'rgba(255,180,0,0.7)' : 'rgba(255,255,255,0.4)')) + ';'
+                    + 'backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);">'
+                    + label + '</button>';
+            }).join('');
+        }
+
+        function _museRenderPresetTabs() {
+            var container = document.getElementById('muse-preset-tabs');
+            if (!container) return;
+            var pws = _museGetPws();
+            container.innerHTML = ['A', 'B', 'C'].map(function(label, i) {
+                var isActive = i === _musePresetIdx;
+                var isLocked = !!(pws[i] && !_museUnlockedPresets.has(i));
+                var count = 0;
+                try { count = JSON.parse(localStorage.getItem(MUSE_PRESET_KEYS[i]) || '[]').length; } catch(_) {}
+                var dndAttrs = !isActive
+                    ? 'ondragover="_musePresetDragOver(event,' + i + ')" ondrop="_musePresetDrop(event,' + i + ')" ondragleave="_musePresetDragLeave(event)" '
+                    : '';
+                return '<button ' + dndAttrs + 'onclick="_museLoadPreset(' + i + ')" id="muse-tab-' + i + '" style="height:22px;min-width:38px;padding:0 8px;border-radius:5px;'
+                    + 'background:' + (isActive ? 'var(--accent)' : 'var(--bg-card)') + ';'
+                    + 'border:1px solid ' + (isActive ? 'transparent' : (isLocked ? 'rgba(255,180,0,0.4)' : 'var(--border)')) + ';'
+                    + 'cursor:pointer;font-size:9px;font-weight:' + (isActive ? '800' : '600') + ';'
+                    + 'color:' + (isActive ? 'white' : (isLocked ? 'rgba(255,180,0,0.85)' : 'var(--text-dim)')) + ';letter-spacing:0.06em;transition:background 0.15s,border-color 0.15s,box-shadow 0.15s;">'
+                    + label
+                    + (isLocked ? ' <span style="font-size:9px;">🔒</span>' : '')
+                    + (count > 0 ? ' <span style="font-size:8px;opacity:0.7;">(' + count + ')</span>' : '')
+                    + '</button>';
+            }).join('');
+        }
+
+        function _museRenderEditList() {
+            var list = document.getElementById('muse-edit-list');
+            if (!list) return;
+            if (_museClips.length === 0) {
+                list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:24px 0;text-align:center;opacity:0.6;">ยังไม่มีคลิป — วาง TikTok URL ด้านล่าง</div>';
+                return;
+            }
+            list.innerHTML = _museClips.map(function(c, i) {
+                var isPlaying = i === _musePlayingSlot;
+                var dur = c.duration > 0 ? c.duration : '';
+                var hasThumbnail = c.thumbnail && c.thumbnail.startsWith('http');
+                var thumbHtml = hasThumbnail
+                    ? '<img src="' + c.thumbnail + '" style="width:42px;height:42px;object-fit:cover;border-radius:8px;flex-shrink:0;display:block;">'
+                    : '<div style="width:42px;height:42px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+                      + '<svg width="14" height="14" fill="none" stroke="var(--text-dim)" stroke-width="1.5" viewBox="0 0 24 24" stroke-linecap="round"><path d="M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zM21 16a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'
+                      + '</div>';
+                var durLabel = c.duration > 0
+                    ? '<span style="color:color-mix(in srgb,var(--accent) 80%,var(--text-dim));font-weight:700;">⏱ ' + c.duration + ' วิ</span>'
+                    : '<button id="muse-dur-fetch-' + i + '" onclick="_museFetchClipDuration(' + i + ')" title="ตรวจสอบความยาวคลิปจาก TikTok" '
+                      + 'style="background:none;border:none;padding:0;cursor:pointer;font-size:9px;color:var(--text-dim);font-weight:600;opacity:0.7;">⏱ ตรวจสอบ</button>';
+                return '<div id="muse-row-' + i + '" '
+                    + 'ondragover="_museDragOver(event,' + i + ')" '
+                    + 'ondrop="_museDrop(event,' + i + ')" '
+                    + 'ondragleave="_museDragLeave(event)" '
+                    + 'style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;'
+                    + 'background:' + (isPlaying ? 'color-mix(in srgb,var(--accent) 8%,var(--bg-card))' : 'var(--bg-card)') + ';'
+                    + 'border:1px solid ' + (isPlaying ? 'color-mix(in srgb,var(--accent) 22%,transparent)' : 'var(--border)') + ';'
+                    + 'transition:background 0.15s;">'
+                    + '<div draggable="true" ondragstart="_museDragStart(event,' + i + ')" ondragend="_museDragEnd()" '
+                    + 'style="cursor:grab;color:var(--text-dim);opacity:0.35;font-size:14px;flex-shrink:0;user-select:none;padding:0 1px;line-height:1;" '
+                    + 'title="ลากเพื่อเรียงลำดับ">⠿</div>'
+                    + thumbHtml
+                    + '<div style="flex:1;min-width:0;">'
+                    + '<input value="' + c.label.replace(/"/g,'&quot;') + '" oninput="_museRenameClip(' + i + ',this.value)" '
+                    + 'style="width:100%;font-size:12px;font-weight:600;color:var(--text-primary);background:transparent;border:none;outline:none;padding:0;line-height:1.3;">'
+                    + '<div style="display:flex;align-items:center;gap:6px;margin-top:3px;">'
+                    + '<input value="' + c.url.replace(/"/g,'&quot;') + '" '
+                    + 'onblur="_museSetUrl(' + i + ',this.value)" '
+                    + 'onkeydown="if(event.key===\'Enter\'){_museSetUrl(' + i + ',this.value);this.blur();}" '
+                    + 'style="font-size:9px;color:var(--text-dim);background:transparent;border:none;outline:none;flex:1;min-width:0;padding:0;opacity:0.7;" '
+                    + 'title="แก้ไข URL แล้วกด Enter เพื่อบันทึก">'
+                    + '<span style="font-size:9px;flex-shrink:0;">' + durLabel + '</span>'
+                    + '</div>'
+                    + '</div>'
+                    + '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
+                    + '<button onclick="_museToggleReplay(' + i + ')" title="' + (c.replay ? 'Replay ON — คลิกปิด' : 'Replay OFF — คลิกเปิด') + '" '
+                    + 'style="height:28px;padding:0 9px;border-radius:7px;font-size:10px;font-weight:700;letter-spacing:0.04em;cursor:pointer;transition:all 0.15s;white-space:nowrap;'
+                    + (c.replay
+                        ? 'background:color-mix(in srgb,var(--accent) 15%,transparent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent);'
+                        : 'background:var(--bg-card2);border:1px solid var(--border);color:var(--text-dim);')
+                    + '">↺ ' + (c.replay ? 'ON' : 'OFF') + '</button>'
+                    + '<div style="display:flex;align-items:center;gap:3px;" title="ความยาวคลิป (วินาที) — เปิด TikTok เพื่อเช็ค">'
+                    + '<input type="number" min="1" max="3600" value="' + dur + '" placeholder="—" oninput="_museSetDuration(' + i + ',this.value)" '
+                    + 'style="width:52px;height:28px;font-size:11px;padding:0 6px;background:var(--bg-card2);border:1px solid var(--border);border-radius:7px;outline:none;color:var(--text-primary);text-align:center;">'
+                    + '<span style="font-size:9px;color:var(--text-dim);font-weight:600;">วิ</span>'
+                    + '</div>'
+                    + '</div>'
+                    + '<button onclick="_museRemoveClip(' + i + ')" '
+                    + 'style="width:28px;height:28px;background:none;border:1px solid transparent;border-radius:7px;cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;" '
+                    + 'onmouseover="this.style.background=\'color-mix(in srgb,var(--danger,#f23645) 12%,transparent)\';this.style.borderColor=\'color-mix(in srgb,var(--danger,#f23645) 25%,transparent)\';this.style.color=\'var(--danger,#f23645)\'" '
+                    + 'onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\';this.style.color=\'var(--text-dim)\'"'
+                    + ' title="ลบ">×</button>'
+                    + '</div>';
+            }).join('');
+        }
+
+        function _museToggleEdit() {
+            _museEditOpen = !_museEditOpen;
+            var backdrop = document.getElementById('muse-modal-backdrop');
+            if (backdrop) backdrop.style.display = _museEditOpen ? 'block' : 'none';
+            if (_museEditOpen) {
+                _museRenderPresetTabs();
+                _museRenderEditList();
+                _museUpdateAddFooter();
+                _museUpdateLockBtn();
+                // focus URL input for quick add
+                setTimeout(function() { var inp = document.getElementById('muse-url-input'); if (inp && !inp.disabled) inp.focus(); }, 80);
+            }
+        }
+
+        function _museAddClip() {
+            var input = document.getElementById('muse-url-input');
+            if (!input) return;
+            if (_museClips.length >= MUSE_SLOTS) {
+                var addBtn = document.getElementById('muse-add-btn');
+                if (addBtn) { addBtn.style.background = 'var(--danger,#f23645)'; setTimeout(function() { addBtn.style.background = 'var(--accent)'; }, 800); }
+                return;
+            }
+            var url = input.value.trim();
+            if (!url) return;
+            var id = _museParseTikTokId(url);
+            if (!id) {
+                input.style.outline = '2px solid var(--danger,#f23645)';
+                setTimeout(function() { input.style.outline = ''; }, 1500);
+                return;
+            }
+            var label = 'Clip ' + (_museClips.length + 1);
+            var clip = { url: url, label: label, duration: 0, thumbnail: '', replay: false };
+            _museClips.push(clip);
+            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            input.value = '';
+            _museRenderSlots();
+            if (_museEditOpen) _museRenderEditList();
+            _museUpdateAddFooter();
+            var newIdx = _museClips.length - 1;
+            _museFetchThumbnail(clip, function() { _museUpdateSlotCover(newIdx); if (_museEditOpen) _museRenderEditList(); });
+        }
+
+        function _museFetchThumbnail(clip, cb) {
+            var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://www.tiktok.com/oembed?url=' + encodeURIComponent(clip.url));
+            fetch(proxyUrl).then(function(r) { return r.json(); }).then(function(data) {
+                if (data && data.thumbnail_url) {
+                    clip.thumbnail = data.thumbnail_url;
+                    if (data.title && clip.label.match(/^Clip \d+$/)) clip.label = data.title.substring(0, 40);
+                }
+                // Auto-detect duration from oEmbed if not yet set
+                if (data && data.duration && !clip.duration) {
+                    clip.duration = parseInt(data.duration) || 0;
+                }
+                localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+                if (cb) cb();
+            }).catch(function() { if (cb) cb(); });
+        }
+
+        function _museFetchClipDuration(idx) {
+            var clip = _museClips[idx];
+            if (!clip) return;
+            var btn = document.getElementById('muse-dur-fetch-' + idx);
+            if (btn) { btn.textContent = '...'; btn.disabled = true; btn.style.opacity = '0.5'; }
+            var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(clip.url);
+            fetch(proxyUrl).then(function(r) { return r.text(); }).then(function(html) {
+                var dur = 0;
+                // 1. og:video:duration meta tag (various attribute orders)
+                var ogM = html.match(/property="og:video:duration"\s+content="(\d+)"/)
+                    || html.match(/content="(\d+)"\s+property="og:video:duration"/)
+                    || html.match(/property='og:video:duration'\s+content='(\d+)'/);
+                if (ogM) dur = parseInt(ogM[1]);
+                // 2. JSON-LD ISO 8601 PT{N}S / PT{M}M{S}S
+                if (!dur) { var jM = html.match(/"duration":"PT(\d+)S"/); if (jM) dur = parseInt(jM[1]); }
+                if (!dur) { var jM2 = html.match(/"duration":"PT(\d+)M(\d+)S"/); if (jM2) dur = parseInt(jM2[1])*60 + parseInt(jM2[2]); }
+                if (!dur) { var jM3 = html.match(/"duration":"PT(\d+)M"/); if (jM3) dur = parseInt(jM3[1])*60; }
+                // 3. Scan ALL "duration": N in JSON — take first value in valid TikTok range (5–600s)
+                if (!dur) {
+                    var re = /"duration"\s*:\s*(\d+)/g, match;
+                    while ((match = re.exec(html)) !== null) {
+                        var v = parseInt(match[1]);
+                        if (v >= 5 && v <= 600) { dur = v; break; }
+                    }
+                }
+                // 4. durationMs → convert to seconds
+                if (!dur) { var ms = html.match(/"durationMs"\s*:\s*(\d+)/); if (ms) { var s = Math.round(parseInt(ms[1])/1000); if (s >= 5 && s <= 600) dur = s; } }
+                // 5. videoDuration / video_duration
+                if (!dur) { var vd = html.match(/"(?:videoDuration|video_duration)"\s*:\s*(\d+)/); if (vd) { var sv = parseInt(vd[1]); if (sv >= 5 && sv <= 600) dur = sv; } }
+
+                if (dur > 0) {
+                    clip.duration = dur;
+                    localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+                    if (_museEditOpen) _museRenderEditList();
+                } else {
+                    if (btn) { btn.textContent = '⏱ ไม่พบ'; btn.disabled = false; btn.style.opacity = '0.6'; btn.title = 'ไม่พบข้อมูลใน TikTok — กรอกเองได้'; }
+                }
+            }).catch(function() {
+                if (btn) { btn.textContent = '⏱ error'; btn.disabled = false; btn.style.opacity = '0.6'; btn.title = 'เกิดข้อผิดพลาด — ลองใหม่'; }
+            });
+        }
+
+        function _museToggleReplay(idx) {
+            if (!_museClips[idx]) return;
+            _museClips[idx].replay = !_museClips[idx].replay;
+            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            _museRenderEditList();
+        }
+
+        function _museRemoveClip(idx) {
+            if (_musePlayingSlot === idx) { if (_museTimerInterval) { clearInterval(_museTimerInterval); _museTimerInterval = null; } _musePlayingSlot = -1; }
+            _museClips.splice(idx, 1);
+            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            _museActiveIdx = _museClips.length > 0 ? Math.min(_museActiveIdx, _museClips.length - 1) : -1;
+            _museRenderSlots();
+            if (_museEditOpen) _museRenderEditList();
+        }
+
+        function _museRenameClip(idx, val) {
+            if (_museClips[idx]) { _museClips[idx].label = val; localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips)); }
+        }
+
+        function _museSetDuration(idx, val) {
+            if (_museClips[idx]) { _museClips[idx].duration = parseInt(val) || 0; localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips)); }
+        }
+
+        function _museSetUrl(idx, newUrl) {
+            var clip = _museClips[idx];
+            if (!clip) return;
+            newUrl = (newUrl || '').trim();
+            if (!newUrl || newUrl === clip.url) return;
+            var id = _museParseTikTokId(newUrl);
+            if (!id) return;
+            clip.url = newUrl;
+            clip.thumbnail = '';
+            clip.duration = 0;
+            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            _museRenderSlots();
+            if (_museEditOpen) _museRenderEditList();
+            _museFetchThumbnail(clip, function() {
+                var clipIdx = _museClips.indexOf(clip);
+                if (clipIdx >= 0) { _museUpdateSlotCover(clipIdx); if (_museEditOpen) _museRenderEditList(); }
+            });
+        }
+
+        function _museDragStart(e, idx) {
+            _museDragSrcIdx = idx;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', String(idx));
+            setTimeout(function() {
+                var row = document.getElementById('muse-row-' + idx);
+                if (row) row.style.opacity = '0.35';
+            }, 0);
+        }
+
+        function _museDragOver(e, idx) {
+            if (_museDragSrcIdx < 0 || _museDragSrcIdx === idx) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (e.currentTarget) e.currentTarget.style.outline = '2px dashed color-mix(in srgb,var(--accent) 60%,transparent)';
+        }
+
+        function _museDragLeave(e) {
+            if (e.currentTarget) e.currentTarget.style.outline = '';
+        }
+
+        function _museDragEnd() {
+            for (var i = 0; i < MUSE_SLOTS; i++) {
+                var row = document.getElementById('muse-row-' + i);
+                if (row) { row.style.opacity = ''; row.style.outline = ''; }
+            }
+            _museDragSrcIdx = -1;
+        }
+
+        function _museDrop(e, idx) {
+            e.preventDefault();
+            var src = _museDragSrcIdx;
+            _museDragSrcIdx = -1;
+            for (var j = 0; j < MUSE_SLOTS; j++) {
+                var r = document.getElementById('muse-row-' + j);
+                if (r) { r.style.opacity = ''; r.style.outline = ''; }
+            }
+            if (src < 0 || src === idx || src >= _museClips.length || idx >= _museClips.length) return;
+            var moved = _museClips.splice(src, 1)[0];
+            _museClips.splice(idx, 0, moved);
+            if (_musePlayingSlot === src) _musePlayingSlot = idx;
+            else if (src < idx && _musePlayingSlot > src && _musePlayingSlot <= idx) _musePlayingSlot--;
+            else if (src > idx && _musePlayingSlot < src && _musePlayingSlot >= idx) _musePlayingSlot++;
+            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            _museRenderSlots();
+            if (_museEditOpen) _museRenderEditList();
+            _museUpdateAddFooter();
+        }
+
+        function _musePresetDragOver(e, destIdx) {
+            if (_museDragSrcIdx < 0) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            var btn = e.currentTarget;
+            if (btn) {
+                btn.style.background = 'color-mix(in srgb,var(--accent) 30%,var(--bg-card))';
+                btn.style.borderColor = 'var(--accent)';
+                btn.style.boxShadow = '0 0 0 2px color-mix(in srgb,var(--accent) 40%,transparent)';
+            }
+        }
+
+        function _musePresetDragLeave(e) {
+            var btn = e.currentTarget;
+            if (btn) { btn.style.background = ''; btn.style.borderColor = ''; btn.style.boxShadow = ''; }
+        }
+
+        function _musePresetDrop(e, destIdx) {
+            e.preventDefault();
+            var src = _museDragSrcIdx;
+            _museDragSrcIdx = -1;
+            _museDragEnd();
+            var btn = e.currentTarget;
+            if (btn) { btn.style.background = ''; btn.style.borderColor = ''; btn.style.boxShadow = ''; }
+            if (src < 0 || src >= _museClips.length || destIdx === _musePresetIdx) return;
+            var destClips = [];
+            try { destClips = JSON.parse(localStorage.getItem(MUSE_PRESET_KEYS[destIdx]) || '[]'); } catch(_) {}
+            if (destClips.length >= MUSE_SLOTS) return; // destination full — silently ignore
+            var moved = _museClips.splice(src, 1)[0];
+            destClips.push(moved);
+            if (_musePlayingSlot === src) {
+                _musePlayingSlot = -1;
+                if (_museTimerInterval) { clearInterval(_museTimerInterval); _museTimerInterval = null; }
+            } else if (_musePlayingSlot > src) {
+                _musePlayingSlot--;
+            }
+            localStorage.setItem(_museCurrentKey(), JSON.stringify(_museClips));
+            localStorage.setItem(MUSE_PRESET_KEYS[destIdx], JSON.stringify(destClips));
+            _museRenderSlots();
+            if (_museEditOpen) { _museRenderPresetTabs(); _museRenderEditList(); }
+            _museUpdateAddFooter();
+            if (typeof _pushToGist === 'function') _pushToGist(true);
+        }
+
+        function _museUpdateAddFooter() {
+            var input = document.getElementById('muse-url-input');
+            var btn = document.getElementById('muse-add-btn');
+            var counter = document.getElementById('muse-clip-count');
+            var atMax = _museClips.length >= MUSE_SLOTS;
+            if (input) {
+                input.disabled = atMax;
+                input.placeholder = atMax ? 'Playlist เต็มแล้ว (5/5) — ลบคลิปก่อนเพื่อเพิ่มใหม่' : 'วาง TikTok URL — https://www.tiktok.com/@user/video/...';
+                input.style.opacity = atMax ? '0.45' : '';
+            }
+            if (btn) {
+                btn.disabled = atMax;
+                btn.style.opacity = atMax ? '0.4' : '';
+                btn.style.cursor = atMax ? 'not-allowed' : '';
+            }
+            if (counter) counter.textContent = _museClips.length + '/' + MUSE_SLOTS;
+        }
+
+        function _museGetPws() {
+            try { return JSON.parse(localStorage.getItem('ps_muse_pws') || '[null,null,null]'); } catch(e) { return [null,null,null]; }
+        }
+
+        function _museSavePws(pws) {
+            localStorage.setItem('ps_muse_pws', JSON.stringify(pws));
+            if (typeof _pushToGist === 'function') _pushToGist(true);
+        }
+
+        function _museShowPwOverlay(idx) {
+            _musePwTarget = idx;
+            var overlay = document.getElementById('muse-pw-overlay');
+            var label = document.getElementById('muse-pw-label');
+            var input = document.getElementById('muse-pw-input');
+            var err = document.getElementById('muse-pw-err');
+            if (label) label.textContent = 'Playlist ' + ['A','B','C'][idx] + ' ถูกล็อก';
+            if (err) err.style.display = 'none';
+            if (input) input.value = '';
+            if (overlay) overlay.style.display = 'flex';
+            setTimeout(function() { var inp = document.getElementById('muse-pw-input'); if (inp) inp.focus(); }, 80);
+        }
+
+        function _museHidePwOverlay() {
+            _musePwTarget = -1;
+            var overlay = document.getElementById('muse-pw-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        async function _musePwConfirm() {
+            var input = document.getElementById('muse-pw-input');
+            var err = document.getElementById('muse-pw-err');
+            if (!input || _musePwTarget < 0) return;
+            var pw = input.value;
+            if (!pw) return;
+            var pws = _museGetPws();
+            var hash = await _psHashPw(pw);
+            if (hash === pws[_musePwTarget]) {
+                _museUnlockedPresets.add(_musePwTarget);
+                var target = _musePwTarget;
+                _museHidePwOverlay();
+                _museDoLoadPreset(target);
+            } else {
+                if (err) err.style.display = '';
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function _museUpdateLockBtn() {
+            var btn = document.getElementById('muse-lock-btn');
+            if (!btn) return;
+            var pws = _museGetPws();
+            var locked = !!pws[_musePresetIdx];
+            btn.textContent = locked ? '🔒' : '🔓';
+            btn.title = locked
+                ? 'Playlist ' + ['A','B','C'][_musePresetIdx] + ' — คลิกเพื่อลบ password'
+                : 'คลิกเพื่อตั้ง password สำหรับ Playlist ' + ['A','B','C'][_musePresetIdx];
+            btn.style.borderColor = locked ? 'rgba(255,180,0,0.4)' : '';
+        }
+
+        async function _museToggleLock() {
+            var pws = _museGetPws();
+            var idx = _musePresetIdx;
+            var label = ['A','B','C'][idx];
+            // Hide MUSE modal while password dialog is open to avoid double-layer visual
+            var museBackdrop = document.getElementById('muse-modal-backdrop');
+            if (museBackdrop) museBackdrop.style.display = 'none';
+            var pw;
+            if (pws[idx]) {
+                pw = await _psShowLockModal('remove', 'Playlist ' + label);
+            } else {
+                pw = await _psShowLockModal('set', 'Playlist ' + label);
+            }
+            // Restore MUSE modal
+            if (museBackdrop) museBackdrop.style.display = 'block';
+            if (!pw) return;
+            if (pws[idx]) {
+                var hash = await _psHashPw(pw);
+                if (hash !== pws[idx]) return;
+                pws[idx] = null;
+                _museUnlockedPresets.delete(idx);
+            } else {
+                pws[idx] = await _psHashPw(pw);
+                _museUnlockedPresets.add(idx);
+            }
+            _museSavePws(pws);
+            _museRenderPresetTabs();
+            _museUpdateLockBtn();
+        }
+
+        function _museShuffle() {
+            if (_museClips.length < 2) return;
+            var next; do { next = Math.floor(Math.random() * _museClips.length); } while (next === _museActiveIdx);
+            _museSlotClick(next);
         }
 
         function _pillsGetHidden() {
@@ -25711,10 +26562,11 @@ ${_clip(contextSections, 2600)}`;
             try {
                 // Use _buildExportData() — single source of truth, always includes latest fields
                 const exportData = _buildExportData();
+                const encContent = await _gistEncrypt(token, exportData);
                 const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
                     method:  'PATCH',
                     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
-                    body:    JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(exportData, null, 2) } } })
+                    body:    JSON.stringify({ files: { [GIST_FILENAME]: { content: encContent } } })
                 });
                 if (res.ok) {
                     _lastManualSyncTime = Date.now();
@@ -25798,8 +26650,8 @@ ${_clip(contextSections, 2600)}`;
                 }
                 if (!content) { showGistStatus('ไม่มีข้อมูลใน Gist', 'text-gray-400'); return; }
 
-                if (isInitialLoad) _splashStatus('แปลงข้อมูล JSON...');
-                const data = JSON.parse(content);
+                if (isInitialLoad) _splashStatus('ถอดรหัสข้อมูล...');
+                const data = await _gistDecrypt(token, content);
                 const prevRecordsSig = (() => { try { return JSON.stringify(records || []); } catch(e) { return ''; } })();
 
                 // Support both array format (legacy) and object format
@@ -25876,6 +26728,68 @@ ${_clip(contextSections, 2600)}`;
                         if (fx.date)   localStorage.setItem('ps_fx_self_date', fx.date);
                         if (fx.prev)   localStorage.setItem('ps_fx_self_prev', fx.prev);
                         if (fx.prevDt) localStorage.setItem('ps_fx_self_prev_dt', fx.prevDt);
+                    }
+                    // MUSE playlists + active preset + collapse state
+                    if (data.museData) {
+                        const md = data.museData;
+                        if (Array.isArray(md.presets)) {
+                            for (let i = 0; i < 3; i++) {
+                                try { localStorage.setItem(MUSE_PRESET_KEYS[i], JSON.stringify(Array.isArray(md.presets[i]) ? md.presets[i] : [])); } catch(e) {}
+                            }
+                        }
+                        if (typeof md.activePresetIdx === 'number') {
+                            try { localStorage.setItem(MUSE_PRESET_IDX_KEY, String(md.activePresetIdx)); } catch(e) {}
+                        }
+                        if (typeof md.collapsed === 'boolean' && localStorage.getItem(MUSE_COLLAPSED_KEY) === null) {
+                            try { localStorage.setItem(MUSE_COLLAPSED_KEY, md.collapsed ? '1' : '0'); } catch(e) {}
+                        }
+                        if (Array.isArray(md.passwordHashes)) {
+                            try { localStorage.setItem('ps_muse_pws', JSON.stringify(md.passwordHashes)); } catch(e) {}
+                        }
+                        // Re-apply if card already initialized (Gist sync on running session)
+                        if (_museInited) {
+                            _musePresetIdx = parseInt(localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0') || 0;
+                            _museCollapsed = localStorage.getItem(MUSE_COLLAPSED_KEY) === '1';
+                            // Respect password lock — auto-switch to first unlocked preset
+                            var _syncPws = _museGetPws();
+                            if (_syncPws[_musePresetIdx] && !_museUnlockedPresets.has(_musePresetIdx)) {
+                                for (var _si = 0; _si < MUSE_PRESET_KEYS.length; _si++) {
+                                    if (!_syncPws[_si] || _museUnlockedPresets.has(_si)) { _musePresetIdx = _si; break; }
+                                }
+                                if (_syncPws[_musePresetIdx] && !_museUnlockedPresets.has(_musePresetIdx)) { _museClips = []; }
+                            }
+                            if (!_syncPws[_musePresetIdx] || _museUnlockedPresets.has(_musePresetIdx)) {
+                                try { _museClips = JSON.parse(localStorage.getItem(_museCurrentKey()) || '[]'); } catch(_) { _museClips = []; }
+                            }
+                            _museRenderSlots();
+                            _museApplyCollapse();
+                            if (_museEditOpen) { _museRenderPresetTabs(); _museRenderEditList(); _museUpdateAddFooter(); }
+                        }
+                        if (isInitialLoad) _splashStatus('กู้คืน MUSE Playlists ✓');
+                    }
+                    // Profile presets — restore from Gist (previously local-only, now synced)
+                    if (data.profilePresets) {
+                        const pp = data.profilePresets;
+                        if (Array.isArray(pp.presets) && pp.presets.length > 0) {
+                            try { localStorage.setItem('ps_profile_presets', JSON.stringify(pp.presets)); } catch(e) {}
+                        }
+                        if (typeof pp.activeIdx === 'number') {
+                            try { localStorage.setItem('ps_profile_preset_idx', String(pp.activeIdx)); } catch(e) {}
+                        }
+                        // Re-apply if already initialized in this session
+                        if (typeof _psPresets !== 'undefined' && typeof _psPresetApply === 'function') {
+                            try {
+                                const _restoredPresets = JSON.parse(localStorage.getItem('ps_profile_presets') || '[]');
+                                if (_restoredPresets.length > 0) {
+                                    _psPresets = _restoredPresets;
+                                    _psPresetIdx = parseInt(localStorage.getItem('ps_profile_preset_idx') || '0', 10) || 0;
+                                    if (_psPresetIdx >= _psPresets.length) _psPresetIdx = 0;
+                                    _psPresetApply(_psPresets[_psPresetIdx]);
+                                    if (typeof _psPresetsRenderDots === 'function') _psPresetsRenderDots();
+                                }
+                            } catch(e) {}
+                        }
+                        if (isInitialLoad) _splashStatus('กู้คืน Profile Presets ✓');
                     }
                     // chartPrefs: column picker state + chart settings — always restore from Gist
                     // (UI preference, not trading data — Gist is source of truth across devices)
@@ -26047,7 +26961,7 @@ ${_clip(contextSections, 2600)}`;
                 }
                 if (!content) { _gistApplyErr(statusEl, btn, 'ไฟล์ Gist ว่างเปล่า'); return; }
 
-                const data = JSON.parse(content);
+                const data = await _gistDecrypt(token, content);
 
                 // ── Force-restore API keys (overwrite local) ──
                 let keysRestored = 0;
@@ -26550,7 +27464,7 @@ ${_clip(contextSections, 2600)}`;
                 try { const _ip = JSON.parse(localStorage.getItem('ps_pinned_wl') || '[]'); _pinnedSymSet = new Set(_ip.filter(s => watchlist.includes(s))); _pinnedCount = _pinnedSymSet.size; } catch(_) {}
                 _splashStatus(`Watchlist: ${watchlist.length} หุ้น · Pinned: ${_pinnedCount} รายการ`);
                 // Purge stale logo cache keys from previous versions
-                try { ['v2','v3','v4'].forEach(v => localStorage.removeItem('ps_logo_data_cache_'+v)); ['v1','v2','v3'].forEach(v => localStorage.removeItem('ps_symbol_logo_cache_'+v)); } catch(_) {}
+                try { ['v2','v3','v4','v5'].forEach(v => localStorage.removeItem('ps_logo_data_cache_'+v)); ['v1','v2','v3','v4'].forEach(v => localStorage.removeItem('ps_symbol_logo_cache_'+v)); } catch(_) {}
                 _loadLogoDataCacheLocal(); // keep logo cache across F5 before rendering NEWS
                 loadWlCache(); // restore price/profile cache for instant display
                 prewarmWatchlistLogos(80); // warm visible symbols ASAP after refresh
@@ -26857,12 +27771,44 @@ ${_clip(contextSections, 2600)}`;
         let _pendingSave    = false;   // flag: another save requested while one was in-flight
         let _lastSavedHash  = '';
         let _lastManualSyncTime = 0;
+        let _lastEncBody    = null;    // cached encrypted Gist body for keepalive push on unload
 
         // ── Shared export-data builder (single source of truth) ──────────────
         // ── API key encode/decode — base64 obfuscation for Gist storage ──────
         // Not encryption — prevents casual exposure of plaintext keys in Gist JSON
         function _encKey(v) { return v ? btoa(unescape(encodeURIComponent(v))) : ''; }
         function _decKey(v) { try { return v ? decodeURIComponent(escape(atob(v))) : ''; } catch(e) { return ''; } }
+
+        // ── AES-256-GCM Gist encryption — key derived from Gist token via HKDF ──
+        // Protects all data at rest: even if Gist URL leaks, ciphertext is unreadable without token
+        async function _gistEncrypt(token, plainObj) {
+            const enc = new TextEncoder();
+            const km = await crypto.subtle.importKey('raw', enc.encode(token), 'HKDF', false, ['deriveKey']);
+            const key = await crypto.subtle.deriveKey(
+                { name: 'HKDF', hash: 'SHA-256', salt: enc.encode('PSLink-Gist-v1'), info: enc.encode('aes-gcm-256') },
+                km, { name: 'AES-GCM', length: 256 }, false, ['encrypt']
+            );
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(plainObj)));
+            const b64 = arr => btoa(String.fromCharCode(...new Uint8Array(arr)));
+            return JSON.stringify({ enc: 1, iv: b64(iv), d: b64(ct) });
+        }
+
+        // Decrypt Gist content — handles both v1 (plain JSON, backward compat) and v2 (encrypted)
+        async function _gistDecrypt(token, content) {
+            let parsed;
+            try { parsed = JSON.parse(content); } catch(e) { throw new Error('Invalid Gist content'); }
+            if (!parsed || parsed.enc !== 1) return parsed; // v1: plain JSON — backward compat
+            const b64u = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+            const enc = new TextEncoder();
+            const km = await crypto.subtle.importKey('raw', enc.encode(token), 'HKDF', false, ['deriveKey']);
+            const key = await crypto.subtle.deriveKey(
+                { name: 'HKDF', hash: 'SHA-256', salt: enc.encode('PSLink-Gist-v1'), info: enc.encode('aes-gcm-256') },
+                km, { name: 'AES-GCM', length: 256 }, false, ['decrypt']
+            );
+            const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u(parsed.iv) }, key, b64u(parsed.d));
+            return JSON.parse(new TextDecoder().decode(plain));
+        }
 
         function _buildExportData() {
             // ── Collect API keys (base64-encoded) for cross-device restore ──
@@ -26894,6 +27840,16 @@ ${_clip(contextSections, 2600)}`;
                     prev:   localStorage.getItem('ps_fx_self_prev') || '',
                     prevDt: localStorage.getItem('ps_fx_self_prev_dt') || '',
                 },
+                museData: {
+                    presets: MUSE_PRESET_KEYS.map(function(k) { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch(e) { return []; } }),
+                    activePresetIdx: parseInt(localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0', 10) || 0,
+                    collapsed: localStorage.getItem(MUSE_COLLAPSED_KEY) === '1',
+                    passwordHashes: (function() { try { return JSON.parse(localStorage.getItem('ps_muse_pws') || '[null,null,null]'); } catch(e) { return [null,null,null]; } })(),
+                },
+                profilePresets: {
+                    presets:   (function() { try { return JSON.parse(localStorage.getItem('ps_profile_presets') || '[]'); } catch(e) { return []; } })(),
+                    activeIdx: parseInt(localStorage.getItem('ps_profile_preset_idx') || '0', 10) || 0,
+                },
             };
         }
 
@@ -26918,10 +27874,12 @@ ${_clip(contextSections, 2600)}`;
             const token = getGistToken();
             const exportData = _buildExportData();
             try {
+                const encContent = await _gistEncrypt(token, exportData);
+                _lastEncBody = JSON.stringify({ files: { [GIST_FILENAME]: { content: encContent } } });
                 const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
                     method:  'PATCH',
                     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body:    JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(exportData, null, 2) } } })
+                    body:    _lastEncBody
                 });
                 if (res.ok) {
                     _lastSavedHash = hash; // only update hash on confirmed success
@@ -26943,13 +27901,14 @@ ${_clip(contextSections, 2600)}`;
 
         // ── keepalive fire-and-forget Gist push (for pagehide / beforeunload) ─
         // fetch with keepalive=true lets browser complete the request even if page unloads
+        // Uses _lastEncBody (pre-encrypted by last _pushToGist) to avoid async on unload
         function _pushToGistKeepalive() {
             const token = getGistToken();
             if (!token) return;
             if (_dataHash() === _lastSavedHash) return; // nothing changed
             try {
-                const exportData = _buildExportData();
-                const body = JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(exportData, null, 2) } } });
+                // Use cached body if available (avoids async crypto on page unload)
+                const body = _lastEncBody || JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(_buildExportData()) } } });
                 // keepalive fetch has ~64KB body limit — if payload is larger (photos included),
                 // try regular fetch first; keepalive as fallback
                 if (body.length < 60000) {
@@ -27006,7 +27965,13 @@ ${_clip(contextSections, 2600)}`;
                 localStorage.getItem('ps_pinned_wl')                   || '',
             ].join('|');
             const lwcHash = localStorage.getItem('ps_lwc_prefs') || '';
-            return rHash + '::wl:' + watchlist.join(',') + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash;
+            const museHash = MUSE_PRESET_KEYS.map(function(k) { return (localStorage.getItem(k) || '').length; }).join(',')
+                + '|' + (localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0')
+                + '|' + (localStorage.getItem(MUSE_COLLAPSED_KEY) || '0')
+                + '|' + (localStorage.getItem('ps_muse_pws') || '');
+            const psPresetsHash = (localStorage.getItem('ps_profile_presets') || '').length
+                + '|' + (localStorage.getItem('ps_profile_preset_idx') || '0');
+            return rHash + '::wl:' + watchlist.join(',') + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash + '::muse:' + museHash + '::psp:' + psPresetsHash;
         }
         setInterval(() => {
             if (!getGistToken()) return;
