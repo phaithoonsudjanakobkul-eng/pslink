@@ -84,6 +84,7 @@
                 pointer-events: none !important;
             }
         }
+        :root, html {
             --font-main: 'Inter', 'IBM Plex Sans Thai', system-ui, sans-serif;
             --font-mono: 'Roboto Mono', 'Consolas', monospace;
             --bg-dark: #f0f4f8;
@@ -102,6 +103,16 @@
             --wl-up: #089981;
             --wl-dn: #f23645;
             --bg-main: #f8fafc;
+            --muse-slot-bg: #dde5ef;       /* light: subtle cool-gray, harmonizes with --bg-card2 */
+            --muse-slot-border: rgba(0,0,0,0.07);
+            --muse-btn-bg:            rgba(255,255,255,0.88);
+            --muse-btn-border:        rgba(0,0,0,0.12);
+            --muse-btn-icon:          rgba(0,0,0,0.45);
+            --muse-btn-hover-bg:      #ffffff;
+            --muse-btn-hover-border:  rgba(0,0,0,0.22);
+            --muse-btn-active-bg:     rgba(99,130,255,0.15);
+            --muse-btn-active-border: rgba(99,130,255,0.45);
+            --muse-btn-active-text:   #3d5cf5;
         }
 
         html.dark {
@@ -123,6 +134,16 @@
             --chart-dn:       #ef5350;
             --wl-up:          #26a69a;
             --wl-dn:          #ef5350;
+            --muse-slot-bg:   color-mix(in srgb, var(--bg-card2) 60%, #000 40%); /* dark: original */
+            --muse-slot-border: rgba(255,255,255,0.04);
+            --muse-btn-bg:            rgba(0,0,0,0.2);
+            --muse-btn-border:        rgba(255,255,255,0.1);
+            --muse-btn-icon:          rgba(255,255,255,0.45);
+            --muse-btn-hover-bg:      rgba(0,0,0,0.35);
+            --muse-btn-hover-border:  rgba(255,255,255,0.2);
+            --muse-btn-active-bg:     rgba(120,160,255,0.3);
+            --muse-btn-active-border: rgba(255,255,255,0.3);
+            --muse-btn-active-text:   rgba(255,255,255,0.9);
         }
 
         /* Price flash — Bloomberg/TV terminal style: sharp hit, fast fade */
@@ -2053,9 +2074,25 @@
         #muse-card.muse-collapsed #muse-edit-btn,
         #muse-card.muse-collapsed #muse-preset-btns,
         #muse-card.muse-collapsed #muse-layout-btn,
+        #muse-card.muse-collapsed #muse-slot-count-btn,
         #muse-card.muse-collapsed #muse-autorotate-indicator { opacity: 0; pointer-events: none; }
-        #muse-collapse-btn:hover { background: rgba(10,10,15,0.5) !important; border-color: rgba(255,255,255,0.18) !important; }
-        #muse-edit-btn:hover { background: rgba(0,0,0,0.4) !important; border-color: rgba(255,255,255,0.2) !important; }
+        .muse-btn {
+            background: var(--muse-btn-bg);
+            border: 1px solid var(--muse-btn-border);
+            color: var(--muse-btn-icon);
+            cursor: pointer;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            flex-shrink: 0;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .muse-btn:hover {
+            background: var(--muse-btn-hover-bg) !important;
+            border-color: var(--muse-btn-hover-border) !important;
+        }
+        /* Prevent [onclick]:active { opacity:0.7 } mobile rule from dimming the backdrop and everything inside it */
+        #muse-modal-backdrop:active { opacity: 1 !important; }
         #muse-slots { transition: opacity 0.15s; }
         @keyframes museModalIn { from { opacity:0; transform:translate(-50%,-50%) scale(0.96); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
         @keyframes museBackdropIn { from { opacity:0; } to { opacity:1; } }
@@ -5612,20 +5649,24 @@
                     <div id="muse-toast" style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:none;opacity:0;transition:opacity 0.3s;background:color-mix(in srgb,var(--accent) 10%,rgba(15,15,20,0.45));border:1px solid color-mix(in srgb,var(--accent) 28%,rgba(255,255,255,0.06));border-radius:20px;padding:5px 14px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-size:10.5px;font-weight:400;color:rgba(255,255,255,0.82);letter-spacing:0.06em;white-space:nowrap;box-shadow:0 2px 12px rgba(0,0,0,0.2);"></div>
                     <!-- Button row: [A][B][C] [pencil] [↑ MUSE] -->
                     <div id="muse-btn-row" style="position:absolute;top:10px;right:10px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
-                        <button id="muse-collapse-btn" onclick="_museToggleCollapse()" title="ซ่อน/แสดง Muse"
-                            style="height:28px;padding:0 8px;border-radius:6px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;align-items:center;gap:5px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);flex-shrink:0;">
-                            <svg id="muse-chevron-svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline id="muse-chevron-pts" points="18 15 12 9 6 15"/></svg>
-                            <span style="font-size:9px;font-weight:800;letter-spacing:0.12em;color:rgba(255,255,255,0.45);text-transform:uppercase;line-height:1;">MUSE</span>
+                        <button id="muse-collapse-btn" class="muse-btn" onclick="_museToggleCollapse()" title="ซ่อน/แสดง Muse"
+                            style="height:28px;padding:0 8px;gap:5px;">
+                            <svg id="muse-chevron-svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline id="muse-chevron-pts" points="18 15 12 9 6 15"/></svg>
+                            <span style="font-size:9px;font-weight:800;letter-spacing:0.12em;color:inherit;text-transform:uppercase;line-height:1;opacity:0.75;">MUSE</span>
                         </button>
-                        <button id="muse-edit-btn" onclick="_museToggleEdit()" title="จัดการคลิป"
-                            style="width:28px;height:28px;border-radius:6px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);flex-shrink:0;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        <button id="muse-edit-btn" class="muse-btn" onclick="_museToggleEdit()" title="จัดการคลิป"
+                            style="width:28px;height:28px;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                         </button>
-                        <button id="muse-layout-btn" onclick="_museToggleLayout()" title="สลับ Layout"
-                            style="width:28px;height:28px;border-radius:6px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);flex-shrink:0;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        <button id="muse-layout-btn" class="muse-btn" onclick="_museToggleLayout()" title="สลับ Layout"
+                            style="width:28px;height:28px;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                         </button>
-                        <div id="muse-autorotate-indicator" style="display:none;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);flex-shrink:0;" title="Auto-rotate active">
+                        <button id="muse-slot-count-btn" class="muse-btn" onclick="_museToggleSlotCount()" title="จำนวนช่อง"
+                            style="width:28px;height:28px;">
+                            <span style="font-size:10px;font-weight:700;color:inherit;line-height:1;font-family:monospace;opacity:0.6;">A</span>
+                        </button>
+                        <div id="muse-autorotate-indicator" class="muse-btn" style="display:none;width:28px;height:28px;border-radius:50%;" title="Auto-rotate active">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 3s linear infinite;"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                         </div>
                         <div id="muse-preset-btns" style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;"></div>
@@ -24168,12 +24209,22 @@ ${_clip(contextSections, 2600)}`;
         const MUSE_COLLAPSED_KEY = 'ps_muse_collapsed';
         const MUSE_LAYOUT_KEY = 'ps_muse_layout';
         const MUSE_AUTOROTATE_KEY = 'ps_muse_autorotate';
-        var _museLayoutMode = 0; // 0=compact (6 slots, 334px), 1=tall (5 slots, auto)
+        const MUSE_SLOT_COUNT_KEY = 'ps_muse_slot_count'; // 0=Auto, 4-10=fixed
+        var _museLayoutMode = 0; // 0=compact (fixed 334px), 1=wide (aspect-ratio), 2=tall (aspect-ratio)
+        var _museSlotCount = 0;  // 0=Auto (responsive), 4-10=fixed
+        var _MUSE_SLOT_CYCLE = [0, 4, 5, 6, 7, 8, 10]; // cycle order
         var _museAutoRotateTimer = null;
         var _museTransitionTimer = null;
         var _museAutoRotateEnabled = false;
         var _museAutoRotateDurations = [30, 30, 30, 30, 30, 30]; // seconds per playlist
-        function _museGetSlotCount() { return _museLayoutMode === 2 ? 5 : 6; }
+        function _museCalcAutoSlots() {
+            var card = document.getElementById('muse-card');
+            var w = card ? card.offsetWidth : window.innerWidth;
+            // target slot width varies by mode to preserve 9:16 proportions
+            var targetW = _museLayoutMode === 0 ? 185 : (_museLayoutMode === 2 ? 253 : 197);
+            return Math.max(3, Math.min(10, Math.floor(w / targetW)));
+        }
+        function _museGetSlotCount() { return _museSlotCount === 0 ? _museCalcAutoSlots() : _museSlotCount; }
         var _museClips = [];
         var _museActiveIdx = -1;
         var _museInited = false;
@@ -24200,6 +24251,7 @@ ${_clip(contextSections, 2600)}`;
             _musePresetIdx = parseInt(localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0') || 0;
             _museCollapsed = localStorage.getItem(MUSE_COLLAPSED_KEY) === '1';
             _museLayoutMode = parseInt(localStorage.getItem(MUSE_LAYOUT_KEY) || '0') || 0;
+            _museSlotCount = parseInt(localStorage.getItem(MUSE_SLOT_COUNT_KEY) || '0') || 0;
             // Migrate legacy key → preset A on first load
             if (!localStorage.getItem(MUSE_PRESET_KEYS[0]) && localStorage.getItem(MUSE_KEY)) {
                 localStorage.setItem(MUSE_PRESET_KEYS[0], localStorage.getItem(MUSE_KEY));
@@ -24279,6 +24331,23 @@ ${_clip(contextSections, 2600)}`;
             _museClips.forEach(function(c, i) {
                 if (!c.thumbnail && c.type !== 'image') _museFetchThumbnail(c, function() { _museUpdateSlotCover(i); });
             });
+            // Resize listener for Auto slot count — recalculate when container width changes
+            var _museResizeTimer = null;
+            var _museLastAutoCount = _museCalcAutoSlots();
+            window.addEventListener('resize', function() {
+                if (_museSlotCount !== 0) return; // manual mode — ignore resize
+                clearTimeout(_museResizeTimer);
+                _museResizeTimer = setTimeout(function() {
+                    var newCount = _museCalcAutoSlots();
+                    var changed = newCount !== _museLastAutoCount;
+                    _museLastAutoCount = newCount;
+                    _museRenderSlots();
+                    _museApplyLayout();
+                    _museUpdateSlotCountBtn();
+                    if (_museEditOpen) _museUpdateAddFooter(); // sync counter in open modal
+                    if (changed) _museToast(newCount + ' ช่อง (Auto)');
+                }, 150); // 150ms debounce
+            });
         }
 
         function _museParseTikTokId(url) {
@@ -24312,7 +24381,7 @@ ${_clip(contextSections, 2600)}`;
                         + '</div>';
                     }
                 } else {
-                    html += '<div id="muse-slot-' + i + '" style="flex:1;' + arStyle + 'position:relative;background:color-mix(in srgb,var(--bg-card2) 60%,#000 40%);overflow:hidden;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,0.04);">'
+                    html += '<div id="muse-slot-' + i + '" style="flex:1;' + arStyle + 'position:relative;background:var(--muse-slot-bg);overflow:hidden;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--muse-slot-border);">'
                         + '<div style="position:absolute;inset:6px;border:1px dashed var(--border);border-radius:4px;pointer-events:none;opacity:0.6;"></div>'
                         + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="color:var(--text-dim);opacity:0.45;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
                         + '</div>';
@@ -24472,19 +24541,49 @@ ${_clip(contextSections, 2600)}`;
             var card = document.getElementById('muse-card');
             var slots = document.getElementById('muse-slots');
             if (_museLayoutMode === 0) {
-                // Compact: 6 slots, fixed 334px, slots stretch to fill
+                // Compact: fixed 334px height, slots stretch to fill (no aspect-ratio)
                 if (card && !_museCollapsed) card.style.height = '336px';
                 if (slots) { slots.style.gap = '3px'; slots.style.height = '100%'; }
             } else {
-                // Tall (5 slots) or Wide (6 slots): auto height, aspect-ratio drives slot height
+                // Wide / Tall: auto height, aspect-ratio:9/16 per slot drives height
                 if (card) card.style.height = '';
                 if (slots) { slots.style.gap = '2px'; slots.style.height = ''; }
             }
             var btn = document.getElementById('muse-layout-btn');
             if (btn) {
-                var titles = ['Compact (6 ช่อง)', 'Wide (6 ช่อง)', 'Tall (5 ช่อง)'];
-                btn.title = titles[_museLayoutMode] || titles[0];
+                var titles = ['Compact', 'Wide', 'Tall'];
+                btn.title = (titles[_museLayoutMode] || 'Layout') + ' — คลิกเพื่อสลับ';
             }
+            _museUpdateSlotCountBtn();
+        }
+
+        function _museUpdateSlotCountBtn() {
+            var btn = document.getElementById('muse-slot-count-btn');
+            if (!btn) return;
+            var count = _museGetSlotCount();
+            var sp = btn.querySelector('span');
+            // Always show the actual count — Auto uses 0.4 opacity, manual uses 0.85
+            if (sp) {
+                sp.textContent = String(count);
+                sp.style.opacity = _museSlotCount === 0 ? '0.4' : '0.85';
+                sp.style.color = 'inherit';
+            }
+            var modeName = ['Compact','Wide','Tall'][_museLayoutMode] || '';
+            btn.title = _museSlotCount === 0
+                ? 'Auto: ' + count + ' ช่อง (' + modeName + ') — คลิกเพื่อล็อคตัวเลข'
+                : count + ' ช่อง (ล็อค) — คลิกเพื่อเปลี่ยน';
+        }
+
+        function _museToggleSlotCount() {
+            var idx = _MUSE_SLOT_CYCLE.indexOf(_museSlotCount);
+            _museSlotCount = _MUSE_SLOT_CYCLE[(idx + 1) % _MUSE_SLOT_CYCLE.length];
+            localStorage.setItem(MUSE_SLOT_COUNT_KEY, String(_museSlotCount));
+            if (typeof _pushToGist === 'function') _pushToGist(true);
+            _museRenderSlots();
+            _museApplyLayout();
+            var count = _museGetSlotCount();
+            var label = _museSlotCount === 0 ? count + ' ช่อง (Auto)' : count + ' ช่อง (ล็อค)';
+            _museToast(label);
         }
 
         function _museAutoRotateLoad() {
@@ -24609,7 +24708,8 @@ ${_clip(contextSections, 2600)}`;
             if (typeof _pushToGist === 'function') _pushToGist(true);
             _museRenderSlots();
             _museApplyLayout();
-            var labels = ['Compact — 6 ช่อง (334px)', 'Wide — 6 ช่อง (เต็ม)', 'Tall — 5 ช่อง (เต็ม)'];
+            var count = _museGetSlotCount();
+            var labels = ['Compact — ' + count + ' ช่อง (334px)', 'Wide — ' + count + ' ช่อง (9:16)', 'Tall — ' + count + ' ช่อง (9:16)'];
             _museToast(labels[_museLayoutMode] || '');
         }
 
@@ -24681,13 +24781,16 @@ ${_clip(contextSections, 2600)}`;
             container.innerHTML = ['A','B','C','D','E','F'].map(function(label, i) {
                 var isActive = i === _musePresetIdx;
                 var isLocked = !!(pws[i] && !_museUnlockedPresets.has(i));
+                var bg = isActive ? 'var(--muse-btn-active-bg)' : 'var(--muse-btn-bg)';
+                var bd = isActive ? 'var(--muse-btn-active-border)' : (isLocked ? 'rgba(255,180,0,0.45)' : 'var(--muse-btn-border)');
+                var cl = isActive ? 'var(--muse-btn-active-text)' : (isLocked ? 'rgba(255,180,0,0.8)' : 'var(--muse-btn-icon)');
                 return '<button onclick="_museLoadPreset(' + i + ')" '
                     + 'title="Playlist ' + label + (isLocked ? ' — ล็อกอยู่' : '') + '" '
                     + 'style="width:28px;height:28px;border-radius:6px;'
-                    + 'background:' + (isActive ? 'rgba(120,160,255,0.3)' : 'rgba(0,0,0,0.2)') + ';'
-                    + 'border:1px solid ' + (isActive ? 'rgba(255,255,255,0.3)' : (isLocked ? 'rgba(255,180,0,0.45)' : 'rgba(255,255,255,0.1)')) + ';'
+                    + 'background:' + bg + ';'
+                    + 'border:1px solid ' + bd + ';'
                     + 'cursor:pointer;font-size:8px;font-weight:800;letter-spacing:0.06em;'
-                    + 'color:' + (isActive ? 'rgba(255,255,255,0.9)' : (isLocked ? 'rgba(255,180,0,0.7)' : 'rgba(255,255,255,0.4)')) + ';'
+                    + 'color:' + cl + ';'
                     + 'backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);">'
                     + label + '</button>';
             }).join('');
@@ -27286,10 +27389,15 @@ ${_clip(contextSections, 2600)}`;
                             }
                             try { localStorage.setItem(MUSE_AUTOROTATE_KEY, JSON.stringify({ enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations })); } catch(e) {}
                         }
+                        if (typeof md.slotCount === 'number' && localStorage.getItem(MUSE_SLOT_COUNT_KEY) === null) {
+                            _museSlotCount = md.slotCount;
+                            try { localStorage.setItem(MUSE_SLOT_COUNT_KEY, String(md.slotCount)); } catch(e) {}
+                        }
                         // Re-apply if card already initialized (Gist sync on running session)
                         if (_museInited) {
                             _musePresetIdx = parseInt(localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0') || 0;
                             _museCollapsed = localStorage.getItem(MUSE_COLLAPSED_KEY) === '1';
+                            _museSlotCount = parseInt(localStorage.getItem(MUSE_SLOT_COUNT_KEY) || '0') || 0;
                             // Respect password lock — auto-switch to first unlocked preset
                             var _syncPws = _museGetPws();
                             if (_syncPws[_musePresetIdx] && !_museUnlockedPresets.has(_musePresetIdx)) {
@@ -27621,6 +27729,7 @@ ${_clip(contextSections, 2600)}`;
                     collapsed: localStorage.getItem(MUSE_COLLAPSED_KEY) === '1',
                     passwordHashes: (function() { try { var _p = JSON.parse(localStorage.getItem('ps_muse_pws') || '[]'); while (_p.length < MUSE_PRESET_KEYS.length) _p.push(null); return _p; } catch(e) { return MUSE_PRESET_KEYS.map(function() { return null; }); } })(),
                     layoutMode: _museLayoutMode,
+                    slotCount: _museSlotCount,
                     autoRotate: { enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations },
                 },
                 profilePresets: {
@@ -27735,6 +27844,7 @@ ${_clip(contextSections, 2600)}`;
                                 try { localStorage.setItem('ps_muse_pws', JSON.stringify(md.passwordHashes)); } catch(e) {}
                             }
                             if (typeof md.layoutMode === 'number') { _museLayoutMode = md.layoutMode; try { localStorage.setItem(MUSE_LAYOUT_KEY, String(md.layoutMode)); } catch(e) {} }
+                            if (typeof md.slotCount === 'number') { _museSlotCount = md.slotCount; try { localStorage.setItem(MUSE_SLOT_COUNT_KEY, String(md.slotCount)); } catch(e) {} }
                             if (md.autoRotate) {
                                 _museAutoRotateEnabled = !!md.autoRotate.enabled;
                                 if (Array.isArray(md.autoRotate.durations)) {
@@ -28468,6 +28578,7 @@ ${_clip(contextSections, 2600)}`;
                     collapsed: localStorage.getItem(MUSE_COLLAPSED_KEY) === '1',
                     passwordHashes: (function() { try { var _p = JSON.parse(localStorage.getItem('ps_muse_pws') || '[]'); while (_p.length < MUSE_PRESET_KEYS.length) _p.push(null); return _p; } catch(e) { return MUSE_PRESET_KEYS.map(function() { return null; }); } })(),
                     layoutMode: _museLayoutMode,
+                    slotCount: _museSlotCount,
                     autoRotate: { enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations },
                 },
                 profilePresets: {
@@ -28596,7 +28707,7 @@ ${_clip(contextSections, 2600)}`;
                 + '|' + (localStorage.getItem('ps_muse_pws') || '');
             const psPresetsHash = (localStorage.getItem('ps_profile_presets') || '').length
                 + '|' + (localStorage.getItem('ps_profile_preset_idx') || '0');
-            return rHash + '::wl:' + watchlist.join(',') + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash + '::muse:' + museHash + '::psp:' + psPresetsHash + '::ml:' + _museLayoutMode + '::ar:' + _museAutoRotateEnabled + ':' + _museAutoRotateDurations.join(',');
+            return rHash + '::wl:' + watchlist.join(',') + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash + '::muse:' + museHash + '::psp:' + psPresetsHash + '::ml:' + _museLayoutMode + '::sc:' + _museSlotCount + '::ar:' + _museAutoRotateEnabled + ':' + _museAutoRotateDurations.join(',');
         }
         setInterval(() => {
             if (!getGistToken()) return;
