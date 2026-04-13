@@ -20090,12 +20090,8 @@ ${sourceText}`;
             }
         }, 60_000);
 
-        // Periodic REST-based sparkline refresh every 5 min (Approach 2: REST as primary source)
-        // Ensures sparkline is always complete regardless of when PSLink was opened
-        setInterval(function() {
-            if (!isMarketOpen()) return;
-            if (typeof refreshSparklineForTopSymbols === 'function') refreshSparklineForTopSymbols();
-        }, 5 * 60 * 1000);
+        // 5-min sparkline timer removed — 90s _sparklineRefreshTimer already covers this
+        // (duplicate fetch + canvas redraw was causing periodic lag spikes)
 
         // Active Tab Monitoring
         let _tabHiddenAt = 0; // timestamp when tab was hidden
@@ -22819,7 +22815,7 @@ ${_clip(contextSections, 2600)}`;
             if (cells[13] && d.h != null) { const ht = '$'+_fmt2(d.h); if (cells[13].data !== ht) { cells[13].data = ht; cells[13].firstChild ? (cells[13].firstChild.nodeValue = ht) : (cells[13].innerText = ht); } }
             if (cells[14] && d.l != null) { const lt = '$'+_fmt2(d.l); if (cells[14].data !== lt) { cells[14].data = lt; cells[14].firstChild ? (cells[14].firstChild.nodeValue = lt) : (cells[14].innerText = lt); } }
 
-            // ── Signal/Rating — adaptive throttle by watchlist size ───────────
+            // ── Signal/Rating — deferred to idle callback (EMA/RSI/MACD are expensive) ──
             if (!d._sigEl)  d._sigEl  = document.getElementById('wl-signal-' + sym);
             if (!d._rateEl) d._rateEl = document.getElementById('wl-rating-' + sym);
             if (d._sigEl || d._rateEl) {
@@ -22827,22 +22823,26 @@ ${_clip(contextSections, 2600)}`;
                 const moved = !d._sigLastPrice || (newPrice > d._sigLastPrice ? newPrice - d._sigLastPrice : d._sigLastPrice - newPrice) / d._sigLastPrice > 0.003;
                 if (moved || d._sigTickCount >= _sigThreshold) {
                     d._sigLastPrice = newPrice; d._sigTickCount = 0;
-                    const sigNow = d._sigEl ? getWatchlistSignal(sym, d) : null;
-                    const analystNow = d._rateEl ? getAnalystRating(d) : null;
-                    if (d._sigEl && sigNow) {
-                        if (d._sigEl.textContent !== sigNow.label) d._sigEl.textContent = sigNow.label;
-                        const c = 'wl-signal-badge ' + sigNow.cls; if (d._sigEl.className !== c) d._sigEl.className = c;
-                        const tip = 'Confidence ' + sigNow.confidence + '%'; if (d._sigEl.title !== tip) d._sigEl.title = tip;
-                    }
-                    if (d._rateEl && analystNow) {
-                        if (d._rateEl.textContent !== analystNow.label) d._rateEl.textContent = analystNow.label;
-                        const c = 'wl-signal-badge ' + analystNow.cls; if (d._rateEl.className !== c) d._rateEl.className = c;
-                    }
-                    if (!d._mobSigEl) d._mobSigEl = document.getElementById('wl-mob-sig-' + sym);
-                    if (d._mobSigEl && sigNow) {
-                        if (d._mobSigEl.textContent !== sigNow.label) d._mobSigEl.textContent = sigNow.label;
-                        const c = 'wl-signal-badge ' + sigNow.cls; if (d._mobSigEl.className !== c) d._mobSigEl.className = c;
-                    }
+                    // Schedule signal computation outside animation frame — never block DOM updates
+                    const _sSym = sym, _sD = d;
+                    (window.requestIdleCallback || setTimeout)(function() {
+                        const sigNow = _sD._sigEl ? getWatchlistSignal(_sSym, _sD) : null;
+                        const analystNow = _sD._rateEl ? getAnalystRating(_sD) : null;
+                        if (_sD._sigEl && sigNow) {
+                            if (_sD._sigEl.textContent !== sigNow.label) _sD._sigEl.textContent = sigNow.label;
+                            const c = 'wl-signal-badge ' + sigNow.cls; if (_sD._sigEl.className !== c) _sD._sigEl.className = c;
+                            const tip = 'Confidence ' + sigNow.confidence + '%'; if (_sD._sigEl.title !== tip) _sD._sigEl.title = tip;
+                        }
+                        if (_sD._rateEl && analystNow) {
+                            if (_sD._rateEl.textContent !== analystNow.label) _sD._rateEl.textContent = analystNow.label;
+                            const c = 'wl-signal-badge ' + analystNow.cls; if (_sD._rateEl.className !== c) _sD._rateEl.className = c;
+                        }
+                        if (!_sD._mobSigEl) _sD._mobSigEl = document.getElementById('wl-mob-sig-' + _sSym);
+                        if (_sD._mobSigEl && sigNow) {
+                            if (_sD._mobSigEl.textContent !== sigNow.label) _sD._mobSigEl.textContent = sigNow.label;
+                            const c = 'wl-signal-badge ' + sigNow.cls; if (_sD._mobSigEl.className !== c) _sD._mobSigEl.className = c;
+                        }
+                    });
                 }
             }
 
@@ -28328,23 +28328,35 @@ ${_clip(contextSections, 2600)}`;
                         if (r2.ok) sd = await r2.json();
                     }
                     if (!sd) return;
+                    // Feed snapshot data into rAF batch — same path as WS ticks
+                    // Avoids synchronous DOM update × 25 symbols in one frame
+                    const _snapNow = Date.now();
+                    let _snapQueued = false;
                     watchlist.forEach(sym => {
                         const sn = sd[sym]; if (!sn) return;
                         const lp = sn.latestTrade?.p ?? sn.minBar?.c ?? null;
                         if (!lp || !wlDataCache[sym]) return;
                         const prev = wlDataCache[sym];
                         // Skip ถ้า WS (Alpaca) tick มาใหม่กว่า 3 วิ — WS แม่นกว่า snapshot
-                        if (prev._wsTs && (Date.now() - prev._wsTs) < 3000) return;
+                        if (prev._wsTs && (_snapNow - prev._wsTs) < 3000) return;
                         const rawTs = sn.lastTrade?.t ?? sn.latestTrade?.t ?? 0;
                         const snapTs = rawTs > 1e15 ? Math.floor(rawTs / 1e6) : (rawTs > 1e12 ? rawTs : rawTs * 1000);
                         if (prev._snapTs && snapTs <= prev._snapTs) return;
                         prev._snapTs = snapTs;
-                        // ใช้ _handleTrade (fast DOM path + rAF batch) แทน updateWatchlistPriceCells (heavy)
-                        _handleTrade(sym, lp);
-                        if (sym === _lwcSymbol && window._lwcLivePriceLine) {
-                            try { window._lwcLivePriceLine.applyOptions({ price: lp }); } catch(e){}
-                        }
+                        // Update cache immediately (like _alpHandleTrades)
+                        const pc = prev.pc || prev._prevDailyC || null;
+                        prev.c = lp; prev._wsTs = _snapNow;
+                        if (pc) { prev.d = lp - pc; prev.dp = prev.d / pc * 100; }
+                        if (prev.h != null) { if (lp > prev.h) prev.h = lp; } else prev.h = lp;
+                        if (prev.l != null) { if (lp < prev.l) prev.l = lp; } else prev.l = lp;
+                        // Queue for rAF batch — NOT direct _handleTrade
+                        _pendingTrades[sym] = lp;
+                        _snapQueued = true;
                     });
+                    if (_snapQueued && !_rafPending) {
+                        _rafPending = true;
+                        requestAnimationFrame(_rafFlushQuotes);
+                    }
                 } catch(e) {}
             }, 15000);
 
