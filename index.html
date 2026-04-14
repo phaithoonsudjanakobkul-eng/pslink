@@ -26153,10 +26153,14 @@ ${_clip(contextSections, 2600)}`;
         function _clockSaveAll() {
             var widget = document.getElementById('ps-clock-widget');
             if (!widget) return;
+            var x = parseFloat(widget.style.left) || 0;
+            var y = parseFloat(widget.style.top)  || 0;
+            var w = parseFloat(widget.style.width) || 220;
+            var vw = window.innerWidth, vh = window.innerHeight;
+            // Save absolute px AND fractional 0-1 so cross-resolution restore scales proportionally
             try { localStorage.setItem('ps_clock_pos', JSON.stringify({
-                x: parseInt(widget.style.left) || 20,
-                y: parseInt(widget.style.top)  || 80,
-                w: parseInt(widget.style.width) || 220
+                x: x, y: y, w: w,
+                xp: x / vw, yp: y / vh, wp: w / vw
             })); } catch(e) {}
             try { localStorage.setItem(_clockColorKey(),     _clockColor); } catch(e) {}
             try { localStorage.setItem('ps_clock_show_date', _clockShowDate ? '1' : '0'); } catch(e) {}
@@ -26167,9 +26171,11 @@ ${_clip(contextSections, 2600)}`;
         function _clockSaveFabPos() {
             var fab = document.getElementById('ps-clock-fab');
             if (!fab) return;
+            var x = parseFloat(fab.style.left) || (window.innerWidth  - 40);
+            var y = parseFloat(fab.style.top)  || (window.innerHeight - 100);
+            var vw = window.innerWidth, vh = window.innerHeight;
             try { localStorage.setItem('ps_clock_fab_pos', JSON.stringify({
-                x: parseInt(fab.style.left) || (window.innerWidth - 40),
-                y: parseInt(fab.style.top)  || (window.innerHeight - 100)
+                x: x, y: y, xp: x / vw, yp: y / vh
             })); } catch(e) {}
             if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
         }
@@ -26180,28 +26186,68 @@ ${_clip(contextSections, 2600)}`;
             try { var f = localStorage.getItem('ps_clock_font'); if (f && _CLOCK_FONTS[f]) _clockFont = f; } catch(e) {}
         }
 
+        // Measure widget height accurately even when display:none by briefly unhiding with visibility:hidden
+        function _clockMeasureHeight(widget) {
+            if (!widget) return 60;
+            if (widget.style.display !== 'none') return widget.getBoundingClientRect().height || 60;
+            widget.style.visibility = 'hidden';
+            widget.style.display    = 'flex';
+            var h = widget.getBoundingClientRect().height || 60;
+            widget.style.display    = 'none';
+            widget.style.visibility = '';
+            return h;
+        }
+
         function _clockRestorePos() {
             var widget = document.getElementById('ps-clock-widget');
             if (!widget) return;
-            var pos = { x: 20, y: 80, w: 220 };
-            try { var s = localStorage.getItem('ps_clock_pos'); if (s) pos = JSON.parse(s); } catch(e) {}
-            _clockApplySize(pos.w || 220);
+            var raw = null;
+            try { var s = localStorage.getItem('ps_clock_pos'); if (s) raw = JSON.parse(s); } catch(e) {}
+
             var vw = window.innerWidth, vh = window.innerHeight;
-            var cw = parseInt(widget.style.width) || 220;
-            var ch = widget.getBoundingClientRect().height || 60;
-            widget.style.left = Math.max(0, Math.min(vw - cw, pos.x || 20)) + 'px';
-            widget.style.top  = Math.max(0, Math.min(vh - ch, pos.y || 80)) + 'px';
+            var w, x, y;
+
+            if (raw && raw.xp !== undefined) {
+                // Proportional restore — scales naturally to any screen size
+                w = Math.round((raw.wp || 0.115) * vw);
+                x = Math.round(raw.xp * vw);
+                y = Math.round(raw.yp * vh);
+            } else if (raw) {
+                // Legacy absolute pixels
+                w = raw.w || 220;  x = raw.x || 20;  y = raw.y || 80;
+            } else {
+                w = 220;  x = 20;  y = 80;
+            }
+
+            _clockApplySize(w);
+
+            // Measure real height with widget temporarily visible (avoids 0px from display:none)
+            var cw = parseInt(widget.style.width) || w;
+            var ch = _clockMeasureHeight(widget);
+
+            widget.style.left = Math.max(0, Math.min(vw - cw, x)) + 'px';
+            widget.style.top  = Math.max(0, Math.min(vh - ch, y)) + 'px';
         }
 
         function _clockRestoreFabPos() {
             var fab = document.getElementById('ps-clock-fab');
             if (!fab) return;
-            var dX = window.innerWidth - 40, dY = window.innerHeight - 100;
-            var pos = { x: dX, y: dY };
-            try { var s = localStorage.getItem('ps_clock_fab_pos'); if (s) pos = JSON.parse(s); } catch(e) {}
-            var fs = 26, vw = window.innerWidth, vh = window.innerHeight;
-            fab.style.left = Math.max(0, Math.min(vw - fs, pos.x || dX)) + 'px';
-            fab.style.top  = Math.max(0, Math.min(vh - fs, pos.y || dY)) + 'px';
+            var vw = window.innerWidth, vh = window.innerHeight;
+            var dX = vw - 40, dY = vh - 100;
+            var raw = null;
+            try { var s = localStorage.getItem('ps_clock_fab_pos'); if (s) raw = JSON.parse(s); } catch(e) {}
+            var x, y;
+            if (raw && raw.xp !== undefined) {
+                x = Math.round(raw.xp * vw);
+                y = Math.round(raw.yp * vh);
+            } else if (raw) {
+                x = raw.x || dX;  y = raw.y || dY;
+            } else {
+                x = dX;  y = dY;
+            }
+            var fs = 26;
+            fab.style.left = Math.max(0, Math.min(vw - fs, x)) + 'px';
+            fab.style.top  = Math.max(0, Math.min(vh - fs, y)) + 'px';
         }
 
         // ── Show / Hide / Tab wiring ──────────────────────────────────────────────
