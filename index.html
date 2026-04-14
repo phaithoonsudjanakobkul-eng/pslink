@@ -5940,8 +5940,8 @@
                         return;
                     }
                     const gist = await res.json();
-                    let fileObj = gist.files?.[GIST_FILENAME] || Object.values(gist.files || {}).find(f => f.filename?.endsWith('.json'));
-                    if (!fileObj) { if (statusEl) { statusEl.textContent = 'ไม่พบข้อมูล PSLink ใน Gist'; statusEl.style.color = '#f43f5e'; } if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'APPLY'; } if (_prog) _prog.style.display = 'none'; return; }
+                    let fileObj = gist.files?.[GIST_FILENAME];
+                    if (!fileObj) { if (statusEl) { statusEl.textContent = `ไม่พบ '${GIST_FILENAME}' ใน Gist`; statusEl.style.color = '#f43f5e'; } if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'APPLY'; } if (_prog) _prog.style.display = 'none'; return; }
 
                     let content = fileObj.content;
                     if (fileObj.raw_url) {
@@ -19758,17 +19758,7 @@ ${sourceText}`;
                 _startScannerInterval();
             }, 1500);
 
-            // Refresh on tab visibility change (user returns after a break)
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden) {
-                    const wlTab = document.getElementById('tab-watchlist');
-                    const isVisible = wlTab && !wlTab.classList.contains('hidden');
-                    const isStale = (Date.now() - _scannerCacheTs) > _scannerTtlMs();
-                    if (isVisible && isStale) {
-                        loadMarketScanner(false);
-                    }
-                }
-            });
+            // Scanner visibilitychange logic moved to unified handler below
 
             // Re-render when viewport crosses mobile/desktop boundary (e.g. Request Desktop Site toggle)
             (function() {
@@ -20183,101 +20173,7 @@ ${sourceText}`;
         // Active Tab Monitoring
         let _tabHiddenAt = 0; // timestamp when tab was hidden
 
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                _tabHiddenAt = Date.now();
-                stopExtHoursPolling();
-                _stopSparklineAutoRefresh();
-            } else {
-                const hiddenMs = _tabHiddenAt ? Date.now() - _tabHiddenAt : 0;
-                _tabHiddenAt = 0;
-
-                startExtHoursPolling();
-
-                // ── Step 1: แสดง cache ทันทีก่อนเลย ไม่รอ fetch ──
-                if (watchlist.length) {
-                    watchlist.forEach(s => {
-                        if (!document.getElementById('wl-row-' + s))
-                            renderWatchlistRow(s, wlDataCache[s] || null);
-                        else if (wlDataCache[s])
-                            updateWatchlistPriceCells(s, wlDataCache[s]);
-                    });
-                }
-
-                if (isMarketOpen()) {
-                    _startSparklineAutoRefresh();
-
-                    const _fhLive  = fhWs  && fhWs.readyState  === 1;
-                    const _alpLive = alpWs && alpWs.readyState  === 1;
-                    const wsLive   = _fhLive || _alpLive;
-
-                    // ── Always reset background mode + hover guard when tab is visible ──
-                    _wsBackgroundMode = false;
-                    _lwcCanvasHovered = false;
-
-                    // ── Step 2: WS ยังต่ออยู่ + hidden < 5 นาที → flush pending แล้วออก ──
-                    if (wsLive && hiddenMs < 5 * 60 * 1000) {
-                        // Flush any trades queued while in background — instant DOM update
-                        if (!_rafPending) {
-                            _rafPending = true;
-                            requestAnimationFrame(_rafFlushQuotes);
-                        }
-                        return; // WS จะส่ง tick ใหม่มาเองในไม่ช้า
-                    }
-
-                    // ── Step 3: WS หลุด → reconnect ──
-                    if (!wsLive && watchlist.length) {
-                        _wsBackgroundMode = document.getElementById('tab-watchlist')
-                            ?.classList.contains('hidden') ?? true;
-                        connectWs();
-                    }
-
-                    // ── Step 4: hidden นาน หรือ WS หลุด → quote-only refresh (เร็ว) ──
-                    if (hiddenMs > 5 * 60 * 1000 || !wsLive) {
-                        // Quote-only: อย่าทำ full refreshWatchlist() เพราะช้า
-                        // ใช้ Phase B เท่านั้น — fetch quote ทุก symbol พร้อมกัน
-                        const fhKey = getFinnhubKey();
-                        if (fhKey && watchlist.length) {
-                            const now = Date.now();
-                            const symbols = watchlist.filter(s => profileCache[s]); // มี cache แล้ว
-                            const noCache = watchlist.filter(s => !profileCache[s]); // ยังไม่มี → full refresh
-                            if (noCache.length) {
-                                // มี symbol ใหม่ที่ไม่มี cache → full refresh
-                                refreshWatchlist().then(() => refreshSparklineForTopSymbols());
-                            } else {
-                                // ทุก symbol มี cache → quote-only ทั้งหมด เร็วมาก
-                                Promise.allSettled(symbols.map(async sym => {
-                                    try {
-                                        const r = await finnhubFetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${fhKey}`);
-                                        if (!r.ok) return;
-                                        const q = await r.json();
-                                        if (!q.c || q.c === 0) q.c = q.pc;
-                                        const existing = wlDataCache[sym] || {};
-                                        wlDataCache[sym] = { ...profileCache[sym], ...existing, ...q };
-                                        quoteTsCache[sym] = Date.now();
-                                        updateWatchlistPriceCells(sym, wlDataCache[sym]);
-                                    } catch(e) {}
-                                })).then(() => {
-                                    refreshSparklineForTopSymbols();
-                                    saveWlCache();
-                                    document.getElementById('wl-last-update').innerText =
-                                        `Updated ${new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})}`;
-                                });
-                            }
-                        }
-                    }
-                } else {
-                    // ตลาดปิด — reset background mode, แค่แสดง cache, ไม่ fetch
-                    _wsBackgroundMode = false;
-                    if (!fhWs && !alpWs && watchlist.length) {
-                        _wsBackgroundMode = document.getElementById('tab-watchlist')
-                            ?.classList.contains('hidden') ?? true;
-                        connectWs();
-                        refreshWatchlist().then(() => refreshSparklineForTopSymbols());
-                    }
-                }
-            }
-        });
+        // Watchlist visibilitychange logic moved to unified handler below
 
 
         async function fetchTechnicals(symbol, finnhubKey) {
@@ -23198,7 +23094,13 @@ ${_clip(contextSections, 2600)}`;
             }
         }
 
+        let _fxLastCallTs = 0; // throttle guard — prevents duplicate calls within 3s
         async function fetchFxRate() {
+            // Deduplicate rapid calls (e.g. multiple event handlers firing at once on tab focus)
+            const _callNow = Date.now();
+            if (_callNow - _fxLastCallTs < 3000) return;
+            _fxLastCallTs = _callNow;
+
             const rateEl      = document.getElementById('fx-rate');
             const rateInvEl   = document.getElementById('fx-rate-inv');
             const changeEl    = document.getElementById('fx-change');
@@ -27283,7 +27185,7 @@ ${_clip(contextSections, 2600)}`;
 
         // ── GitHub Gist Sync ──────────────────────────────────────────────────
         const GIST_ID       = '5f913baf7d6636bf42da5e5d07a1570c';
-        const GIST_FILENAME = 'PS-Smart-Finance.json';
+        const GIST_FILENAME = 'PSLink Database.json';
 
         function getGistToken() { return localStorage.getItem('ps_gist_token') || ''; }
 
@@ -27393,6 +27295,7 @@ ${_clip(contextSections, 2600)}`;
                     // Update hash so _pushToGist knows Gist is now current
                     _lastSavedHash = _dataHash();
                     try { localStorage.removeItem('ps_data_dirty'); } catch(e) {}
+                    try { localStorage.setItem('ps_gist_push_ts', String(exportData.lastModifiedTs)); } catch(e) {} // cross-device conflict resolution
                     showGistStatus('SAVED ✓', 'text-emerald-500');
                 } else if (res.status === 401) {
                     showGistStatus('TOKEN หมดอายุ ✗', 'text-rose-500');
@@ -27457,12 +27360,13 @@ ${_clip(contextSections, 2600)}`;
                 if (isInitialLoad) _splashStatus('ได้รับ Gist metadata ✓');
                 const gist = await res.json();
 
-                // Try GIST_FILENAME first, then any .json file as fallback
+                // Look up exact GIST_FILENAME — no ambiguous .json fallback
                 let fileObj = gist.files?.[GIST_FILENAME];
                 if (!fileObj) {
-                    fileObj = Object.values(gist.files || {}).find(f => f.filename?.endsWith('.json'));
+                    console.warn(`[Gist] ไม่พบ '${GIST_FILENAME}' ใน Gist — ตรวจสอบว่าชื่อไฟล์ตรงกัน`);
+                    showGistStatus(`ไม่พบ '${GIST_FILENAME}' ใน Gist`, 'text-rose-500');
+                    return;
                 }
-                if (!fileObj) { showGistStatus('ไม่มีข้อมูลใน Gist', 'text-gray-400'); return; }
 
                 // Handle GitHub's truncation for large files (> 1MB) — must fetch raw_url
                 let content = fileObj.content;
@@ -27493,23 +27397,38 @@ ${_clip(contextSections, 2600)}`;
                 const hasLocalChanges = !isInitialLoad && (_dataHash() !== _lastSavedHash);
 
                 let _wlMergedExtras = false;
+
+                // ── Timestamp-based conflict resolution ──────────────────────────────
+                // gistTs: when this Gist payload was last written (from any device)
+                // localPushTs: when THIS device last successfully pushed to Gist
+                // _gistIsNewer: true → another device (or fresh setup) wrote more recently
+                const _gistTs      = (typeof data === 'object' && !Array.isArray(data)) ? (data.lastModifiedTs || 0) : 0;
+                const _localPushTs = parseInt(localStorage.getItem('ps_gist_push_ts') || '0', 10);
+                const _isDirty     = localStorage.getItem('ps_data_dirty') === '1';
+                const _gistIsNewer = _gistTs > _localPushTs; // Gist updated by another device (or first sync)
+                const _hasSyncHistory = !!localStorage.getItem('ps_gist_sync_ts'); // legacy compat gate
+
                 if (Array.isArray(data)) {
                     if (!hasLocalChanges) records = data;
                     if (isInitialLoad) _splashStatus(`โหลด ${records.length} รายการ (legacy format)`);
                 } else {
                     if (Array.isArray(data.records)) {
                         if (isInitialLoad) {
-                            const _hasSyncHistory = !!localStorage.getItem('ps_gist_sync_ts');
-                            const _isDirty = localStorage.getItem('ps_data_dirty') === '1';
                             if (_isDirty) {
                                 // Local has unsaved changes (push was pending/rate-limited before refresh)
                                 // → keep local records and push them to Gist after sync
                                 const _localRecRaw = localStorage.getItem('ps_records');
                                 records = _localRecRaw ? (() => { try { return JSON.parse(_localRecRaw); } catch(e) { return data.records; } })() : data.records;
                                 _wlMergedExtras = true; // schedule push so Gist gets the local changes
-                                console.log('[Gist] Dirty flag set — keeping local records, will push to Gist');
+                                console.log('[Gist] Dirty flag — keeping local records, will push to Gist');
+                            } else if (_gistIsNewer) {
+                                // Gist written more recently than our last push → use Gist directly
+                                // (cross-device sync, or fresh device with no push history)
+                                records = data.records;
+                                if (_hasSyncHistory) console.log(`[Gist] Cross-device sync — using Gist records (gistTs=${_gistTs}, localPushTs=${_localPushTs})`);
                             } else if (_hasSyncHistory) {
-                                // Same device, no pending changes — merge local-only months (e.g. importRecordsOnly)
+                                // Same device, Gist matches our last push — merge local-only months
+                                // (e.g. records imported via importRecordsOnly that didn't push yet)
                                 const _localRecRaw = localStorage.getItem('ps_records');
                                 const _localRec = _localRecRaw ? (() => { try { return JSON.parse(_localRecRaw); } catch(e) { return []; } })() : [];
                                 const _gistIds = new Set(data.records.map(r => r && r.id));
@@ -27522,7 +27441,7 @@ ${_clip(contextSections, 2600)}`;
                                     records = data.records;
                                 }
                             } else {
-                                // Fresh device/origin — use Gist directly, no merge
+                                // Fresh device/origin, legacy Gist (no lastModifiedTs) — use Gist directly
                                 records = data.records;
                             }
                         } else if (!hasLocalChanges) {
@@ -27531,18 +27450,19 @@ ${_clip(contextSections, 2600)}`;
                     }
                     if (Array.isArray(data.watchlist) && !hasLocalChanges) {
                         if (isInitialLoad) {
-                            const _isDirtyWl = localStorage.getItem('ps_data_dirty') === '1';
-                            if (_isDirtyWl) {
+                            if (_isDirty) {
                                 // Local has unsaved changes — keep local watchlist too
                                 const _localWlRaw = localStorage.getItem('ps_watchlist');
                                 const _localWl = _localWlRaw ? (() => { try { return JSON.parse(_localWlRaw); } catch(e) { return data.watchlist; } })() : data.watchlist;
                                 watchlist = Array.isArray(_localWl) ? _localWl : data.watchlist;
                                 _wlMergedExtras = true;
-                                console.log('[Gist] Dirty flag set — keeping local watchlist, will push to Gist');
-                            } else
-                            // Only merge local-only stocks if this device has synced Gist before.
-                            // Fresh device/origin → use Gist directly to avoid pushing stale localStorage back.
-                            if (!!localStorage.getItem('ps_gist_sync_ts')) {
+                                console.log('[Gist] Dirty flag — keeping local watchlist, will push to Gist');
+                            } else if (_gistIsNewer) {
+                                // Gist is newer — use Gist directly (cross-device or fresh device)
+                                watchlist = data.watchlist;
+                                if (_hasSyncHistory) console.log(`[Gist] Cross-device sync — using Gist watchlist (gistTs=${_gistTs})`);
+                            } else if (_hasSyncHistory) {
+                                // Same device, Gist matches our last push — merge local-only stocks
                                 const _localWlRaw = localStorage.getItem('ps_watchlist');
                                 const _localWl = _localWlRaw ? (() => { try { return JSON.parse(_localWlRaw); } catch(e) { return []; } })() : [];
                                 const _gistSet = new Set(data.watchlist);
@@ -27555,6 +27475,7 @@ ${_clip(contextSections, 2600)}`;
                                     watchlist = data.watchlist;
                                 }
                             } else {
+                                // Fresh device/origin — use Gist directly
                                 watchlist = data.watchlist;
                             }
                         } else {
@@ -27797,6 +27718,7 @@ ${_clip(contextSections, 2600)}`;
                     }
                     // isInitialLoad: _splashFinalStep handles refreshWatchlist so prices + sparklines
                     // are both done before the splash hides (avoids post-splash skeleton→sparkline transitions)
+                    _fxLastCallTs = 0; // reset throttle so post-sync FX fetch always fires
                     fetchFxRate();
                 }
 
@@ -27839,10 +27761,19 @@ ${_clip(contextSections, 2600)}`;
                 }
             } finally {
                 _isSyncing = false;
-                // Flush any save that was queued while syncing
                 if (_pendingSave) {
                     _pendingSave = false;
-                    setTimeout(() => _pushToGist(true), 500); // actually trigger the queued push
+                    // Push merged data to Gist, then pre-warm _lastEncBody so keepalive
+                    // always has a fresh body even if user closes the tab right after
+                    setTimeout(() => {
+                        _pushToGist(true);
+                        // Pre-warm after push (300ms gap so encrypt runs after push completes)
+                        setTimeout(_scheduleRefreshEncBody, 300);
+                    }, 500);
+                } else {
+                    // No push needed — but still pre-warm keepalive body for this session
+                    // so early tab-close doesn't send a null/stale body
+                    _scheduleRefreshEncBody();
                 }
             }
         }
@@ -27854,6 +27785,7 @@ ${_clip(contextSections, 2600)}`;
             const statusEl = document.getElementById('s-gist-apply-status');
             const btn = document.getElementById('s-gist-apply-btn');
             const token = input?.value?.trim();
+            let _reloading = false; // flag: skip finally reset when reload is pending
             if (!token) {
                 if (statusEl) { statusEl.textContent = 'กรุณาใส่ Gist Token ก่อน'; statusEl.style.color = '#f43f5e'; }
                 return;
@@ -27878,8 +27810,8 @@ ${_clip(contextSections, 2600)}`;
                 if (!res.ok) { _gistApplyErr(statusEl, btn, 'Error ' + res.status); return; }
 
                 const gist = await res.json();
-                let fileObj = gist.files?.[GIST_FILENAME] || Object.values(gist.files || {}).find(f => f.filename?.endsWith('.json'));
-                if (!fileObj) { _gistApplyErr(statusEl, btn, 'ไม่มีไฟล์ข้อมูลใน Gist'); return; }
+                let fileObj = gist.files?.[GIST_FILENAME];
+                if (!fileObj) { _gistApplyErr(statusEl, btn, `ไม่พบ '${GIST_FILENAME}' ใน Gist`); return; }
 
                 let content = fileObj.content;
                 if (fileObj.raw_url) {
@@ -27924,19 +27856,22 @@ ${_clip(contextSections, 2600)}`;
                     connectWs();
                     _startWsWatchdog();
                 }
-                // ── Fetch data if Finnhub key restored ──
-                if (getFinnhubKey() && watchlist.length) {
-                    fetchFxRate();
-                    if (!_isSyncing) refreshWatchlist();
-                }
-
-                // Success UI
+                // Option B: Show success briefly → full page reload → Splash runs complete boot
+                // ps_gist_push_ts is 0 (we pulled, never pushed) → _gistIsNewer=true on reload
+                // → syncFromGist(isInitialLoad=true) applies Gist directly → prices/sparklines/logos load → enter last tab
                 const keyNames = keysRestored > 0 ? ` + ${keysRestored} API keys` : '';
                 if (statusEl) { statusEl.textContent = `RESTORED ✓ ${watchlist.length} symbols${keyNames}`; statusEl.style.color = '#10b981'; }
+                if (btn) { btn.textContent = 'Setup เสร็จสมบูรณ์ ✓'; btn.style.background = '#10b981'; btn.disabled = true; }
+                _reloading = true; // tell finally to leave the button alone — page reloads shortly
+                setTimeout(() => {
+                    if (statusEl) statusEl.textContent = 'กำลังโหลดข้อมูล...';
+                    setTimeout(() => location.reload(), 700);
+                }, 1300);
             } catch(e) {
                 _gistApplyErr(statusEl, btn, e.message?.slice(0, 40) || 'Unknown error');
             } finally {
-                if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Apply — ดึงข้อมูล + API Keys ทั้งหมด'; }
+                // Only reset button on error path; success path reloads the page
+                if (!_reloading && btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Apply — ดึงข้อมูล + API Keys ทั้งหมด'; }
             }
         }
         function _gistApplyErr(statusEl, btn, msg) {
@@ -28762,13 +28697,7 @@ ${_clip(contextSections, 2600)}`;
                 fetchFxRate();
             }, 15000); // 15s tick — actual fetch controlled by adaptive TTL cache
 
-            // Fetch immediately when user returns to tab
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) {
-                    const wlVisible = !document.getElementById('tab-watchlist').classList.contains('hidden');
-                    if (wlVisible) fetchFxRate();
-                }
-            });
+            // FX visibilitychange logic moved to unified handler below
 
             // Fallback polling every 1 min — only when WebSocket is NOT connected and market is open
             setInterval(() => {
@@ -28935,6 +28864,7 @@ ${_clip(contextSections, 2600)}`;
                 if (v) _apiKeys[k] = _encKey(v);
             });
             return {
+                lastModifiedTs: Date.now(), // wall-clock timestamp — used for cross-device conflict resolution
                 meta: { avatar: db.avatar, avatarTs: parseInt(localStorage.getItem('ps_avatar_ts')||'0',10), profilePhoto: db.profilePhoto, profilePhotoTs: parseInt(localStorage.getItem('ps_profile_photo_ts')||'0',10), dark: document.documentElement.classList.contains('dark'), theme: _activeTheme },
                 chartPrefs: (() => { try { return JSON.parse(localStorage.getItem('ps_lwc_prefs')||'{}'); } catch(e){return{};} })(),
                 records,
@@ -29021,6 +28951,7 @@ ${_clip(contextSections, 2600)}`;
                     _lastSavedHash = hash; // only update hash on confirmed success
                     _lastGistPushTime = Date.now(); // update after confirmed success
                     try { localStorage.removeItem('ps_data_dirty'); } catch(e) {} // push succeeded — local is in sync
+                    try { localStorage.setItem('ps_gist_push_ts', String(exportData.lastModifiedTs)); } catch(e) {} // timestamp for cross-device conflict resolution
                     const t = new Date(); const hm = t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
                     showGistStatus('AUTO SAVED ✓ ' + hm, 'text-emerald-400');
                 } else if (res.status === 403 || res.status === 429) {
@@ -29062,12 +28993,11 @@ ${_clip(contextSections, 2600)}`;
             const token = getGistToken();
             if (!token) return;
             if (!_lastEncBody) return; // no encrypted body cached — skip rather than send unencrypted data
-            if (_dataHash() === _lastSavedHash) return; // nothing changed
+            if (_dataHash() === _lastSavedHash) return; // nothing changed — skip
             try {
                 const body = _lastEncBody;
-                // keepalive fetch has ~64KB body limit — if payload is larger (photos included),
-                // try regular fetch first; keepalive as fallback
                 if (body.length < 60000) {
+                    // Small payload — use keepalive fetch (survives page unload)
                     fetch(`https://api.github.com/gists/${GIST_ID}`, {
                         method: 'PATCH',
                         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -29075,12 +29005,16 @@ ${_clip(contextSections, 2600)}`;
                         keepalive: true
                     }).catch(() => {});
                 } else {
-                    // Large payload (photos) — use regular fetch without keepalive
-                    // This may not complete if page unloads immediately, but best effort
+                    // Large payload (>64KB, e.g. photos included) — keepalive has a 64KB limit
+                    // Mark as dirty so next session knows to push immediately on load
+                    try { localStorage.setItem('ps_data_dirty', '1'); } catch(e) {}
+                    // Best-effort regular fetch — may succeed if browser allows in-flight requests to complete
                     fetch(`https://api.github.com/gists/${GIST_ID}`, {
                         method: 'PATCH',
                         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                         body
+                    }).then(() => {
+                        try { localStorage.removeItem('ps_data_dirty'); } catch(e) {}
                     }).catch(() => {});
                 }
             } catch(e) {}
@@ -29089,6 +29023,9 @@ ${_clip(contextSections, 2600)}`;
         function scheduleAutoSave(immediate = false) {
             if (!getGistToken()) return;
             clearTimeout(autoSaveTimer);
+            // Always pre-encrypt _lastEncBody so keepalive has a fresh body even if
+            // the real push gets rate-limited or the user closes the tab quickly
+            _scheduleRefreshEncBody();
             if (immediate) {
                 autoSaveTimer = null;
                 _pushToGist((Date.now() - _lastManualSyncTime) < 10000);
@@ -29142,40 +29079,147 @@ ${_clip(contextSections, 2600)}`;
         }, 30 * 1000);
 
         // ── Save on tab close / navigate away ─────────────────────────────────
+        // beforeunload: desktop browsers (fires before page unloads)
         window.addEventListener('beforeunload', () => {
             _saveLogoDataCacheLocal(true);
-            _pushToGistKeepalive(); // fire-and-forget with keepalive:true
+            // Mark dirty if data has changed since last confirmed push — ensures next
+            // session pushes immediately even if keepalive was cancelled/stale
+            if (_pendingSave || _dataHash() !== _lastSavedHash) {
+                try { localStorage.setItem('ps_data_dirty', '1'); } catch(e) {}
+            }
+            _pushToGistKeepalive();
         });
-        // pagehide fires on mobile and BFCache browsers where beforeunload is suppressed
+        // pagehide: mobile + BFCache browsers — single listener with e.persisted guard
+        // (replaces two separate pagehide listeners that caused double PATCH on close)
         window.addEventListener('pagehide', (e) => {
             if (!e.persisted) { // only on actual close, not BFCache entry
                 _saveLogoDataCacheLocal(true);
+                if (_pendingSave || _dataHash() !== _lastSavedHash) {
+                    try { localStorage.setItem('ps_data_dirty', '1'); } catch(e) {}
+                }
                 _pushToGistKeepalive();
             }
         });
 
-        // ── Flush pending auto-save immediately when tab becomes visible again ─
-        // (browsers throttle setTimeout in background tabs — this ensures data
-        //  saved while tab was hidden gets pushed to Gist as soon as user returns)
+        // ── Unified visibilitychange handler ──────────────────────────────────────
+        // Single listener replaces 4 separate ones (scanner, watchlist WS/sparkline,
+        // FX rate, Gist+news) — eliminates duplicate API calls on tab focus.
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
-                // Flush any pending save immediately when user returns to the page
+
+                // 1. Gist flush (browsers throttle setTimeout in background tabs)
                 scheduleAutoSave(true);
+
+                // 2. News poll
                 if (_isNewsTabVisible()) {
-                    // Pull latest once when user returns, then keep polling.
                     loadNewsFeed(true);
                     _startNewsLivePolling();
                 }
+
+                const wlTabHidden = document.getElementById('tab-watchlist')?.classList.contains('hidden') ?? true;
+
+                // 3. Scanner — refresh if watchlist tab visible and cache is stale
+                if (!wlTabHidden && (Date.now() - _scannerCacheTs) > _scannerTtlMs()) {
+                    loadMarketScanner(false);
+                }
+
+                // 4. FX rate — fetch when watchlist tab is visible
+                if (!wlTabHidden) fetchFxRate();
+
+                // 5. Watchlist WS / sparklines / quote refresh
+                {
+                    const hiddenMs = _tabHiddenAt ? Date.now() - _tabHiddenAt : 0;
+                    _tabHiddenAt = 0;
+
+                    startExtHoursPolling();
+
+                    // ── Step 1: แสดง cache ทันทีก่อนเลย ไม่รอ fetch ──
+                    if (watchlist.length) {
+                        watchlist.forEach(s => {
+                            if (!document.getElementById('wl-row-' + s))
+                                renderWatchlistRow(s, wlDataCache[s] || null);
+                            else if (wlDataCache[s])
+                                updateWatchlistPriceCells(s, wlDataCache[s]);
+                        });
+                    }
+
+                    if (isMarketOpen()) {
+                        _startSparklineAutoRefresh();
+
+                        const _fhLive  = fhWs  && fhWs.readyState  === 1;
+                        const _alpLive = alpWs && alpWs.readyState  === 1;
+                        const wsLive   = _fhLive || _alpLive;
+
+                        // ── Always reset background mode + hover guard when tab is visible ──
+                        _wsBackgroundMode = false;
+                        _lwcCanvasHovered = false;
+
+                        // ── Step 2: WS ยังต่ออยู่ + hidden < 5 นาที → flush pending ──
+                        if (wsLive && hiddenMs < 5 * 60 * 1000) {
+                            // Flush any trades queued while in background — instant DOM update
+                            if (!_rafPending) {
+                                _rafPending = true;
+                                requestAnimationFrame(_rafFlushQuotes);
+                            }
+                            // WS still alive + briefly hidden → skip quote refresh
+                        } else {
+                            // ── Step 3: WS หลุด → reconnect ──
+                            if (!wsLive && watchlist.length) {
+                                _wsBackgroundMode = wlTabHidden;
+                                connectWs();
+                            }
+
+                            // ── Step 4: hidden นาน หรือ WS หลุด → quote-only refresh ──
+                            if (hiddenMs > 5 * 60 * 1000 || !wsLive) {
+                                // Quote-only: อย่าทำ full refreshWatchlist() เพราะช้า
+                                const fhKey = getFinnhubKey();
+                                if (fhKey && watchlist.length) {
+                                    const symbols = watchlist.filter(s => profileCache[s]);  // มี cache แล้ว
+                                    const noCache = watchlist.filter(s => !profileCache[s]); // ยังไม่มี → full refresh
+                                    if (noCache.length) {
+                                        refreshWatchlist().then(() => refreshSparklineForTopSymbols());
+                                    } else {
+                                        Promise.allSettled(symbols.map(async sym => {
+                                            try {
+                                                const r = await finnhubFetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${fhKey}`);
+                                                if (!r.ok) return;
+                                                const q = await r.json();
+                                                if (!q.c || q.c === 0) q.c = q.pc;
+                                                const existing = wlDataCache[sym] || {};
+                                                wlDataCache[sym] = { ...profileCache[sym], ...existing, ...q };
+                                                quoteTsCache[sym] = Date.now();
+                                                updateWatchlistPriceCells(sym, wlDataCache[sym]);
+                                            } catch(e) {}
+                                        })).then(() => {
+                                            refreshSparklineForTopSymbols();
+                                            saveWlCache();
+                                            document.getElementById('wl-last-update').innerText =
+                                                `Updated ${new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'})}`;
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // ตลาดปิด — reset background mode, แสดง cache, ไม่ fetch quote
+                        _wsBackgroundMode = false;
+                        if (!fhWs && !alpWs && watchlist.length) {
+                            _wsBackgroundMode = wlTabHidden;
+                            connectWs();
+                            refreshWatchlist().then(() => refreshSparklineForTopSymbols());
+                        }
+                    }
+                }
+
             } else {
+                // Tab hidden
+                _tabHiddenAt = Date.now();
+                stopExtHoursPolling();
+                _stopSparklineAutoRefresh();
                 _stopNewsLivePolling();
                 _saveLogoDataCacheLocal(true); // ensure logo cache survives hard refresh
-                _pushToGist(true);             // iOS: save when user switches away (visibilitychange fires reliably)
+                _pushToGist(true);             // iOS: save when user switches away
             }
-        });
-        // iOS PWA: pagehide fires before the page is discarded — last chance to flush to Gist
-        window.addEventListener('pagehide', () => {
-            _saveLogoDataCacheLocal(true);
-            _pushToGistKeepalive(); // keepalive fetch survives page discard
         });
 
         // ══════════════════════════════════════════════════════════════════
