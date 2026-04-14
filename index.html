@@ -27537,16 +27537,30 @@ ${_clip(contextSections, 2600)}`;
                         }
                         if (isInitialLoad) _splashStatus('กู้คืน Avatar / Profile Photo ✓');
                     }
-                    // Theme precedence: local user preference always wins.
-                    // Gist theme is used only as a first-time fallback on this browser/profile.
+                    // Theme: on initial load, always restore Gist's theme (cross-device truth).
+                    // Boot IIFE writes a default theme (e.g. 'apple') before sync runs,
+                    // making '!localTheme' always false — so use isInitialLoad override.
+                    // On manual sync (isInitialLoad=false): local theme wins (don't disrupt live session).
                     const localTheme = localStorage.getItem('ps_theme');
                     const localDark  = localStorage.getItem('ps_dark');
-                    if (!localTheme && data.meta?.theme && _THEMES[data.meta.theme]) {
+                    if (data.meta?.theme && _THEMES[data.meta.theme] && (isInitialLoad || !localTheme)) {
                         _applyTheme(data.meta.theme);
                         if (isInitialLoad) _splashStatus(`ใช้ Theme: ${data.meta.theme}`);
                     } else if (!localTheme && localDark === null && typeof data.meta?.dark === 'boolean') {
                         applyDarkMode(data.meta.dark);
                         try { localStorage.setItem('ps_dark', data.meta.dark ? '1' : '0'); } catch(e) {}
+                    }
+                    // Tab: restore last active tab from Gist on initial load
+                    if (data.uiState?.tab && isInitialLoad) {
+                        const gistTab = data.uiState.tab;
+                        const validTabs = ['dashboard', 'watchlist', 'edit', 'utilities'];
+                        if (validTabs.includes(gistTab)) {
+                            try { localStorage.setItem('ps_tab', gistTab); } catch(e) {}
+                            // Switch to Gist's tab — UI was already rendered with boot's savedTab,
+                            // so re-call showTab to correct it (splash still covers the transition)
+                            showTab(gistTab, false, true);
+                            if (isInitialLoad) _splashStatus(`Tab: ${gistTab}`);
+                        }
                     }
                     // Profile card: restore notes, free images, pills config
                     if (data.profileCard) {
@@ -27984,6 +27998,9 @@ ${_clip(contextSections, 2600)}`;
                     presets:   (function() { try { return JSON.parse(localStorage.getItem('ps_profile_presets') || '[]'); } catch(e) { return []; } })(),
                     activeIdx: parseInt(localStorage.getItem('ps_profile_preset_idx') || '0', 10) || 0,
                 },
+                uiState: {
+                    tab: localStorage.getItem('ps_tab') || 'dashboard',
+                },
                 movementCache: { version: 5, ts: Date.now(), data: _collectSparklineCacheData() },
                 logoDataCache: _collectLogoDataCacheData(),
                 symbolLogoCache: _collectSymbolLogoCacheData(),
@@ -28127,6 +28144,13 @@ ${_clip(contextSections, 2600)}`;
                                         if (typeof _psPresetsRenderDots === 'function') _psPresetsRenderDots();
                                     }
                                 } catch(e2) {}
+                            }
+                        }
+                        // UI state: restore tab
+                        if (data.uiState?.tab) {
+                            const validTabs = ['dashboard', 'watchlist', 'edit', 'utilities'];
+                            if (validTabs.includes(data.uiState.tab)) {
+                                try { localStorage.setItem('ps_tab', data.uiState.tab); } catch(e) {}
                             }
                         }
                     } else {
@@ -28540,20 +28564,23 @@ ${_clip(contextSections, 2600)}`;
             function _splashFinalStep() {
                 // Pick up sparkline data that syncFromGist just wrote to localStorage
                 loadSparklineCache({ skipStale: true });
+                // Render cached sparklines immediately — user sees shapes before fresh fetch
+                ensureSparklinePlaceholders();
                 _splashStatus('โหลดราคาและ Sparkline...');
-                // wlDataCache starts empty — refreshWatchlist fills it with price/OHLC data.
-                // refreshSparklineForTopSymbols Phase 0 needs wlDataCache to seed OHLC sparklines.
-                // Run watchlist first, then sparklines — ensures Phase 0 has data and renders before splash hides.
-                var _wlP = (watchlist.length > 0 && (getFinnhubKey() || (getAlpacaKey() && getAlpacaSecret())))
-                    ? refreshWatchlist()
+                // Run watchlist refresh + sparkline fetch in PARALLEL:
+                // - refreshWatchlist: heavy (profiles/metrics/recommendations, ~10-15s)
+                // - refreshSparklineForTopSymbols: Alpaca bars only, no dependency on wlDataCache
+                //   Phase 0 (OHLC seed) degrades gracefully if wlDataCache is empty —
+                //   sparkline cache base prices are used instead.
+                //   Phase 1 (Alpaca fetch) is fully independent.
+                // Previously sequential → splash hit 15s timeout before sparklines loaded.
+                var _hasKey = watchlist.length > 0 && (getFinnhubKey() || (getAlpacaKey() && getAlpacaSecret()));
+                var _wlP = _hasKey ? refreshWatchlist() : Promise.resolve();
+                var _sparkP = (typeof refreshSparklineForTopSymbols === 'function')
+                    ? refreshSparklineForTopSymbols()
                     : Promise.resolve();
-                var _sp = _wlP.then(function() {
-                    return typeof refreshSparklineForTopSymbols === 'function'
-                        ? refreshSparklineForTopSymbols()
-                        : null;
-                });
                 Promise.race([
-                    _sp,
+                    Promise.all([_wlP, _sparkP]),
                     new Promise(function(r) { setTimeout(r, 15000); }) // 15s max
                 ]).then(function() {
                     _splashStatus('พร้อมใช้งาน ✓');
@@ -28939,6 +28966,9 @@ ${_clip(contextSections, 2600)}`;
                     presets:   (function() { try { return JSON.parse(localStorage.getItem('ps_profile_presets') || '[]'); } catch(e) { return []; } })(),
                     activeIdx: parseInt(localStorage.getItem('ps_profile_preset_idx') || '0', 10) || 0,
                 },
+                uiState: {
+                    tab: localStorage.getItem('ps_tab') || 'dashboard',
+                },
             };
         }
 
@@ -29118,7 +29148,8 @@ ${_clip(contextSections, 2600)}`;
                 .map(k => (localStorage.getItem(k)||'').length).join(',');
             const themeHash = (localStorage.getItem('ps_theme')||'') + '|' + (localStorage.getItem('ps_dark')||'');
             const fxHash = (localStorage.getItem('ps_fx_self_mid')||'') + '|' + (localStorage.getItem('ps_fx_self_date')||'');
-            return rHash + '::wl:' + watchlist.join(',') + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash + '::muse:' + museHash + '::psp:' + psPresetsHash + '::ml:' + _museLayoutMode + '::sc:' + _museSlotCount + '::ar:' + _museAutoRotateEnabled + ':' + _museAutoRotateDurations.join(',') + ':' + _museAutoRotateIncluded.join(',') + '::ak:' + apiKeysHash + '::th:' + themeHash + '::fx:' + fxHash;
+            const tabHash = localStorage.getItem('ps_tab') || 'dashboard';
+            return rHash + '::wl:' + watchlist.join(',') + '::av:' + avHash + '::pp:' + ppHash + '::pc:' + pcHash + '::lwc:' + lwcHash + '::muse:' + museHash + '::psp:' + psPresetsHash + '::ml:' + _museLayoutMode + '::sc:' + _museSlotCount + '::ar:' + _museAutoRotateEnabled + ':' + _museAutoRotateDurations.join(',') + ':' + _museAutoRotateIncluded.join(',') + '::ak:' + apiKeysHash + '::th:' + themeHash + '::fx:' + fxHash + '::tab:' + tabHash;
         }
         setInterval(() => {
             if (!getGistToken()) return;
