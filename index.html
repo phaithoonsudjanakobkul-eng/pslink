@@ -27822,7 +27822,8 @@ ${_clip(contextSections, 2600)}`;
 
                 const data = await _gistDecrypt(token, content);
 
-                // ── Force-restore API keys (overwrite local) ──
+                // ── Force-restore API keys to localStorage (overwrite local) ──
+                // This is the only thing we need before reload — data comes via syncFromGist on boot
                 let keysRestored = 0;
                 if (data.apiKeys && typeof data.apiKeys === 'object') {
                     for (const k in data.apiKeys) {
@@ -27834,35 +27835,20 @@ ${_clip(contextSections, 2600)}`;
                     }
                 }
 
-                // ── Now run full syncFromGist to restore data ──
-                // Set hash so syncFromGist sees hasLocalChanges=false → Gist data is applied
-                _lastSavedHash = _dataHash();
-                await syncFromGist(false);
+                // ── Clear sync timestamps → clean fresh-device boot path on reload ──
+                // With ps_gist_sync_ts=null + ps_gist_push_ts=null:
+                //   _hasSyncHistory=false, _localPushTs=0
+                //   → if gistTs>0: _gistIsNewer=true → Gist applied directly  ✓
+                //   → if gistTs=0 (legacy Gist): falls to else → Gist applied directly  ✓
+                try { localStorage.removeItem('ps_gist_sync_ts'); } catch(e) {}
+                try { localStorage.removeItem('ps_gist_push_ts'); } catch(e) {}
 
-                // ── Update settings modal inputs with restored keys ──
-                if (typeof openSettingsModal === 'function') {
-                    const fill = (id, key) => { const el = document.getElementById(id); if (el) el.value = localStorage.getItem(key) || ''; };
-                    fill('s-finnhub-input',       'ps_finnhub_key');
-                    fill('s-fmp-key-input',       'ps_fmp_key');
-                    fill('s-erapi-input',         'ps_erapi_key');
-                    fill('s-alpaca-key-input',    'ps_alpaca_key');
-                    fill('s-alpaca-secret-input', 'ps_alpaca_secret');
-                    fill('s-openrouter-input',    'ps_openrouter_key');
-                }
-                updateSettingsBadges();
-
-                // ── Auto-connect WS if Alpaca keys restored ──
-                if (getAlpacaKey() && getAlpacaSecret() && isMarketOpen() && !alpWs) {
-                    connectWs();
-                    _startWsWatchdog();
-                }
-                // Option B: Show success briefly → full page reload → Splash runs complete boot
-                // ps_gist_push_ts is 0 (we pulled, never pushed) → _gistIsNewer=true on reload
-                // → syncFromGist(isInitialLoad=true) applies Gist directly → prices/sparklines/logos load → enter last tab
-                const keyNames = keysRestored > 0 ? ` + ${keysRestored} API keys` : '';
-                if (statusEl) { statusEl.textContent = `RESTORED ✓ ${watchlist.length} symbols${keyNames}`; statusEl.style.color = '#10b981'; }
+                // Option B: Show success → reload → Splash → syncFromGist(isInitialLoad=true) → enter app
+                const keyNames = keysRestored > 0 ? ` (${keysRestored} API keys)` : '';
+                if (statusEl) { statusEl.textContent = `Connected ✓${keyNames}`; statusEl.style.color = '#10b981'; }
                 if (btn) { btn.textContent = 'Setup เสร็จสมบูรณ์ ✓'; btn.style.background = '#10b981'; btn.disabled = true; }
-                _reloading = true; // tell finally to leave the button alone — page reloads shortly
+                _reloading = true;           // tell finally to leave the button alone — page reloads shortly
+                window._gistReloading = true; // block visibilitychange/beforeunload from pushing empty data
                 setTimeout(() => {
                     if (statusEl) statusEl.textContent = 'กำลังโหลดข้อมูล...';
                     setTimeout(() => location.reload(), 700);
@@ -29081,6 +29067,7 @@ ${_clip(contextSections, 2600)}`;
         // ── Save on tab close / navigate away ─────────────────────────────────
         // beforeunload: desktop browsers (fires before page unloads)
         window.addEventListener('beforeunload', () => {
+            if (window._gistReloading) return; // Apply→reload in progress — skip push (data not yet loaded)
             _saveLogoDataCacheLocal(true);
             // Mark dirty if data has changed since last confirmed push — ensures next
             // session pushes immediately even if keepalive was cancelled/stale
@@ -29092,6 +29079,7 @@ ${_clip(contextSections, 2600)}`;
         // pagehide: mobile + BFCache browsers — single listener with e.persisted guard
         // (replaces two separate pagehide listeners that caused double PATCH on close)
         window.addEventListener('pagehide', (e) => {
+            if (window._gistReloading) return; // Apply→reload in progress — skip push
             if (!e.persisted) { // only on actual close, not BFCache entry
                 _saveLogoDataCacheLocal(true);
                 if (_pendingSave || _dataHash() !== _lastSavedHash) {
@@ -29218,7 +29206,7 @@ ${_clip(contextSections, 2600)}`;
                 _stopSparklineAutoRefresh();
                 _stopNewsLivePolling();
                 _saveLogoDataCacheLocal(true); // ensure logo cache survives hard refresh
-                _pushToGist(true);             // iOS: save when user switches away
+                if (!window._gistReloading) _pushToGist(true); // iOS: save when user switches away
             }
         });
 
