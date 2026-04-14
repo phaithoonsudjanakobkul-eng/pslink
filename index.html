@@ -5602,7 +5602,7 @@
         
         <!-- DASHBOARD TAB -->
         <div id="tab-dashboard" class="space-y-5">
-            <div id="dash-content" class="hidden" style="display:flex;flex-direction:column;gap:20px;">
+            <div id="dash-content" class="hidden" style="flex-direction:column;gap:20px;">
 
                 <!-- Row 1: 2 separate cards side-by-side — WL Alerts (left) + Profile Card (right) -->
                 <div class="dash-drag-row" id="ddr-row1"><div class="dash-grab"><button class="dash-collapse-btn" onclick="_dashToggleCollapseEl(this);event.stopPropagation()" title="Collapse section"><svg width="8" height="5" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 1 5 5 9 1"/></svg></button><div class="dash-grab-dots" onpointerdown="_dashGrabDown(event)"><svg width="6" height="20" viewBox="0 0 6 20" fill="currentColor"><circle cx="1.5" cy="3" r="1.5"/><circle cx="1.5" cy="10" r="1.5"/><circle cx="1.5" cy="17" r="1.5"/><circle cx="4.5" cy="3" r="1.5"/><circle cx="4.5" cy="10" r="1.5"/><circle cx="4.5" cy="17" r="1.5"/></svg></div></div>
@@ -13192,18 +13192,18 @@
                     // and empty chart placeholders are visible instead of a white page.
                     // Do NOT force showTab('edit') — would override the user's saved tab on every startup.
                     if (emptyEl) emptyEl.classList.add('hidden');
-                    if (contentEl) contentEl.classList.remove('hidden');
+                    if (contentEl) { contentEl.classList.remove('hidden'); contentEl.style.display = 'flex'; }
                     return;
                 }
                 if (emptyEl) emptyEl.classList.remove('hidden');
-                if (contentEl) contentEl.classList.add('hidden');
+                if (contentEl) { contentEl.classList.add('hidden'); contentEl.style.display = 'none'; }
                 if (typeof _hideSplash === 'function') { _splashStatus('ยินดีต้อนรับ'); _hideSplash(); }
                 return;
             }
             const emptyEl = document.getElementById('empty-state');
             const contentEl = document.getElementById('dash-content');
             if (emptyEl) emptyEl.classList.add('hidden');
-            if (contentEl) contentEl.classList.remove('hidden');
+            if (contentEl) { contentEl.classList.remove('hidden'); contentEl.style.display = 'flex'; }
 
             const latest = records.find(r => r.id === curMonth) || records[records.length - 1];
             const expense = sumArr(latest.fixed) + sumArr(latest.dynamic);
