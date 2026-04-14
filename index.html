@@ -25990,9 +25990,10 @@ ${_clip(contextSections, 2600)}`;
         var _clockShowDate     = false;
         var _clockColor        = 'theme';  // 'theme' | '#xxxxxx'
         var _clockFont         = 'mono';
-        var _clockFontsLoaded  = {};
+        var _clockFontsLoaded  = {};     // per-id: undefined|'pending'|true
+        var _clockFontReadyCbs = {};     // per-id: queued callbacks waiting for font-ready
         var _clockFontMetrics  = null;  // { dw, cw } in em — measured at runtime
-        var _clockFontWaiting  = false; // true while waiting for Google Font to load via fonts.load()
+        var _clockFontWaiting  = false; // true while waiting for Google Font to load
         var _CLOCK_FONTS = {
             mono:      { label: 'Digital',     css: "'Courier New', Consolas, monospace",        lsp: '0.04em', gf: null },
             orbitron:  { label: 'Orbitron',    css: "'Orbitron', sans-serif",                    lsp: '0.06em', gf: 'Orbitron:wght@700' },
@@ -26024,13 +26025,44 @@ ${_clip(contextSections, 2600)}`;
         }
 
         // ── Font helpers ──────────────────────────────────────────────────────────
-        function _clockEnsureFont(id) {
+        // _clockEnsureFont(id)          — fire-and-forget: inject <link> for menu preview rendering
+        // _clockEnsureFont(id, onReady) — full chain: link.onload → fonts.load() → onReady()
+        //   This two-phase chain is required because fonts.ready / fonts.load() resolve immediately
+        //   if called BEFORE the injected CSS is parsed (the @font-face rules aren't registered yet).
+        function _clockEnsureFont(id, onReady) {
             var f = _CLOCK_FONTS[id];
-            if (!f || !f.gf || _clockFontsLoaded[id]) return;
-            _clockFontsLoaded[id] = true;
+            if (!f || !f.gf) { if (onReady) onReady(); return; }
+
+            if (_clockFontsLoaded[id] === true) {
+                // Font already loaded — fire callback immediately
+                if (onReady) onReady();
+                return;
+            }
+            if (onReady) {
+                if (!_clockFontReadyCbs[id]) _clockFontReadyCbs[id] = [];
+                _clockFontReadyCbs[id].push(onReady);
+            }
+            if (_clockFontsLoaded[id] === 'pending') return; // link already injected; callback queued above
+
+            _clockFontsLoaded[id] = 'pending';
             var lnk = document.createElement('link');
             lnk.rel  = 'stylesheet';
             lnk.href = 'https://fonts.googleapis.com/css2?family=' + f.gf + '&display=swap';
+            var _fire = function() {
+                _clockFontsLoaded[id] = true;
+                var cbs = _clockFontReadyCbs[id] || [];
+                _clockFontReadyCbs[id] = [];
+                cbs.forEach(function(cb) { try { cb(); } catch(e) {} });
+            };
+            lnk.onload = function() {
+                // CSS parsed → @font-face registered — NOW fonts.load() works correctly
+                if (document.fonts && document.fonts.load) {
+                    document.fonts.load('700 41px ' + f.css).then(_fire, _fire);
+                } else {
+                    _fire();
+                }
+            };
+            lnk.onerror = _fire; // network failure → unblock anyway
             document.head.appendChild(lnk);
         }
 
@@ -26058,26 +26090,24 @@ ${_clip(contextSections, 2600)}`;
         function _clockApplyFont() {
             var te = document.getElementById('ps-clock-time');
             if (!te) return;
-            _clockEnsureFont(_clockFont);
             var f = _CLOCK_FONTS[_clockFont] || _CLOCK_FONTS.mono;
             te.style.fontFamily    = f.css;
             te.style.letterSpacing = '0';
             _clockFontMetrics = null; // invalidate — re-measure after font loads
             var doMeasure = function() { _clockFontWaiting = false; _clockMeasureMetrics(); _clockTick(); };
-            if (f.gf && document.fonts && document.fonts.load) {
-                // Google Font: use fonts.load() to wait for the *specific* face.
-                // fonts.ready resolves too early — @font-face rules from the injected <link> aren't
-                // parsed yet when fonts.ready is first accessed, so it resolves before the font loads.
+            if (f.gf) {
+                // Google Font: _clockEnsureFont chains link.onload → fonts.load() → doMeasure
+                // This is the only reliable way — fonts.ready/fonts.load() alone resolve before
+                // @font-face rules are registered (the injected CSS hasn't been fetched yet).
                 _clockFontWaiting = true;
-                Promise.race([
-                    document.fonts.load('700 41px ' + f.css),
-                    new Promise(function(r) { setTimeout(r, 3000); }) // 3s hard timeout
-                ]).then(doMeasure);
-            } else if (document.fonts && document.fonts.ready) {
-                // System font (mono): fonts.ready resolves quickly, no race condition
-                document.fonts.ready.then(doMeasure);
+                _clockEnsureFont(_clockFont, doMeasure);
             } else {
-                setTimeout(doMeasure, 400);
+                // System font — fonts.ready resolves fast, no race condition
+                if (document.fonts && document.fonts.ready) {
+                    document.fonts.ready.then(doMeasure);
+                } else {
+                    setTimeout(doMeasure, 400);
+                }
             }
         }
 
