@@ -27574,21 +27574,25 @@ ${_clip(contextSections, 2600)}`;
                                 try { localStorage.setItem(MUSE_PRESET_KEYS[i], JSON.stringify(Array.isArray(presetData) ? presetData : [])); } catch(e) {}
                             }
                         }
-                        if (typeof md.activePresetIdx === 'number' && localStorage.getItem(MUSE_PRESET_IDX_KEY) === null) {
+                        // On initial load: always restore Gist's MUSE settings (Gist = cross-device truth).
+                        // On existing sessions the keys are already set so '=== null' would always fail —
+                        // forcing isInitialLoad override means a fresh browser always gets the right layout.
+                        // On manual sync (isInitialLoad=false): only set if null (don't override live session).
+                        if (typeof md.activePresetIdx === 'number' && (isInitialLoad || localStorage.getItem(MUSE_PRESET_IDX_KEY) === null)) {
                             try { localStorage.setItem(MUSE_PRESET_IDX_KEY, String(md.activePresetIdx)); } catch(e) {}
                         }
-                        if (typeof md.collapsed === 'boolean' && localStorage.getItem(MUSE_COLLAPSED_KEY) === null) {
+                        if (typeof md.collapsed === 'boolean' && (isInitialLoad || localStorage.getItem(MUSE_COLLAPSED_KEY) === null)) {
                             try { localStorage.setItem(MUSE_COLLAPSED_KEY, md.collapsed ? '1' : '0'); } catch(e) {}
                         }
                         if (Array.isArray(md.passwordHashes)) {
                             while (md.passwordHashes.length < MUSE_PRESET_KEYS.length) md.passwordHashes.push(null);
                             try { localStorage.setItem('ps_muse_pws', JSON.stringify(md.passwordHashes)); } catch(e) {}
                         }
-                        if (typeof md.layoutMode === 'number' && localStorage.getItem(MUSE_LAYOUT_KEY) === null) {
+                        if (typeof md.layoutMode === 'number' && (isInitialLoad || localStorage.getItem(MUSE_LAYOUT_KEY) === null)) {
                             _museLayoutMode = md.layoutMode;
                             try { localStorage.setItem(MUSE_LAYOUT_KEY, String(md.layoutMode)); } catch(e) {}
                         }
-                        if (md.autoRotate && localStorage.getItem(MUSE_AUTOROTATE_KEY) === null) {
+                        if (md.autoRotate && (isInitialLoad || localStorage.getItem(MUSE_AUTOROTATE_KEY) === null)) {
                             _museAutoRotateEnabled = !!md.autoRotate.enabled;
                             if (Array.isArray(md.autoRotate.durations)) {
                                 _museAutoRotateDurations = md.autoRotate.durations.slice(0, MUSE_PRESET_KEYS.length);
@@ -27600,7 +27604,7 @@ ${_clip(contextSections, 2600)}`;
                             }
                             try { localStorage.setItem(MUSE_AUTOROTATE_KEY, JSON.stringify({ enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations, included: _museAutoRotateIncluded })); } catch(e) {}
                         }
-                        if (typeof md.slotCount === 'number' && localStorage.getItem(MUSE_SLOT_COUNT_KEY) === null) {
+                        if (typeof md.slotCount === 'number' && (isInitialLoad || localStorage.getItem(MUSE_SLOT_COUNT_KEY) === null)) {
                             _museSlotCount = md.slotCount;
                             try { localStorage.setItem(MUSE_SLOT_COUNT_KEY, String(md.slotCount)); } catch(e) {}
                         }
@@ -27608,7 +27612,8 @@ ${_clip(contextSections, 2600)}`;
                         if (_museInited) {
                             _musePresetIdx = parseInt(localStorage.getItem(MUSE_PRESET_IDX_KEY) || '0') || 0;
                             _museCollapsed = localStorage.getItem(MUSE_COLLAPSED_KEY) === '1';
-                            _museSlotCount = parseInt(localStorage.getItem(MUSE_SLOT_COUNT_KEY) || '0') || 0;
+                            _museLayoutMode = parseInt(localStorage.getItem(MUSE_LAYOUT_KEY) || '0') || 0;
+                            _museSlotCount  = parseInt(localStorage.getItem(MUSE_SLOT_COUNT_KEY) || '0') || 0;
                             // Respect password lock — auto-switch to first unlocked preset
                             var _syncPws = _museGetPws();
                             if (_syncPws[_musePresetIdx] && !_museUnlockedPresets.has(_musePresetIdx)) {
