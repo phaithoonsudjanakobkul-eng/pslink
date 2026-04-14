@@ -27632,7 +27632,11 @@ ${_clip(contextSections, 2600)}`;
                         if (Array.isArray(pp.presets) && pp.presets.length > 0) {
                             try { localStorage.setItem('ps_profile_presets', JSON.stringify(pp.presets)); } catch(e) {}
                         }
-                        if (typeof pp.activeIdx === 'number' && localStorage.getItem('ps_profile_preset_idx') === null) {
+                        // On initial load: always use Gist's activeIdx (Gist = cross-device source of truth).
+                        // _psInit() runs before syncFromGist on reload path and writes '0' to
+                        // ps_profile_preset_idx, making the old '=== null' check always fail on fresh devices.
+                        // On manual sync (isInitialLoad=false): only set if null (don't override live session).
+                        if (typeof pp.activeIdx === 'number' && (isInitialLoad || localStorage.getItem('ps_profile_preset_idx') === null)) {
                             try { localStorage.setItem('ps_profile_preset_idx', String(pp.activeIdx)); } catch(e) {}
                         }
                         // Re-apply if already initialized in this session
