@@ -5122,6 +5122,9 @@
         /* ───────────────────────────────────────────────────────────────── */
 
     </style>
+    <!-- Prevent content flash: body hidden until splash overlay is parsed & covers viewport.
+         Splash's inline visibility:visible overrides inherited hidden (CSS spec). -->
+    <style id="ps-splash-preload">body{visibility:hidden}</style>
 </head>
 
     <!-- Mobile Top Bar (hidden on desktop, shown on mobile via CSS) -->
@@ -30312,6 +30315,13 @@ ${_clip(contextSections, 2600)}`;
     </style>
     <script>
     (function() {
+        // Splash DOM is now parsed and covers the viewport (position:fixed inset:0 z:99999).
+        // Restore body visibility — content behind splash is invisible to user anyway.
+        // Remove the <head> preload style so it doesn't interfere later.
+        document.body.style.visibility = 'visible';
+        var _pre = document.getElementById('ps-splash-preload');
+        if (_pre) _pre.remove();
+
         function _hideSplash() {
             const splash = document.getElementById('ps-splash');
             if (!splash || splash.style.display === 'none') return;
@@ -30340,6 +30350,13 @@ ${_clip(contextSections, 2600)}`;
         }
         window._hideSplash   = _hideSplash;
         window._splashStatus = _splashStatus;
+        // Fresh device: no wizard done → Wizard overlay will show, splash not needed.
+        // Hide instantly (no fade) so user goes straight to Wizard without seeing splash flash.
+        // Wizard APPLY path re-activates splash later when it needs it for Gist sync.
+        if (!localStorage.getItem('ps_wizard_done')) {
+            var _s = document.getElementById('ps-splash');
+            if (_s) { _s.style.display = 'none'; _s.style.opacity = '0'; _s.style.visibility = 'hidden'; }
+        }
         // Fallback: hide after 20s in case any path fails to call _hideSplash
         // 20s accounts for: Gist sync (~3s) + logos (~2s) + sparkline fetch (~10s) = ~15s max
         setTimeout(_hideSplash, 20000);
