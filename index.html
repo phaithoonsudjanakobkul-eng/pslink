@@ -25992,6 +25992,7 @@ ${_clip(contextSections, 2600)}`;
         var _clockFont         = 'mono';
         var _clockFontsLoaded  = {};
         var _clockFontMetrics  = null;  // { dw, cw } in em — measured at runtime
+        var _clockFontWaiting  = false; // true while waiting for Google Font to load via fonts.load()
         var _CLOCK_FONTS = {
             mono:      { label: 'Digital',     css: "'Courier New', Consolas, monospace",        lsp: '0.04em', gf: null },
             orbitron:  { label: 'Orbitron',    css: "'Orbitron', sans-serif",                    lsp: '0.06em', gf: 'Orbitron:wght@700' },
@@ -26062,9 +26063,18 @@ ${_clip(contextSections, 2600)}`;
             te.style.fontFamily    = f.css;
             te.style.letterSpacing = '0';
             _clockFontMetrics = null; // invalidate — re-measure after font loads
-            // Use document.fonts.ready so Google Fonts are actually rendered before measuring
-            var doMeasure = function() { _clockMeasureMetrics(); _clockTick(); };
-            if (document.fonts && document.fonts.ready) {
+            var doMeasure = function() { _clockFontWaiting = false; _clockMeasureMetrics(); _clockTick(); };
+            if (f.gf && document.fonts && document.fonts.load) {
+                // Google Font: use fonts.load() to wait for the *specific* face.
+                // fonts.ready resolves too early — @font-face rules from the injected <link> aren't
+                // parsed yet when fonts.ready is first accessed, so it resolves before the font loads.
+                _clockFontWaiting = true;
+                Promise.race([
+                    document.fonts.load('700 41px ' + f.css),
+                    new Promise(function(r) { setTimeout(r, 3000); }) // 3s hard timeout
+                ]).then(doMeasure);
+            } else if (document.fonts && document.fonts.ready) {
+                // System font (mono): fonts.ready resolves quickly, no race condition
                 document.fonts.ready.then(doMeasure);
             } else {
                 setTimeout(doMeasure, 400);
@@ -26092,8 +26102,8 @@ ${_clip(contextSections, 2600)}`;
             var te = document.getElementById('ps-clock-time');
             var de = document.getElementById('ps-clock-date');
             if (!te) return;
-            // Lazy-measure on first tick if metrics not yet available
-            if (!_clockFontMetrics) _clockMeasureMetrics();
+            // Lazy-measure only when not waiting for a Google Font — fonts.load() handles that path
+            if (!_clockFontMetrics && !_clockFontWaiting) _clockMeasureMetrics();
             var dw = _clockFontMetrics ? _clockFontMetrics.dw : 0.62;
             var cw = _clockFontMetrics ? _clockFontMetrics.cw : 0.35;
             var now = new Date();
