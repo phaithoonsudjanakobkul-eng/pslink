@@ -5990,30 +5990,37 @@
                     // Run full syncFromGist — its isInitialLoad=true status messages now show in splash
                     await syncFromGist(true);
 
-                    // Mark wizard done + boot dashboard via splash screen
+                    // Mark wizard done
                     localStorage.setItem('ps_wizard_done', '1');
                     _splashStatus('กำลังโหลด Dashboard...');
 
-                    // Render dashboard behind splash
+                    // Render the correct tab behind splash.
+                    // syncFromGist(true) above already set ps_tab from Gist — use it instead
+                    // of hard-coding 'dashboard', which would override the user's last active tab.
                     document.getElementById('empty-state').classList.add('hidden');
                     _dashboardDirty = true;
-                    showTab('dashboard', false, true);
+                    const _wzTab = localStorage.getItem('ps_tab') || 'dashboard';
+                    showTab(_wzTab, false, true);
                     if (typeof initSettings === 'function') initSettings();
                     if (typeof updateSettingsBadges === 'function') updateSettingsBadges();
                     if (isMarketOpen() && getAlpacaKey() && getAlpacaSecret()) {
                         connectWs(); _startWsWatchdog();
                     }
 
-                    // Load market data + preload logos then reveal dashboard
+                    // Pre-render watchlist rows + sparkline placeholders from cache
+                    if (watchlist.length > 0) {
+                        watchlist.forEach(function(s) {
+                            if (!document.getElementById('wl-row-' + s))
+                                renderWatchlistRow(s, wlDataCache[s] || null);
+                        });
+                        checkWlEmpty();
+                        if (typeof loadSparklineCache === 'function') loadSparklineCache({ skipStale: true });
+                        if (typeof ensureSparklinePlaceholders === 'function') ensureSparklinePlaceholders();
+                    }
+
+                    // Preload logos (4s max) then hand off to _splashFinalStep —
+                    // same parallel quote+sparkline path as normal boot (15s race timeout).
                     (async () => {
-                        if (getFinnhubKey() || (getAlpacaKey() && getAlpacaSecret())) {
-                            _splashStatus('กำลังโหลดข้อมูลตลาด...');
-                            try {
-                                await refreshWatchlist();
-                                await refreshSparklineForTopSymbols();
-                            } catch (_) {}
-                        }
-                        // Preload all watchlist logos before revealing — same as normal startup
                         const _FHLOGO = 'https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/';
                         const _logoPromises = [];
                         watchlist.forEach(function(sym) {
@@ -6036,8 +6043,15 @@
                                 new Promise(r => setTimeout(r, 4000))
                             ]);
                         }
-                        _splashStatus('พร้อมใช้งาน ✓');
-                        setTimeout(_hideSplash, 400);
+                        // Delegate to _splashFinalStep — handles parallel quote+sparkline
+                        // with proper 15s race timeout, deferred refreshWatchlist, and hideSplash.
+                        if (typeof window._splashFinalStep === 'function') {
+                            window._splashFinalStep();
+                        } else {
+                            // Fallback if window.onload hasn't fired yet (shouldn't happen)
+                            _splashStatus('พร้อมใช้งาน ✓');
+                            setTimeout(_hideSplash, 400);
+                        }
                     })();
 
                 } catch(e) {
@@ -27253,7 +27267,30 @@ ${_clip(contextSections, 2600)}`;
             if (!token) return;
             localStorage.setItem('ps_gist_token', token);
             document.getElementById('gist-modal').classList.add('hidden');
-            syncFromGist();
+            // After sync: if this is a first-time token entry (fresh device bypassing wizard),
+            // watchlist + sparklines need to load immediately — same symptom as Bug 1 but
+            // without a splash. Trigger the same fast parallel quote+sparkline path.
+            syncFromGist().then(function() {
+                const _hasKey = watchlist.length > 0 && (getFinnhubKey() || (getAlpacaKey() && getAlpacaSecret()));
+                if (!_hasKey) return;
+                // Ensure rows exist in DOM
+                watchlist.forEach(function(s) {
+                    if (!document.getElementById('wl-row-' + s))
+                        renderWatchlistRow(s, wlDataCache[s] || null);
+                });
+                checkWlEmpty();
+                if (typeof loadSparklineCache === 'function') loadSparklineCache({ skipStale: true });
+                if (typeof ensureSparklinePlaceholders === 'function') ensureSparklinePlaceholders();
+                // Fire quote snapshot + sparklines in parallel (same as _splashFinalStep)
+                var _qP = (typeof window._splashQuoteFetch === 'function') ? window._splashQuoteFetch() : Promise.resolve();
+                var _sP = (typeof refreshSparklineForTopSymbols === 'function') ? refreshSparklineForTopSymbols() : Promise.resolve();
+                Promise.allSettled([_qP, _sP]).then(function() {
+                    // Full profile refresh in background after data is visible
+                    setTimeout(function() {
+                        if (typeof refreshWatchlist === 'function') refreshWatchlist();
+                    }, 500);
+                });
+            });
         }
 
         let gistStatusTimer = null;
@@ -28691,6 +28728,11 @@ ${_clip(contextSections, 2600)}`;
                     }, 300);
                 });
             }
+
+            // Expose to wizard + saveGistToken — both need the same loading logic
+            // but live outside this window.onload closure.
+            window._splashFinalStep  = _splashFinalStep;
+            window._splashQuoteFetch = _splashQuoteFetch;
 
             if (getGistToken()) {
                 if (savedTab === 'watchlist' && watchlist.length > 0) {
