@@ -340,15 +340,26 @@ function runDeploy(force = false) {
   const cmd = `git add -A && git commit -m "deploy: ${stamp}" && git push`;
   exec(cmd, { cwd: DIR }, (err, stdout, stderr) => {
     _deployInFlight = false;
+    const out = String(stdout || '');
+    const errOut = String(stderr || '');
+    // "nothing to commit" goes to git's STDOUT (not stderr), so check both streams.
+    // Means user hit 'd' with no real changes, or the watched file was touched
+    // without content diff (IDE auto-save, mtime bump). Treat as success.
+    if (/nothing to commit/i.test(out) || /nothing to commit/i.test(errOut)) {
+      log('deploy', `${C.gray}Nothing to push — working tree already in sync with origin${C.reset}`, 'gray');
+      _pendingChanges = 0;
+      return;
+    }
     if (err) {
-      const msg = String(stderr || err.message);
-      if (/nothing to commit/i.test(msg)) {
-        log('deploy', `${C.gray}No actual content changes (file touched but content same)${C.reset}`, 'gray');
-        _pendingChanges = 0;
-      } else {
-        log('deploy', `${C.red}Push failed:${C.reset} ${msg.split('\n')[0]}`, 'red');
-        log('deploy', `${C.gray}Will retry on next file save${C.reset}`, 'gray');
+      // Drop CRLF line-ending warning lines (harmless on Windows, not the real failure).
+      const realLines = errOut.split('\n')
+        .filter(l => l.trim() && !/LF will be replaced by CRLF/i.test(l));
+      const firstLine = realLines[0] || err.message.split('\n')[0] || 'unknown error';
+      log('deploy', `${C.red}Push failed:${C.reset} ${firstLine}`, 'red');
+      if (realLines.length > 1) {
+        log('deploy', `${C.gray}  ${realLines.slice(1, 3).join(' · ')}${C.reset}`, 'gray');
       }
+      log('deploy', `${C.gray}Will retry on next file save${C.reset}`, 'gray');
       return;
     }
     _pendingChanges = 0;
