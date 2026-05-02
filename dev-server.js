@@ -4,11 +4,18 @@
  *
  * Usage:
  *   npm run dev              HTTPS local + Chrome dev profile + DevTools
+ *                            + AUTO-DEPLOY to GitHub Pages on save (90s debounce)
  *   npm run dev:tunnel       above + Cloudflare Tunnel public URL
  *   npm run dev:headless     no auto-open browser
+ *   npm run dev:local        skip auto-deploy (private edit session)
  *
  * Hotkeys (in this terminal):
- *   r  force reload         o  open browser         q / Ctrl+C  quit
+ *   r  force reload         o  open browser         d  force deploy NOW
+ *   t  start tunnel         q / Ctrl+C  quit
+ *
+ * Auto-deploy: watches index.html → after 90s of no edits → runs
+ *   git add -A && git commit -m "deploy: <timestamp>" && git push
+ * GitHub Pages then rebuilds in ~30s.  See HAS_GIT/noDeploy guards.
  */
 
 const { spawn, exec } = require('child_process');
@@ -31,6 +38,7 @@ const CHROME_PATHS = [
 const args = process.argv.slice(2);
 const wantTunnel = args.includes('tunnel');
 const noOpen = args.includes('--no-open');
+const noDeploy = args.includes('--no-deploy');
 
 // Node 16+ security mitigation requires shell:true to spawn .cmd shims (npx, etc.) on Windows.
 // But shell:true on cmd.exe re-splits args on whitespace, breaking values like "PSLink with PWA.html".
@@ -103,6 +111,14 @@ let liveServer = null;
 let httpsProxy = null;
 let tunnelProc = null;
 let announced = false;
+
+// === Auto-deploy state ===
+const DEPLOY_DEBOUNCE_MS = 90 * 1000;  // 90s after last save → auto git push
+const HAS_GIT = fs.existsSync(path.join(DIR, '.git'));
+let _deployTimer = null;
+let _pendingChanges = 0;
+let _lastDeployAt = null;
+let _deployInFlight = false;
 
 // === Find PID holding a port (Windows) ===
 function findPortPid(port) {
@@ -230,6 +246,7 @@ function announceURLs() {
 
   if (!noOpen) openBrowser(localUrl);
   if (wantTunnel) startTunnel();
+  startAutoDeploy();
   bindHotkeys();
 }
 
@@ -283,9 +300,85 @@ function startTunnel(retry = 0) {
   });
 }
 
+// === Auto-deploy to GitHub Pages (debounced) ===
+// Watches FILE → after DEPLOY_DEBOUNCE_MS of no changes → git add+commit+push.
+// One commit per "edit session" instead of one-per-save (debounce collapses bursts).
+// Disabled via --no-deploy flag or when no .git directory present.
+function _deployStatusLine() {
+  const last = _lastDeployAt ? `last ${_lastDeployAt}` : 'never';
+  const pending = _pendingChanges > 0 ? ` · ${_pendingChanges} change${_pendingChanges > 1 ? 's' : ''} pending` : '';
+  return `${last}${pending}`;
+}
+
+function scheduleDeploy() {
+  if (!HAS_GIT || noDeploy) return;
+  _pendingChanges++;
+  log('deploy', `${C.gray}● change queued — push in ${DEPLOY_DEBOUNCE_MS / 1000}s ${C.dim}(${_deployStatusLine()})${C.reset}`, 'magenta');
+  if (_deployTimer) clearTimeout(_deployTimer);
+  _deployTimer = setTimeout(runDeploy, DEPLOY_DEBOUNCE_MS);
+}
+
+function runDeploy(force = false) {
+  if (!HAS_GIT) {
+    log('deploy', `Not a git repo — skipping`, 'yellow');
+    return;
+  }
+  if (_deployInFlight) {
+    log('deploy', `Already pushing — will retry on next save`, 'yellow');
+    return;
+  }
+  if (_pendingChanges === 0 && !force) {
+    log('deploy', `${C.gray}No pending changes${C.reset}`, 'gray');
+    return;
+  }
+  _deployInFlight = true;
+  if (_deployTimer) { clearTimeout(_deployTimer); _deployTimer = null; }
+  const stamp = new Date().toLocaleString('en-GB', { hour12: false });
+  log('deploy', `${C.magenta}📤 Pushing to GitHub...${C.reset}`, 'magenta');
+  // git add -A stages every tracked change (index.html, manifest.json, etc.).
+  // .gitignore filters out backups/secrets so this is safe.
+  const cmd = `git add -A && git commit -m "deploy: ${stamp}" && git push`;
+  exec(cmd, { cwd: DIR }, (err, stdout, stderr) => {
+    _deployInFlight = false;
+    if (err) {
+      const msg = String(stderr || err.message);
+      if (/nothing to commit/i.test(msg)) {
+        log('deploy', `${C.gray}No actual content changes (file touched but content same)${C.reset}`, 'gray');
+        _pendingChanges = 0;
+      } else {
+        log('deploy', `${C.red}Push failed:${C.reset} ${msg.split('\n')[0]}`, 'red');
+        log('deploy', `${C.gray}Will retry on next file save${C.reset}`, 'gray');
+      }
+      return;
+    }
+    _pendingChanges = 0;
+    _lastDeployAt = ts();
+    log('deploy', `${C.green}✓ Pushed at ${_lastDeployAt} — live at github.io in ~30s${C.reset}`, 'green');
+  });
+}
+
+function startAutoDeploy() {
+  if (noDeploy) {
+    log('deploy', `${C.yellow}Auto-deploy DISABLED ${C.dim}(--no-deploy flag)${C.reset}`, 'yellow');
+    return;
+  }
+  if (!HAS_GIT) {
+    log('deploy', `${C.gray}No .git directory — auto-deploy unavailable${C.reset}`, 'gray');
+    return;
+  }
+  log('deploy', `${C.magenta}Auto-deploy ON${C.reset} ${C.gray}(${DEPLOY_DEBOUNCE_MS / 1000}s debounce after last save · 'd' to push now)${C.reset}`, 'magenta');
+  try {
+    fs.watch(path.join(DIR, FILE), { persistent: true }, (eventType) => {
+      if (eventType === 'change') scheduleDeploy();
+    });
+  } catch (e) {
+    log('deploy', `${C.red}fs.watch failed: ${e.message}${C.reset}`, 'red');
+  }
+}
+
 // === Hotkeys ===
 function bindHotkeys() {
-  console.log(`${C.dim}  Hotkeys: ${C.reset}${C.bold}r${C.reset}=reload  ${C.bold}o${C.reset}=open  ${C.bold}t${C.reset}=tunnel  ${C.bold}q${C.reset}=quit\n`);
+  console.log(`${C.dim}  Hotkeys: ${C.reset}${C.bold}r${C.reset}=reload  ${C.bold}o${C.reset}=open  ${C.bold}d${C.reset}=deploy  ${C.bold}t${C.reset}=tunnel  ${C.bold}q${C.reset}=quit\n`);
   if (!process.stdin.isTTY) return;
   process.stdin.setRawMode(true);
   process.stdin.resume();
@@ -298,6 +391,9 @@ function bindHotkeys() {
       try { fs.utimesSync(path.join(DIR, FILE), now, now); } catch (e) {}
     } else if (k === 'o') {
       openBrowser(`https://localhost:${HTTPS_PORT}/${encodeURIComponent(FILE)}`);
+    } else if (k === 'd') {
+      log('action', 'Force deploy NOW (skip debounce)', 'magenta');
+      runDeploy(true);
     } else if (k === 't') {
       if (!tunnelProc) startTunnel();
       else log('tunnel', 'Already running', 'gray');
