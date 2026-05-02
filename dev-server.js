@@ -346,7 +346,10 @@ function runDeploy(force = false) {
     // Means user hit 'd' with no real changes, or the watched file was touched
     // without content diff (IDE auto-save, mtime bump). Treat as success.
     if (/nothing to commit/i.test(out) || /nothing to commit/i.test(errOut)) {
-      log('deploy', `${C.gray}Nothing to push — working tree already in sync with origin${C.reset}`, 'gray');
+      const evt = _pendingChanges > 0
+        ? ` ${C.gray}(${_pendingChanges} fs event${_pendingChanges > 1 ? 's' : ''} from IDE — content unchanged, no diff)${C.reset}`
+        : '';
+      log('deploy', `${C.gray}Nothing to push — already in sync${C.reset}${evt}`, 'gray');
       _pendingChanges = 0;
       return;
     }
