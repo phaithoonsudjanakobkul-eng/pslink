@@ -25482,31 +25482,425 @@ ${paras}
             return '\n' + lines.map(function(l, i){ return (i + 1) + '. ' + l; }).join('\n');
         }
 
-        // ── HTML builders (Outlook-safe: Tahoma 11pt, inline styles, <table>) ──
+        // ── HTML builders (Outlook-safe: Tahoma + inline styles + <table>) ──
+        //
+        // 3 styles available — picked via _psecActiveStyle:
+        //   exec      — Executive Brief: minimal, brand color used as 3pt left rule + heading
+        //   banner    — Branded Banner: full-width #014A99 header strip + body table
+        //   editorial — Editorial Document: typography-driven, brand color only as overline
+        //
+        // Outlook-safe rules:
+        //   • <table cellpadding=0 cellspacing=0 border=0> for all layout
+        //   • bgcolor="" attr AND style="background:..." for color preservation
+        //   • <font color="" face=""> for text color inside <td> (Word-paste safe)
+        //   • All measurements in pt (Word native unit)
+        //   • mso-line-height-rule:exactly on every styled element
+        //   • No <style> blocks, no flexbox/grid, no background images
 
-        const _PSEC_FONT = "font-family:'Tahoma','Calibri',sans-serif;font-size:11pt;color:#000000;";
-        const _PSEC_LINE = "margin:0 0 6pt 0;" + _PSEC_FONT;
+        const _PSEC_BRAND      = '#014A99';
+        const _PSEC_BRAND_LT   = '#cfe1f5';   // overline text on dark bg
+        const _PSEC_BRAND_TINT = '#eaf1f8';   // light tint background (table headers)
+        const _PSEC_TEXT       = '#1f2937';
+        const _PSEC_DIM        = '#6b7280';
+        const _PSEC_BORDER     = '#d8d8d8';
+        const _PSEC_FF         = "Tahoma,'Sans Serif',sans-serif";
+        const _PSEC_FONT       = "font-family:" + _PSEC_FF + ";font-size:11pt;color:" + _PSEC_TEXT + ";";
 
-        function _psecBuildApprove(tplId, form) {
+        // ── Helpers ────────────────────────────────────────────────────────
+
+        function _psecPara(html, mb, fs, color) {
+            if (mb == null) mb = 6;
+            if (!fs) fs = 11;
+            if (!color) color = _PSEC_TEXT;
+            return '<p style="margin:0 0 ' + mb + 'pt 0;font-family:' + _PSEC_FF + ';font-size:' + fs + 'pt;color:' + color + ';line-height:1.55;mso-line-height-rule:exactly;">' + html + '</p>';
+        }
+
+        function _psecHairline(color, mt, mb) {
+            if (!color) color = _PSEC_BORDER;
+            if (!mt) mt = 0;
+            if (!mb) mb = 0;
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;border-top:1px solid ' + color + ';margin:' + mt + 'pt 0 ' + mb + 'pt 0;"><tr><td style="line-height:0;font-size:0;height:0;">&nbsp;</td></tr></table>';
+        }
+
+        function _psecAccentRule(width, color, mt, mb) {
+            if (!width) width = 48;
+            if (!color) color = _PSEC_BRAND;
+            if (!mt) mt = 0;
+            if (!mb) mb = 0;
+            return '<table cellpadding="0" cellspacing="0" border="0" style="width:' + width + 'pt;border-collapse:collapse;border-top:2pt solid ' + color + ';margin:' + mt + 'pt 0 ' + mb + 'pt 0;"><tr><td style="line-height:0;font-size:0;height:0;">&nbsp;</td></tr></table>';
+        }
+
+        // 2-col label/value row — used by all 3 styles with per-style label/value formatting.
+        function _psecKVRow(label, value, opts) {
+            opts = opts || {};
+            const labelColor = opts.labelColor || _PSEC_DIM;
+            const valueColor = opts.valueColor || _PSEC_TEXT;
+            const labelW     = opts.labelWidth || 130;
+            const valueWeight = opts.valueWeight || '600';
+            const labelStyle = opts.labelStyle || '';   // e.g. 'font-style:italic;'
+            const pad         = opts.pad || '5pt 0';
+            return '<tr>' +
+                '<td style="padding:' + pad + ';font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + labelColor + ';width:' + labelW + 'pt;vertical-align:top;line-height:1.45;mso-line-height-rule:exactly;' + labelStyle + '">' + _psecHe(label) + '</td>' +
+                '<td style="padding:' + pad + ';font-family:' + _PSEC_FF + ';font-size:11pt;color:' + valueColor + ';font-weight:' + valueWeight + ';vertical-align:top;line-height:1.45;mso-line-height-rule:exactly;">' + _psecHe(value || '—') + '</td>' +
+            '</tr>';
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  STYLE A — Executive Brief
+        //  Brand color: subtle (3pt left accent rule + heading text only)
+        //  Vibe: Linear / Stripe / Notion-style minimalism
+        // ══════════════════════════════════════════════════════════════════
+
+        function _psecExec_Approve(tplId, form) {
             const isBid = tplId === 'approve-bid';
             const verb = isBid ? 'ยื่นซอง' : 'สั่งของ';
             const submitSuffix = isBid && (form.submitDate || form.submitTime)
                 ? ' (กำหนดยื่น ' + _psecHe(form.submitDate || '') + (form.submitTime ? ' – ' + _psecHe(form.submitTime) : '') + ')'
                 : '';
-            const html =
-                '<div style="' + _PSEC_FONT + '">' +
-                '<p style="' + _PSEC_LINE + '">Dear All,</p>' +
-                '<p style="' + _PSEC_LINE + '">รบกวนตรวจเช็คเพื่อ Approve Configuration สำหรับ' + verb + submitSuffix + '</p>' +
-                '<p style="' + _PSEC_LINE + '">' +
-                  'หน่วยงาน: ' + _psecHe(form.agency || '') + '<br>' +
-                  'เลขที่ใบเสนอราคา/EQ List: ' + _psecHe(form.eqList || '') + '<br>' +
-                  'รายการสินค้าหลัก: ' + _psecHe(form.mainItems || '') +
-                '</p>' +
-                '<p style="' + _PSEC_LINE + '">หมายเหตุ: ' + _psecNotesToHtml(form.notes) + '</p>' +
-                '<p style="' + _PSEC_LINE + '">Thanks,</p>' +
-                '</div>';
-            return html;
+            const rows =
+                _psecKVRow('หน่วยงาน', form.agency || '') +
+                _psecKVRow('EQ List', form.eqList || '') +
+                _psecKVRow('รายการหลัก', form.mainItems || '');
+
+            const headBlock =
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 14pt 0;">' +
+                  '<tr><td style="border-left:3pt solid ' + _PSEC_BRAND + ';padding:2pt 0 4pt 16pt;">' +
+                    '<p style="margin:0;font-family:' + _PSEC_FF + ';font-size:13pt;font-weight:bold;color:' + _PSEC_BRAND + ';line-height:1.3;mso-line-height-rule:exactly;letter-spacing:0.02em;">APPROVE CONFIGURATION</p>' +
+                    _psecAccentRule(48, _PSEC_BRAND, 6, 12) +
+                    '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;">' + rows + '</table>' +
+                  '</td></tr>' +
+                '</table>';
+
+            let notesBlock = '';
+            if ((form.notes || '').trim()) {
+                notesBlock =
+                    _psecPara('<b>หมายเหตุ</b>', 4) +
+                    _psecPara(_psecNotesToHtml(form.notes), 12);
+            }
+
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
+              '<tr><td style="padding:0;">' +
+                _psecPara('Dear All,', 10) +
+                _psecPara('รบกวนตรวจเช็คเพื่อ <b><font color="' + _PSEC_BRAND + '">Approve Configuration</font></b> สำหรับ' + _psecHe(verb) + _psecHe(submitSuffix), 14) +
+                headBlock +
+                notesBlock +
+                _psecHairline(_PSEC_BORDER, 6, 8) +
+                _psecPara('Thanks,', 0, 11, _PSEC_DIM) +
+              '</td></tr>' +
+            '</table>';
         }
+
+        function _psecExec_Order(form) {
+            const items = (form.localItems || []).filter(function(it){ return it && (it.name || it.qty || it.remark); });
+            const headRows =
+                (form.eqList ? _psecKVRow('เลขที่ใบเสนอราคา', form.eqList) : '') +
+                (form.mainItemsOversea ? _psecKVRow('รายการหลัก (Oversea)', form.mainItemsOversea) : '') +
+                (form.agency ? _psecKVRow('หน่วยงาน', form.agency) : '') +
+                (form.orderDate ? _psecKVRow('ใบสั่งซื้อวันที่', form.orderDate) : '') +
+                (form.expireDate ? _psecKVRow('หมดสัญญาวันที่', form.expireDate) : '');
+
+            const headBlock = headRows
+                ? '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 14pt 0;">' +
+                    '<tr><td style="border-left:3pt solid ' + _PSEC_BRAND + ';padding:2pt 0 4pt 16pt;">' +
+                      '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;">' + headRows + '</table>' +
+                    '</td></tr>' +
+                  '</table>'
+                : '';
+
+            let itemsBlock = '';
+            if (items.length > 0) {
+                const rows = items.map(function(it, i){
+                    return '<tr>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;text-align:center;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + _PSEC_DIM + ';">' + (i + 1) + '</td>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:11pt;color:' + _PSEC_TEXT + ';">' + _psecHe(it.name || '') + '</td>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;text-align:center;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:11pt;color:' + _PSEC_TEXT + ';font-weight:600;">' + _psecHe(it.qty || '') + '</td>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + _PSEC_TEXT + ';line-height:1.45;">' + _psecFmtRemark(it.remark || '') + '</td>' +
+                    '</tr>';
+                }).join('');
+                const headerCellStyle = 'background:' + _PSEC_BRAND_TINT + ';background-color:' + _PSEC_BRAND_TINT + ';border-bottom:2pt solid ' + _PSEC_BRAND + ';padding:7pt 8pt;font-family:' + _PSEC_FF + ';font-size:10pt;font-weight:bold;color:' + _PSEC_BRAND + ';';
+                itemsBlock =
+                    '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:14pt 0 0 0;">' +
+                      '<tr><td style="border-left:3pt solid ' + _PSEC_BRAND + ';padding:2pt 0 4pt 16pt;">' +
+                        '<p style="margin:0 0 8pt 0;font-family:' + _PSEC_FF + ';font-size:12pt;font-weight:bold;color:' + _PSEC_BRAND + ';letter-spacing:0.02em;line-height:1.3;mso-line-height-rule:exactly;">รายการสินค้า LOCAL</p>' +
+                        '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;">' +
+                          '<tr>' +
+                            '<th bgcolor="' + _PSEC_BRAND_TINT + '" style="' + headerCellStyle + 'text-align:center;width:32pt;">#</th>' +
+                            '<th bgcolor="' + _PSEC_BRAND_TINT + '" style="' + headerCellStyle + 'text-align:left;">Item</th>' +
+                            '<th bgcolor="' + _PSEC_BRAND_TINT + '" style="' + headerCellStyle + 'text-align:center;width:48pt;">Qty</th>' +
+                            '<th bgcolor="' + _PSEC_BRAND_TINT + '" style="' + headerCellStyle + 'text-align:left;">Remark</th>' +
+                          '</tr>' +
+                          rows +
+                        '</table>' +
+                        '<p style="margin:6pt 0 0 0;font-family:' + _PSEC_FF + ';font-size:9.5pt;color:' + _PSEC_DIM + ';font-style:italic;line-height:1.4;mso-line-height-rule:exactly;">** Link ของสินค้าที่แนบมาอาจไม่ใช่ราคาที่ต่ำที่สุด หากมีผู้จัดจำหน่ายรายอื่นที่ราคาต่ำกว่าให้ซื้อผู้จัดจำหน่ายรายนั้น</p>' +
+                      '</td></tr>' +
+                    '</table>';
+            }
+
+            let notesBlock = '';
+            if ((form.notes || '').trim()) {
+                notesBlock = _psecPara('<b>หมายเหตุ:</b> ' + _psecNotesToHtml(form.notes), 8);
+            }
+
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
+              '<tr><td style="padding:0;">' +
+                _psecPara('เรียน ฝ่ายจัดซื้อ', 8) +
+                _psecPara('รบกวนสั่งของตามรายละเอียดดังนี้', 12) +
+                headBlock +
+                notesBlock +
+                itemsBlock +
+                _psecHairline(_PSEC_BORDER, 14, 8) +
+                _psecPara('ขอบคุณครับ', 0, 11, _PSEC_DIM) +
+              '</td></tr>' +
+            '</table>';
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  STYLE B — Branded Banner
+        //  Brand color: prominent (full-width header strip + accent rules)
+        //  Vibe: corporate enterprise notification
+        // ══════════════════════════════════════════════════════════════════
+
+        function _psecBanner_BuildBanner(overline, headline, subline) {
+            const baseTd = 'background:' + _PSEC_BRAND + ';background-color:' + _PSEC_BRAND + ';font-family:' + _PSEC_FF + ';mso-line-height-rule:exactly;';
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 16pt 0;background-color:' + _PSEC_BRAND + ';">' +
+                // Top accent strip
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" height="6" style="' + baseTd + 'height:6pt;line-height:1pt;font-size:1pt;">&nbsp;</td></tr>' +
+                // Overline
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + baseTd + 'padding:11pt 18pt 4pt 18pt;font-size:8.5pt;font-weight:bold;line-height:1.3;letter-spacing:0.06em;">' +
+                  '<font color="' + _PSEC_BRAND_LT + '" face="Tahoma"><b>' + _psecHe(overline) + '</b></font>' +
+                '</td></tr>' +
+                // Headline
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + baseTd + 'padding:0 18pt 4pt 18pt;font-size:14pt;font-weight:bold;line-height:1.3;">' +
+                  '<font color="#ffffff" face="Tahoma"><b>' + _psecHe(headline) + '</b></font>' +
+                '</td></tr>' +
+                // Subline
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + baseTd + 'padding:0 18pt 13pt 18pt;font-size:10pt;line-height:1.4;">' +
+                  '<font color="' + _PSEC_BRAND_LT + '" face="Tahoma">' + _psecHe(subline) + '</font>' +
+                '</td></tr>' +
+                '</table>';
+        }
+
+        function _psecBanner_Approve(tplId, form) {
+            const isBid = tplId === 'approve-bid';
+            const verb = isBid ? 'ยื่นซอง' : 'สั่งของ';
+            const overline = isBid ? 'SCIED · APPROVE CONFIGURATION · ยื่นซอง' : 'SCIED · APPROVE CONFIGURATION · สั่งของ';
+            const headline = form.eqList || verb;
+            const submitInfo = isBid && (form.submitDate || form.submitTime)
+                ? 'กำหนดยื่น ' + (form.submitDate || '') + (form.submitTime ? ' (' + form.submitTime + ')' : '')
+                : '';
+            const subline = (form.agency || '—') + (submitInfo ? ' · ' + submitInfo : '');
+
+            const rows =
+                _psecKVRow('หน่วยงาน', form.agency || '') +
+                _psecKVRow('EQ List', form.eqList || '') +
+                _psecKVRow('รายการสินค้าหลัก', form.mainItems || '');
+
+            let notesBlock = '';
+            if ((form.notes || '').trim()) {
+                notesBlock =
+                    _psecHairline(_PSEC_BORDER, 4, 8) +
+                    _psecPara('<b>หมายเหตุ</b>', 4) +
+                    _psecPara(_psecNotesToHtml(form.notes), 0);
+            }
+
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
+              '<tr><td style="padding:0;">' +
+                _psecBanner_BuildBanner(overline, headline, subline) +
+                _psecPara('Dear All,', 10) +
+                _psecPara('รบกวนตรวจเช็คเพื่อ Approve Configuration สำหรับ' + _psecHe(verb), 14) +
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 12pt 0;">' + rows + '</table>' +
+                notesBlock +
+                _psecPara('Thanks,', 0, 11, _PSEC_DIM) +
+              '</td></tr>' +
+            '</table>';
+        }
+
+        function _psecBanner_Order(form) {
+            const items = (form.localItems || []).filter(function(it){ return it && (it.name || it.qty || it.remark); });
+            const overline = 'SCIED · ORDER REQUEST · ฝ่ายจัดซื้อ';
+            const headline = form.eqList || 'Purchase Order';
+            const subline = [form.agency || '', form.orderDate ? 'ใบสั่งซื้อ ' + form.orderDate : '', form.expireDate ? 'หมดสัญญา ' + form.expireDate : '']
+                .filter(Boolean).join(' · ') || '—';
+
+            const headRows =
+                (form.eqList ? _psecKVRow('เลขที่ใบเสนอราคา', form.eqList) : '') +
+                (form.mainItemsOversea ? _psecKVRow('รายการหลัก (Oversea)', form.mainItemsOversea) : '') +
+                (form.agency ? _psecKVRow('หน่วยงาน', form.agency) : '') +
+                (form.orderDate ? _psecKVRow('ใบสั่งซื้อวันที่', form.orderDate) : '') +
+                (form.expireDate ? _psecKVRow('หมดสัญญาวันที่', form.expireDate) : '');
+
+            let itemsBlock = '';
+            if (items.length > 0) {
+                const rows = items.map(function(it, i){
+                    return '<tr>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;text-align:center;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + _PSEC_DIM + ';">' + (i + 1) + '</td>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:11pt;color:' + _PSEC_TEXT + ';">' + _psecHe(it.name || '') + '</td>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;text-align:center;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:11pt;color:' + _PSEC_TEXT + ';font-weight:600;">' + _psecHe(it.qty || '') + '</td>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + _PSEC_TEXT + ';line-height:1.45;">' + _psecFmtRemark(it.remark || '') + '</td>' +
+                    '</tr>';
+                }).join('');
+                const headerTd = 'background:' + _PSEC_BRAND + ';background-color:' + _PSEC_BRAND + ';padding:7pt 8pt;font-family:' + _PSEC_FF + ';font-size:10pt;font-weight:bold;';
+                itemsBlock =
+                    _psecPara('<b>รายการสินค้า LOCAL</b>', 6, 11, _PSEC_BRAND) +
+                    '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 6pt 0;">' +
+                      '<tr>' +
+                        '<th bgcolor="' + _PSEC_BRAND + '" align="center" style="' + headerTd + 'text-align:center;width:32pt;"><font color="#ffffff" face="Tahoma"><b>#</b></font></th>' +
+                        '<th bgcolor="' + _PSEC_BRAND + '" align="left" style="' + headerTd + 'text-align:left;"><font color="#ffffff" face="Tahoma"><b>Item</b></font></th>' +
+                        '<th bgcolor="' + _PSEC_BRAND + '" align="center" style="' + headerTd + 'text-align:center;width:48pt;"><font color="#ffffff" face="Tahoma"><b>Qty</b></font></th>' +
+                        '<th bgcolor="' + _PSEC_BRAND + '" align="left" style="' + headerTd + 'text-align:left;"><font color="#ffffff" face="Tahoma"><b>Remark</b></font></th>' +
+                      '</tr>' +
+                      rows +
+                    '</table>' +
+                    '<p style="margin:0 0 12pt 0;font-family:' + _PSEC_FF + ';font-size:9.5pt;color:' + _PSEC_DIM + ';font-style:italic;line-height:1.4;mso-line-height-rule:exactly;">** Link ของสินค้าที่แนบมาอาจไม่ใช่ราคาที่ต่ำที่สุด หากมีผู้จัดจำหน่ายรายอื่นที่ราคาต่ำกว่าให้ซื้อผู้จัดจำหน่ายรายนั้น</p>';
+            }
+
+            let notesBlock = '';
+            if ((form.notes || '').trim()) {
+                notesBlock = _psecPara('<b>หมายเหตุ:</b> ' + _psecNotesToHtml(form.notes), 8);
+            }
+
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
+              '<tr><td style="padding:0;">' +
+                _psecBanner_BuildBanner(overline, headline, subline) +
+                _psecPara('เรียน ฝ่ายจัดซื้อ', 8) +
+                _psecPara('รบกวนสั่งของตามรายละเอียดดังนี้', 12) +
+                (headRows ? '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 12pt 0;">' + headRows + '</table>' : '') +
+                notesBlock +
+                itemsBlock +
+                _psecPara('ขอบคุณครับ', 0, 11, _PSEC_DIM) +
+              '</td></tr>' +
+            '</table>';
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  STYLE C — Editorial Document
+        //  Brand color: minimal (overline only — heading is black)
+        //  Vibe: classic memo / report — typography hierarchy drives the design
+        // ══════════════════════════════════════════════════════════════════
+
+        function _psecEdit_Header(overline, heading, subtitle) {
+            return '<p style="margin:0 0 6pt 0;font-family:' + _PSEC_FF + ';font-size:9pt;font-weight:bold;color:' + _PSEC_BRAND + ';letter-spacing:0.18em;line-height:1.3;mso-line-height-rule:exactly;">' + _psecHe(overline) + '</p>' +
+                '<p style="margin:0 0 4pt 0;font-family:' + _PSEC_FF + ';font-size:17pt;font-weight:bold;color:#000000;line-height:1.25;mso-line-height-rule:exactly;letter-spacing:-0.01em;">' + _psecHe(heading) + '</p>' +
+                (subtitle ? '<p style="margin:0 0 12pt 0;font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + _PSEC_DIM + ';font-style:italic;line-height:1.4;mso-line-height-rule:exactly;">' + _psecHe(subtitle) + '</p>' : '') +
+                _psecHairline(_PSEC_BORDER, 0, 14);
+        }
+
+        function _psecEdit_KV(label, value) {
+            return _psecKVRow(label, value, {
+                labelStyle: 'font-style:italic;',
+                labelW: 130,
+                valueColor: '#000000',
+                valueWeight: '400',
+                pad: '5pt 0'
+            });
+        }
+
+        function _psecEdit_Approve(tplId, form) {
+            const isBid = tplId === 'approve-bid';
+            const verb = isBid ? 'ยื่นซอง' : 'สั่งของ';
+            const overline = isBid ? 'APPROVE · CONFIGURATION · ยื่นซอง' : 'APPROVE · CONFIGURATION · สั่งของ';
+            const heading = form.eqList || verb;
+            const submitInfo = isBid && (form.submitDate || form.submitTime)
+                ? 'กำหนดยื่น ' + (form.submitDate || '') + (form.submitTime ? ' • ' + form.submitTime : '')
+                : '';
+            const subtitle = [form.agency || '', submitInfo].filter(Boolean).join(' · ');
+
+            const rows =
+                _psecEdit_KV('หน่วยงาน', form.agency || '') +
+                _psecEdit_KV('EQ List', form.eqList || '') +
+                _psecEdit_KV('รายการสินค้าหลัก', form.mainItems || '');
+
+            let notesBlock = '';
+            if ((form.notes || '').trim()) {
+                notesBlock =
+                    '<p style="margin:14pt 0 4pt 0;font-family:' + _PSEC_FF + ';font-size:10pt;font-weight:bold;color:#000000;letter-spacing:0.06em;line-height:1.4;mso-line-height-rule:exactly;">หมายเหตุ</p>' +
+                    _psecPara(_psecNotesToHtml(form.notes), 0);
+            }
+
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
+              '<tr><td style="padding:0;">' +
+                _psecEdit_Header(overline, heading, subtitle) +
+                _psecPara('Dear All,', 10) +
+                _psecPara('รบกวนตรวจเช็คเพื่อ Approve Configuration สำหรับ' + _psecHe(verb), 14) +
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 14pt 0;">' + rows + '</table>' +
+                notesBlock +
+                _psecHairline(_PSEC_BORDER, 12, 10) +
+                _psecPara('Thanks,', 0, 11, _PSEC_DIM) +
+              '</td></tr>' +
+            '</table>';
+        }
+
+        function _psecEdit_Order(form) {
+            const items = (form.localItems || []).filter(function(it){ return it && (it.name || it.qty || it.remark); });
+            const overline = 'PURCHASE · ORDER · ฝ่ายจัดซื้อ';
+            const heading = form.eqList || 'Purchase Order';
+            const subtitle = [form.agency || '', form.orderDate ? 'ใบสั่งซื้อ ' + form.orderDate : '', form.expireDate ? 'หมดสัญญา ' + form.expireDate : '']
+                .filter(Boolean).join(' · ');
+
+            const headRows =
+                (form.eqList ? _psecEdit_KV('เลขที่ใบเสนอราคา', form.eqList) : '') +
+                (form.mainItemsOversea ? _psecEdit_KV('รายการหลัก (Oversea)', form.mainItemsOversea) : '') +
+                (form.agency ? _psecEdit_KV('หน่วยงาน', form.agency) : '') +
+                (form.orderDate ? _psecEdit_KV('ใบสั่งซื้อวันที่', form.orderDate) : '') +
+                (form.expireDate ? _psecEdit_KV('หมดสัญญาวันที่', form.expireDate) : '');
+
+            let itemsBlock = '';
+            if (items.length > 0) {
+                const rows = items.map(function(it, i){
+                    return '<tr>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;text-align:center;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + _PSEC_DIM + ';font-style:italic;">' + (i + 1) + '</td>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:11pt;color:#000000;">' + _psecHe(it.name || '') + '</td>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;text-align:center;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:11pt;color:#000000;">' + _psecHe(it.qty || '') + '</td>' +
+                        '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + _PSEC_TEXT + ';line-height:1.45;">' + _psecFmtRemark(it.remark || '') + '</td>' +
+                    '</tr>';
+                }).join('');
+                const headerCell = 'border-top:2pt solid #000000;border-bottom:1pt solid #000000;padding:6pt 8pt;font-family:' + _PSEC_FF + ';font-size:9.5pt;font-weight:bold;color:#000000;letter-spacing:0.06em;text-transform:uppercase;';
+                itemsBlock =
+                    '<p style="margin:14pt 0 8pt 0;font-family:' + _PSEC_FF + ';font-size:10pt;font-weight:bold;color:#000000;letter-spacing:0.06em;line-height:1.4;mso-line-height-rule:exactly;">รายการสินค้า LOCAL</p>' +
+                    '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 6pt 0;">' +
+                      '<tr>' +
+                        '<th style="' + headerCell + 'text-align:center;width:32pt;">#</th>' +
+                        '<th style="' + headerCell + 'text-align:left;">Item</th>' +
+                        '<th style="' + headerCell + 'text-align:center;width:48pt;">Qty</th>' +
+                        '<th style="' + headerCell + 'text-align:left;">Remark</th>' +
+                      '</tr>' +
+                      rows +
+                    '</table>' +
+                    '<p style="margin:0 0 12pt 0;font-family:' + _PSEC_FF + ';font-size:9.5pt;color:' + _PSEC_DIM + ';font-style:italic;line-height:1.4;mso-line-height-rule:exactly;">** Link ของสินค้าที่แนบมาอาจไม่ใช่ราคาที่ต่ำที่สุด หากมีผู้จัดจำหน่ายรายอื่นที่ราคาต่ำกว่าให้ซื้อผู้จัดจำหน่ายรายนั้น</p>';
+            }
+
+            let notesBlock = '';
+            if ((form.notes || '').trim()) {
+                notesBlock =
+                    '<p style="margin:8pt 0 4pt 0;font-family:' + _PSEC_FF + ';font-size:10pt;font-weight:bold;color:#000000;letter-spacing:0.06em;line-height:1.4;mso-line-height-rule:exactly;">หมายเหตุ</p>' +
+                    _psecPara(_psecNotesToHtml(form.notes), 0);
+            }
+
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
+              '<tr><td style="padding:0;">' +
+                _psecEdit_Header(overline, heading, subtitle) +
+                _psecPara('เรียน ฝ่ายจัดซื้อ', 8) +
+                _psecPara('รบกวนสั่งของตามรายละเอียดดังนี้', 12) +
+                (headRows ? '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 14pt 0;">' + headRows + '</table>' : '') +
+                notesBlock +
+                itemsBlock +
+                _psecHairline(_PSEC_BORDER, 12, 10) +
+                _psecPara('ขอบคุณครับ', 0, 11, _PSEC_DIM) +
+              '</td></tr>' +
+            '</table>';
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  Style registry + dispatch
+        // ══════════════════════════════════════════════════════════════════
+
+        const _PSEC_STYLES = {
+            exec:      { label: 'Executive', desc: 'Minimal • brand accent line',  buildApprove: _psecExec_Approve,   buildOrder: _psecExec_Order },
+            banner:    { label: 'Branded',   desc: 'Bold brand banner header',     buildApprove: _psecBanner_Approve, buildOrder: _psecBanner_Order },
+            editorial: { label: 'Editorial', desc: 'Typography-led • mostly black', buildApprove: _psecEdit_Approve,   buildOrder: _psecEdit_Order }
+        };
+
+        // ── Plain-text builders (style-agnostic) ───────────────────────────
 
         function _psecBuildApproveText(tplId, form) {
             const isBid = tplId === 'approve-bid';
@@ -25527,51 +25921,6 @@ ${paras}
                 '',
                 'Thanks,'
             ].join('\n');
-        }
-
-        function _psecBuildOrder(form) {
-            const items = (form.localItems || []).filter(function(it){ return it && (it.name || it.qty || it.remark); });
-            const hasItems = items.length > 0;
-            let tableHtml = '';
-            if (hasItems) {
-                const rows = items.map(function(it, i){
-                    return '<tr>' +
-                        '<td style="border:1px solid #999;padding:4pt 6pt;text-align:center;vertical-align:top;width:32pt;">' + (i + 1) + '</td>' +
-                        '<td style="border:1px solid #999;padding:4pt 6pt;vertical-align:top;">' + _psecHe(it.name || '') + '</td>' +
-                        '<td style="border:1px solid #999;padding:4pt 6pt;text-align:center;vertical-align:top;width:42pt;">' + _psecHe(it.qty || '') + '</td>' +
-                        '<td style="border:1px solid #999;padding:4pt 6pt;vertical-align:top;">' + _psecFmtRemark(it.remark || '') + '</td>' +
-                        '</tr>';
-                }).join('');
-                tableHtml =
-                    '<p style="' + _PSEC_LINE + 'font-weight:bold;text-decoration:underline;">รายการสินค้า LOCAL:</p>' +
-                    '<table style="border-collapse:collapse;width:100%;' + _PSEC_FONT + '" cellpadding="0" cellspacing="0">' +
-                    '<thead><tr style="background:#1f4e79;color:#ffffff;">' +
-                    '<th style="border:1px solid #999;padding:5pt 6pt;font-weight:bold;text-align:center;width:32pt;">#</th>' +
-                    '<th style="border:1px solid #999;padding:5pt 6pt;font-weight:bold;text-align:center;">Item</th>' +
-                    '<th style="border:1px solid #999;padding:5pt 6pt;font-weight:bold;text-align:center;width:42pt;">Qty.</th>' +
-                    '<th style="border:1px solid #999;padding:5pt 6pt;font-weight:bold;text-align:center;">Remark</th>' +
-                    '</tr></thead><tbody>' + rows + '</tbody></table>' +
-                    '<p style="margin:6pt 0 6pt 0;' + _PSEC_FONT + 'font-size:10pt;color:#444444;">** Link ของสินค้าที่แนบมาอาจไม่ใช่ราคาที่ต่ำที่สุด หากมีผู้จัดจำหน่ายรายอื่นที่ราคาต่ำกว่าให้ซื้อผู้จัดจำหน่ายรายนั้น</p>';
-            }
-            const agencyLine = form.agency
-                ? '<p style="' + _PSEC_LINE + '">หน่วยงาน: ' + _psecHe(form.agency) + '</p>'
-                : '';
-            return '<div style="' + _PSEC_FONT + '">' +
-                '<p style="' + _PSEC_LINE + '">เรียน ฝ่ายจัดซื้อ</p>' +
-                '<p style="' + _PSEC_LINE + '">รบกวนสั่งของตามรายละเอียดดังนี้</p>' +
-                '<p style="' + _PSEC_LINE + '">' +
-                  'เลขที่ใบเสนอราคา: ' + _psecHe(form.eqList || '') + '<br>' +
-                  'รายการสินค้าหลัก (Oversea): ' + _psecHe(form.mainItemsOversea || '') +
-                '</p>' +
-                agencyLine +
-                '<p style="' + _PSEC_LINE + '">' +
-                  'ใบสั่งซื้อวันที่: ' + _psecHe(form.orderDate || '') + '<br>' +
-                  'หมดสัญญาวันที่: ' + _psecHe(form.expireDate || '') +
-                '</p>' +
-                '<p style="' + _PSEC_LINE + '">หมายเหตุ: ' + _psecNotesToHtml(form.notes) + '</p>' +
-                tableHtml +
-                '<p style="' + _PSEC_LINE + '">ขอบคุณครับ</p>' +
-                '</div>';
         }
 
         function _psecBuildOrderText(form) {
@@ -25612,8 +25961,9 @@ ${paras}
         }
 
         function _psecBuildBody(tplId, form) {
-            if (tplId === 'order') return _psecBuildOrder(form);
-            return _psecBuildApprove(tplId, form);
+            const style = _PSEC_STYLES[_psecActiveStyle] || _PSEC_STYLES.exec;
+            if (tplId === 'order') return style.buildOrder(form);
+            return style.buildApprove(tplId, form);
         }
 
         function _psecBuildBodyText(tplId, form) {
@@ -25626,14 +25976,25 @@ ${paras}
         function _psecInit(panel) {
             _psecLoadState();
             _psecActiveTpl = _psecState.lastTemplate || 'approve-bid';
+            _psecActiveStyle = (_psecState.lastStyle && _PSEC_STYLES[_psecState.lastStyle]) ? _psecState.lastStyle : 'exec';
             panel.innerHTML =
                 '<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-main);box-sizing:border-box;">' +
-                  '<div style="display:flex;align-items:center;gap:14px;padding:14px 20px 12px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--surface,var(--bg-main));">' +
+                  '<div style="display:flex;align-items:center;gap:14px;padding:14px 20px 12px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--surface,var(--bg-main));flex-wrap:wrap;">' +
                     '<div>' +
                       '<div style="font-family:var(--font-main);font-size:17px;font-weight:800;color:var(--text-primary);line-height:1.2;">PS Email Composer</div>' +
                       '<div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-top:1px;">Approve Configuration / สั่งของ — paste-ready Outlook HTML</div>' +
                     '</div>' +
-                    '<div id="psec-tpl-bar" style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;"></div>' +
+                    '<div style="margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">' +
+                      '<div style="display:flex;align-items:center;gap:8px;">' +
+                        '<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;">Style</span>' +
+                        '<div id="psec-style-bar" style="display:flex;gap:4px;flex-wrap:wrap;"></div>' +
+                      '</div>' +
+                      '<div style="width:1px;height:22px;background:var(--border);"></div>' +
+                      '<div style="display:flex;align-items:center;gap:8px;">' +
+                        '<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;">Template</span>' +
+                        '<div id="psec-tpl-bar" style="display:flex;gap:6px;flex-wrap:wrap;"></div>' +
+                      '</div>' +
+                    '</div>' +
                   '</div>' +
                   '<div style="flex:1;min-height:0;display:flex;gap:14px;padding:14px 20px;box-sizing:border-box;overflow:hidden;">' +
                     '<div id="psec-form-pane" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding-right:6px;"></div>' +
@@ -25657,8 +26018,31 @@ ${paras}
                     '</div>' +
                   '</div>' +
                 '</div>';
+            _psecRenderStyleBar();
             _psecRenderTplBar();
             _psecRenderForm();
+        }
+
+        function _psecRenderStyleBar() {
+            const bar = document.getElementById('psec-style-bar');
+            if (!bar) return;
+            bar.innerHTML = Object.keys(_PSEC_STYLES).map(function(id) {
+                const isActive = id === _psecActiveStyle;
+                const bg = isActive ? 'var(--accent)' : 'transparent';
+                const color = isActive ? '#ffffff' : 'var(--text-secondary,var(--text-primary))';
+                const border = isActive ? 'var(--accent)' : 'var(--border)';
+                const s = _PSEC_STYLES[id];
+                return '<button onclick="_psecSwitchStyle(\'' + id + '\')" title="' + _psecHe(s.desc) + '" style="font-family:var(--font-mono);font-size:11px;font-weight:600;padding:6px 12px;border:1px solid ' + border + ';border-radius:999px;background:' + bg + ';color:' + color + ';cursor:pointer;white-space:nowrap;">' + _psecHe(s.label) + '</button>';
+            }).join('');
+        }
+
+        function _psecSwitchStyle(id) {
+            if (!_PSEC_STYLES[id]) return;
+            _psecActiveStyle = id;
+            _psecState.lastStyle = id;
+            _psecSaveState();
+            _psecRenderStyleBar();
+            _psecRefreshPreview();
         }
 
         function _psecRenderTplBar() {
