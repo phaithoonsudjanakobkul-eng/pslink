@@ -25461,6 +25461,74 @@ ${paras}
             return linked.replace(/\n/g, '<br>');
         }
 
+        // Item name escape: preserve newlines (LOCAL service items can be long).
+        // No URL auto-link — item names rarely contain URLs.
+        function _psecFmtItemName(s) {
+            return _psecHe(s).replace(/\n/g, '<br>');
+        }
+
+        // Auto-grow textarea to fit content. Called on input + after _psecRenderItems.
+        function _psecAutogrow(el) {
+            if (!el) return;
+            el.style.height = 'auto';
+            el.style.height = Math.max(30, el.scrollHeight) + 'px';
+        }
+
+        // Smart parser for bulk-paste items. Handles:
+        //   - TAB-separated (Excel paste) — primary format
+        //   - Multi-space (3+) fallback for fixed-width text
+        //   - Pipe (|) separator fallback
+        //   - Numbered prefixes ("1.", "1)", "1:", "1 -") — stripped
+        //   - Empty lines and "-" only lines — skipped
+        //   - Header rows (Item/Qty/Remark/#/No) — skipped
+        // Returns array of { name, qty, remark }.
+        function _psecParseItemsText(text) {
+            if (!text) return [];
+            const out = [];
+            const lines = text.split(/\r?\n/);
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].replace(/ /g, ' ').replace(/\s+$/, '');
+                if (!line.trim()) continue;
+                if (line.trim() === '-') continue;
+                // Skip header rows like "Item\tQty\tRemark"
+                if (/^(item|qty|remark|#|no\.?|name)\s*[\t|]/i.test(line.trim())) continue;
+                // Strip leading number prefix
+                let working = line.trim().replace(/^(\d+)([\.\)\:](\s+|$)|\s+[\-–]\s+|\s{2,})/, '');
+                if (!working) continue;
+                // Try TAB first
+                let parts = working.split('\t').map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
+                if (parts.length === 1) {
+                    const alt = working.split(/\s{3,}/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
+                    if (alt.length > 1) parts = alt;
+                }
+                if (parts.length === 1) {
+                    const alt = working.split('|').map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
+                    if (alt.length > 1) parts = alt;
+                }
+                if (parts.length === 0) continue;
+                // Drop leading row-number column from Outlook/Excel table copy
+                // (e.g. "1\tLC-CODE\t1\tRemark" → drop the "1\t" so name = LC-CODE)
+                if (parts.length >= 4 && /^\d+$/.test(parts[0])) {
+                    parts = parts.slice(1);
+                }
+                const name = parts[0];
+                let qty = '1';
+                let remark = '';
+                if (parts.length >= 2) {
+                    const p2 = parts[1];
+                    if (/^\d+(\.\d+)?$/.test(p2)) {
+                        qty = p2;
+                        remark = parts.slice(2).join(' ');
+                    } else {
+                        remark = parts.slice(1).join(' ');
+                    }
+                }
+                if (remark.trim() === '-') remark = '';
+                out.push({ name: name, qty: qty, remark: remark });
+            }
+            return out;
+        }
+
         function _psecNotesToHtml(raw) {
             const trimmed = (raw || '').trim();
             if (!trimmed) return '-';
@@ -25578,7 +25646,7 @@ ${paras}
                 const bgAttr = i % 2 === 1 ? ' bgcolor="#fafbfc"' : '';
                 return '<tr' + bgAttr + '>' +
                     '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:' + _PSEC_DIM + ';text-align:center;vertical-align:top;width:32pt;">' + (i + 1) + '</td>' +
-                    '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';vertical-align:top;">' + _psecHe(it.name || '') + '</td>' +
+                    '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';vertical-align:top;">' + _psecFmtItemName(it.name || '') + '</td>' +
                     '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:' + _PSEC_TEXT + ';text-align:center;vertical-align:top;width:48pt;">' + _psecHe(it.qty || '') + '</td>' +
                     '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:#4b5563;vertical-align:top;">' + _psecFmtRemark(it.remark || '') + '</td>' +
                 '</tr>';
@@ -25601,7 +25669,7 @@ ${paras}
             const rows = valid.map(function(it, i){
                 return '<tr>' +
                     '<td style="border:1px solid #999;padding:4pt 6pt;text-align:center;vertical-align:top;width:32pt;">' + (i + 1) + '</td>' +
-                    '<td style="border:1px solid #999;padding:4pt 6pt;vertical-align:top;">' + _psecHe(it.name || '') + '</td>' +
+                    '<td style="border:1px solid #999;padding:4pt 6pt;vertical-align:top;">' + _psecFmtItemName(it.name || '') + '</td>' +
                     '<td style="border:1px solid #999;padding:4pt 6pt;text-align:center;vertical-align:top;width:42pt;">' + _psecHe(it.qty || '') + '</td>' +
                     '<td style="border:1px solid #999;padding:4pt 6pt;vertical-align:top;">' + _psecFmtRemark(it.remark || '') + '</td>' +
                 '</tr>';
@@ -25980,11 +26048,25 @@ ${paras}
                 }
                 if (def.type === 'items') {
                     return '<div style="display:flex;flex-direction:column;gap:6px;">' +
-                        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+                        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
                           '<span style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;">' + def.label + '</span>' +
-                          '<button class="psf-btn psf-btn-ghost" onclick="_psecAddItem()" style="font-size:11px;padding:4px 10px;">+ เพิ่มแถว</button>' +
+                          '<div style="display:flex;gap:6px;">' +
+                            '<button class="psf-btn psf-btn-ghost" onclick="_psecOpenPaste()" title="วาง TSV จาก Excel หรือเมลเดิม — รองรับ Tab-separated, numbered prefix, ข้าม blank/dash" style="font-size:11px;padding:4px 10px;">วางจาก Excel</button>' +
+                            '<button class="psf-btn psf-btn-ghost" onclick="_psecAddItem()" style="font-size:11px;padding:4px 10px;">+ เพิ่มแถว</button>' +
+                          '</div>' +
                         '</div>' +
                         '<div id="psec-items-list" style="display:flex;flex-direction:column;gap:6px;"></div>' +
+                        '<div id="psec-paste-area" style="display:none;border:1px dashed ' + _PSEC_BRAND + ';border-radius:6px;padding:10px;background:var(--surface,#fff);margin-top:4px;">' +
+                          '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap;">' +
+                            '<span style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);line-height:1.55;">วาง <b>Item ↹ Qty ↹ Remark</b> · 1 บรรทัด = 1 row<br>รองรับ Tab-separated · numbered prefix (<code>1.</code>) · ข้าม "—" และ blank lines</span>' +
+                            '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+                              '<button onclick="_psecParsePasteText(false)" class="psf-btn psf-btn-ghost" title="ล้างรายการเดิมก่อน parse" style="font-size:11px;padding:5px 10px;">Replace</button>' +
+                              '<button onclick="_psecParsePasteText(true)" class="psf-btn psf-btn-green" style="font-size:11px;padding:5px 10px;">Parse &amp; Append</button>' +
+                              '<button onclick="_psecClosePaste()" class="psf-btn psf-btn-ghost" style="font-size:11px;padding:5px 10px;">ยกเลิก</button>' +
+                            '</div>' +
+                          '</div>' +
+                          '<textarea id="psec-paste-textarea" rows="6" placeholder="LC-MONITOR-23\t1\t(JIB) Monitor 23in https://www.jib.co.th/...&#10;LC-USB-TO-RJ45\t1\t-&#10;(LOCAL) งานเดินระบบไฟ + HDMI\t1\tตามใบเสนอราคาที่แนบมา (Vendor.pdf) *ลูกค้าจัดหามาเอง&#10;LC-TL-WN725N\t1\t-" style="width:100%;font-family:Consolas,monospace;font-size:11px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);resize:vertical;min-height:100px;box-sizing:border-box;line-height:1.5;"></textarea>' +
+                        '</div>' +
                     '</div>';
                 }
                 return '<label style="display:flex;flex-direction:column;gap:4px;">' +
@@ -26002,17 +26084,20 @@ ${paras}
             const form = _psecGetForm(_psecActiveTpl);
             const items = form.localItems || [];
             if (items.length === 0) {
-                host.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);padding:8px 10px;border:1px dashed var(--border);border-radius:6px;text-align:center;">ยังไม่มีรายการ — กด "+ เพิ่มแถว" เพื่อเริ่ม</div>';
+                host.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);padding:10px 12px;border:1px dashed var(--border);border-radius:6px;text-align:center;line-height:1.6;">ยังไม่มีรายการ — กด <b>+ เพิ่มแถว</b> หรือ <b>วางจาก Excel</b> เพื่อเริ่ม</div>';
                 return;
             }
+            const taStyle = "font-family:'Tahoma','Sans Serif';font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);resize:none;overflow:hidden;line-height:1.55;box-sizing:border-box;width:100%;";
             host.innerHTML = items.map(function(it, i){
-                return '<div style="display:grid;grid-template-columns:1fr 60px 1fr 28px;gap:6px;align-items:start;">' +
-                    '<input type="text" placeholder="Item" value="' + _psecHe(it.name || '') + '" oninput="_psecOnItemChange(' + i + ', \'name\', this.value)" style="font-family:\'Tahoma\',sans-serif;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);">' +
-                    '<input type="text" placeholder="Qty" value="' + _psecHe(it.qty || '') + '" oninput="_psecOnItemChange(' + i + ', \'qty\', this.value)" style="font-family:\'Tahoma\',sans-serif;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);text-align:center;">' +
-                    '<input type="text" placeholder="Remark / URL" value="' + _psecHe(it.remark || '') + '" oninput="_psecOnItemChange(' + i + ', \'remark\', this.value)" style="font-family:\'Tahoma\',sans-serif;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);">' +
-                    '<button onclick="_psecDelItem(' + i + ')" title="ลบ" style="font-family:var(--font-mono);font-size:14px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--text-dim);cursor:pointer;line-height:1;padding:0;">×</button>' +
+                return '<div style="display:grid;grid-template-columns:1fr 56px 1fr 28px;gap:6px;align-items:start;">' +
+                    '<textarea rows="1" placeholder="Item · ภาษาไทยยาวได้" oninput="_psecAutogrow(this);_psecOnItemChange(' + i + ', \'name\', this.value)" style="' + taStyle + '">' + _psecHe(it.name || '') + '</textarea>' +
+                    '<input type="text" placeholder="Qty" value="' + _psecHe(it.qty || '') + '" oninput="_psecOnItemChange(' + i + ', \'qty\', this.value)" style="font-family:\'Tahoma\',sans-serif;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);text-align:center;height:30px;box-sizing:border-box;">' +
+                    '<textarea rows="1" placeholder="Remark · URL · multi-line" oninput="_psecAutogrow(this);_psecOnItemChange(' + i + ', \'remark\', this.value)" style="' + taStyle + '">' + _psecHe(it.remark || '') + '</textarea>' +
+                    '<button onclick="_psecDelItem(' + i + ')" title="ลบ" style="font-family:var(--font-mono);font-size:14px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--text-dim);cursor:pointer;line-height:1;padding:0;height:30px;align-self:start;">×</button>' +
                 '</div>';
             }).join('');
+            // Initial heights for pre-filled content
+            host.querySelectorAll('textarea').forEach(_psecAutogrow);
         }
 
         function _psecOnFieldChange(fname, val) {
@@ -26051,6 +26136,47 @@ ${paras}
             _psecSaveState();
             _psecRenderItems();
             _psecRefreshPreview();
+        }
+
+        function _psecOpenPaste() {
+            const area = document.getElementById('psec-paste-area');
+            if (!area) return;
+            area.style.display = 'block';
+            const ta = document.getElementById('psec-paste-textarea');
+            if (ta) {
+                ta.value = '';
+                setTimeout(function() {
+                    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    ta.focus();
+                }, 30);
+            }
+        }
+
+        function _psecClosePaste() {
+            const area = document.getElementById('psec-paste-area');
+            if (area) area.style.display = 'none';
+        }
+
+        function _psecParsePasteText(append) {
+            const ta = document.getElementById('psec-paste-textarea');
+            if (!ta) return;
+            const items = _psecParseItemsText(ta.value);
+            if (items.length === 0) {
+                _psecStatus('Parse ไม่ได้ — ตรวจรูปแบบ (Tab คั่น Item / Qty / Remark)', 'err');
+                return;
+            }
+            const form = _psecGetForm(_psecActiveTpl);
+            if (append) {
+                form.localItems = (form.localItems || []).concat(items);
+            } else {
+                form.localItems = items;
+            }
+            _psecState.templates[_psecActiveTpl] = form;
+            _psecSaveState();
+            _psecClosePaste();
+            _psecRenderItems();
+            _psecRefreshPreview();
+            _psecStatus((append ? 'เพิ่ม ' : 'แทนที่ด้วย ') + items.length + ' รายการแล้ว', 'ok');
         }
 
         function _psecRefreshPreview() {
