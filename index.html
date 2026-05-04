@@ -25596,20 +25596,86 @@ ${paras}
             _psecRefreshPreview();
         }
 
-        // ── Premium helpers ─────────────────────────────────────────────
+        // ── Outlook-safe primitives ─────────────────────────────────────
+        // Outlook desktop uses Word's HTML renderer, which strips many CSS
+        // properties when ingesting clipboard HTML. The patterns below use
+        // triple redundancy (HTML attributes + inline CSS + <font> tags) so
+        // colors, spacing, and rules all survive Outlook's normalizer and
+        // render identically in browsers (preview), Outlook desktop, web,
+        // and mobile clients.
+
+        // Wrap text in span+font for color preservation across all clients.
+        // Word strips `color:` from <p>/<div>/<span> in some flows; <font color>
+        // is the only attribute Word always preserves.
+        function _psecColored(text, color) {
+            return '<span style="color:' + color + ';"><font color="' + color + '" face="Tahoma">' + text + '</font></span>';
+        }
+
+        // Solid color rule using bgcolor attribute + explicit height. Avoids
+        // border-top tricks which render unreliably in Word.
+        function _psecAccentRule(widthPx, color, marginBottomPt) {
+            const w = widthPx || 64;
+            const c = color || _PSEC_BRAND;
+            const mb = marginBottomPt != null ? marginBottomPt : 22;
+            return '<table cellpadding="0" cellspacing="0" border="0" width="' + w + '" style="border-collapse:collapse;margin:0 0 ' + mb + 'pt 0;">' +
+                '<tr><td bgcolor="' + c + '" height="3" style="background-color:' + c + ';height:3px;font-size:1px;line-height:1px;mso-line-height-rule:exactly;">&nbsp;</td></tr>' +
+            '</table>';
+        }
+
+        // Subtle full-width divider — same pattern as accent rule but 1px and faint.
+        function _psecDivider(color, marginVertPt) {
+            const c = color || _PSEC_BORDER;
+            const mv = marginVertPt != null ? marginVertPt : 22;
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:' + mv + 'pt 0;">' +
+                '<tr><td bgcolor="' + c + '" height="1" style="background-color:' + c + ';height:1px;font-size:1px;line-height:1px;mso-line-height-rule:exactly;">&nbsp;</td></tr>' +
+            '</table>';
+        }
+
+        // Guaranteed vertical spacer — Outlook respects table cell heights,
+        // not always div margins. Use sparingly (only when margin won't survive).
+        function _psecVspace(heightPt) {
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">' +
+                '<tr><td height="' + heightPt + '" style="height:' + heightPt + 'pt;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;">&nbsp;</td></tr>' +
+            '</table>';
+        }
+
+        // Paragraph-style block with explicit margin + line-height. <div> is
+        // more predictable than <p> in Outlook (no auto Word margins).
+        // opts: { bold, color, lineHeight, fontFamily }
+        function _psecPara(html, marginBottomPt, fontSizePt, opts) {
+            opts = opts || {};
+            const mb = marginBottomPt != null ? marginBottomPt : 0;
+            const fs = fontSizePt || 11;
+            const lh = opts.lineHeight || 1.6;
+            const color = opts.color || _PSEC_TEXT;
+            const ff = opts.fontFamily || "Tahoma,'Sans Serif'";
+            const weight = opts.bold ? 'bold' : 'normal';
+            return '<div style="margin:0 0 ' + mb + 'pt 0;font-family:' + ff + ';font-size:' + fs + 'pt;color:' + color + ';line-height:' + lh + ';mso-line-height-rule:exactly;font-weight:' + weight + ';">' + html + '</div>';
+        }
+
+        // Outer wrapper: <table> instead of <div> so Outlook treats the email
+        // as a layout container and applies the base font to all descendants.
+        function _psecOuterTable(innerHtml) {
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';">' +
+                '<tr><td style="padding:0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.6;mso-line-height-rule:exactly;">' +
+                innerHtml +
+                '</td></tr></table>';
+        }
+
+        // ── Premium field helpers ───────────────────────────────────────
         // Vertical key/value pair inside an info card (label on top, value below).
         function _psecCardField(label, value, valueBold) {
             if (!value) return '';
-            return '<tr><td style="padding:0 0 3pt 0;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_DIM + ';font-weight:bold;">' + _psecHe(label) + '</td></tr>' +
-                   '<tr><td style="padding:0 0 12pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';' + (valueBold ? 'font-weight:bold;' : '') + '">' + _psecHe(value) + '</td></tr>';
+            return '<tr><td style="padding:0 0 3pt 0;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_DIM + ';font-weight:bold;line-height:1.5;mso-line-height-rule:exactly;">' + _psecColored(_psecHe(label), _PSEC_DIM) + '</td></tr>' +
+                   '<tr><td style="padding:0 0 12pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.5;mso-line-height-rule:exactly;' + (valueBold ? 'font-weight:bold;' : '') + '"><font color="' + _PSEC_TEXT + '">' + _psecHe(value) + '</font></td></tr>';
         }
 
         // Horizontal key/value row (label left, value right) — for Editorial / Branded.
         function _psecRowField(label, value, valueBold) {
             if (!value) return '';
             return '<tr>' +
-                '<td style="padding:6pt 24pt 6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_DIM + ';font-weight:bold;vertical-align:top;white-space:nowrap;">' + _psecHe(label) + '</td>' +
-                '<td style="padding:6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';' + (valueBold ? 'font-weight:bold;' : '') + 'vertical-align:top;">' + _psecHe(value) + '</td>' +
+                '<td valign="top" style="padding:6pt 24pt 6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_DIM + ';font-weight:bold;vertical-align:top;white-space:nowrap;line-height:1.5;mso-line-height-rule:exactly;">' + _psecColored(_psecHe(label), _PSEC_DIM) + '</td>' +
+                '<td valign="top" style="padding:6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';' + (valueBold ? 'font-weight:bold;' : '') + 'vertical-align:top;line-height:1.5;mso-line-height-rule:exactly;"><font color="' + _PSEC_TEXT + '">' + _psecHe(value) + '</font></td>' +
             '</tr>';
         }
 
@@ -25624,42 +25690,44 @@ ${paras}
         function _psecPremiumNotes(notes) {
             const lines = _psecNotesLines(notes);
             if (lines.length === 0) return '';
-            const heading = '<p style="margin:0 0 8pt 0;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:' + _PSEC_BRAND + ';">หมายเหตุ</p>';
+            const heading = _psecPara(_psecColored('หมายเหตุ', _PSEC_BRAND), 8, 10, { bold: true });
             if (lines.length === 1) {
-                return heading + '<p style="margin:0 0 18pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';">' + _psecHe(lines[0]) + '</p>';
+                return heading + _psecPara('<font color="' + _PSEC_TEXT + '">' + _psecHe(lines[0]) + '</font>', 18);
             }
             const rows = lines.map(function(line, i){
                 return '<tr>' +
-                    '<td style="vertical-align:top;padding:0 10pt 6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;font-weight:bold;color:' + _PSEC_BRAND + ';width:20pt;">' + (i + 1) + '.</td>' +
-                    '<td style="padding:0 0 6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';">' + _psecHe(line) + '</td>' +
+                    '<td valign="top" width="20" style="vertical-align:top;padding:0 10pt 6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;font-weight:bold;width:20pt;line-height:1.6;mso-line-height-rule:exactly;">' + _psecColored((i + 1) + '.', _PSEC_BRAND) + '</td>' +
+                    '<td valign="top" style="padding:0 0 6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.6;mso-line-height-rule:exactly;"><font color="' + _PSEC_TEXT + '">' + _psecHe(line) + '</font></td>' +
                 '</tr>';
             }).join('');
             return heading + '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18pt 0;border-collapse:collapse;">' + rows + '</table>';
         }
 
         // Polished LOCAL items table — brand-blue header, alternating row tint,
-        // subtle borders, italic-gray disclaimer.
+        // subtle borders, italic-gray disclaimer. Triple-redundant color
+        // (HTML attr + CSS + <font>) so header stays white-on-blue in Outlook.
         function _psecPremiumLocalTable(items) {
             const valid = (items || []).filter(function(it){ return it && (it.name || it.qty || it.remark); });
             if (valid.length === 0) return '';
             const rows = valid.map(function(it, i){
                 const bgAttr = i % 2 === 1 ? ' bgcolor="#fafbfc"' : '';
                 return '<tr' + bgAttr + '>' +
-                    '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:' + _PSEC_DIM + ';text-align:center;vertical-align:top;width:32pt;">' + (i + 1) + '</td>' +
-                    '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';vertical-align:top;">' + _psecFmtItemName(it.name || '') + '</td>' +
-                    '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:' + _PSEC_TEXT + ';text-align:center;vertical-align:top;width:48pt;">' + _psecHe(it.qty || '') + '</td>' +
-                    '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:#4b5563;vertical-align:top;">' + _psecFmtRemark(it.remark || '') + '</td>' +
+                    '<td valign="top" width="32" style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:' + _PSEC_DIM + ';text-align:center;vertical-align:top;width:32pt;line-height:1.5;mso-line-height-rule:exactly;"><font color="' + _PSEC_DIM + '">' + (i + 1) + '</font></td>' +
+                    '<td valign="top" style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';vertical-align:top;line-height:1.55;mso-line-height-rule:exactly;"><font color="' + _PSEC_TEXT + '">' + _psecFmtItemName(it.name || '') + '</font></td>' +
+                    '<td valign="top" width="48" style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:' + _PSEC_TEXT + ';text-align:center;vertical-align:top;width:48pt;line-height:1.5;mso-line-height-rule:exactly;"><font color="' + _PSEC_TEXT + '">' + _psecHe(it.qty || '') + '</font></td>' +
+                    '<td valign="top" style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:#4b5563;vertical-align:top;line-height:1.55;mso-line-height-rule:exactly;"><font color="#4b5563">' + _psecFmtRemark(it.remark || '') + '</font></td>' +
                 '</tr>';
             }).join('');
-            return '<p style="margin:0 0 8pt 0;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:' + _PSEC_BRAND + ';">รายการสินค้า LOCAL</p>' +
-                '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%;margin:0 0 12pt 0;border-top:2px solid ' + _PSEC_BRAND + ';">' +
+            const heading = _psecPara(_psecColored('รายการสินค้า LOCAL', _PSEC_BRAND), 8, 10, { bold: true });
+            return heading +
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin:0 0 12pt 0;">' +
                 '<thead><tr bgcolor="' + _PSEC_BRAND + '">' +
-                '<th style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:center;width:32pt;">#</th>' +
-                '<th style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:left;">Item</th>' +
-                '<th style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:center;width:48pt;">Qty</th>' +
-                '<th style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:left;">Remark</th>' +
+                '<th width="32" align="center" bgcolor="' + _PSEC_BRAND + '" style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:center;width:32pt;background-color:' + _PSEC_BRAND + ';"><font color="#ffffff" face="Tahoma">#</font></th>' +
+                '<th align="left" bgcolor="' + _PSEC_BRAND + '" style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:left;background-color:' + _PSEC_BRAND + ';"><font color="#ffffff" face="Tahoma">Item</font></th>' +
+                '<th width="48" align="center" bgcolor="' + _PSEC_BRAND + '" style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:center;width:48pt;background-color:' + _PSEC_BRAND + ';"><font color="#ffffff" face="Tahoma">Qty</font></th>' +
+                '<th align="left" bgcolor="' + _PSEC_BRAND + '" style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:left;background-color:' + _PSEC_BRAND + ';"><font color="#ffffff" face="Tahoma">Remark</font></th>' +
                 '</tr></thead><tbody>' + rows + '</tbody></table>' +
-                '<p style="margin:0 0 18pt 0;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_FAINT + ';font-style:italic;">** Link ของสินค้าที่แนบมาอาจไม่ใช่ราคาที่ต่ำที่สุด — หากมีผู้จัดจำหน่ายรายอื่นที่ราคาต่ำกว่าให้ซื้อผู้จัดจำหน่ายรายนั้น</p>';
+                '<div style="margin:0 0 18pt 0;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_FAINT + ';font-style:italic;line-height:1.5;mso-line-height-rule:exactly;"><i><font color="' + _PSEC_FAINT + '">** Link ของสินค้าที่แนบมาอาจไม่ใช่ราคาที่ต่ำที่สุด — หากมีผู้จัดจำหน่ายรายอื่นที่ราคาต่ำกว่าให้ซื้อผู้จัดจำหน่ายรายนั้น</font></i></div>';
         }
 
         // Plain LOCAL items table — original look (kept for Plain style + FW context).
