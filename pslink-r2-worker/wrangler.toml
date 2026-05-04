@@ -1,0 +1,10 @@
+name = "pslink-r2"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "pslink-media"
+
+# R2_AUTH_TOKEN is set via `wrangler secret put R2_AUTH_TOKEN`

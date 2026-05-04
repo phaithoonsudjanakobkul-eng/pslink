@@ -35,6 +35,10 @@ pslink-collabora/
 pslink-pdf-worker/
 pslink-wopi/
 
+# ─── Cloudflare Workers (wrangler local dev cache) ───────────
+.wrangler/
+.dev.vars
+
 # ─── Node + IDE ──────────────────────────────────────────────
 node_modules/
 .chrome-dev/
