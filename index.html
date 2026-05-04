@@ -11520,7 +11520,7 @@
                                     <span id="muse-clip-count" style="font-size:10px;color:var(--text-dim);font-weight:700;opacity:0.6;">0/5</span>
                                 </div>
                                 <div style="display:flex;gap:8px;">
-                                    <input id="muse-url-input" type="text" placeholder="วาง TikTok URL (รับหลายอันคั่นด้วย space/newline)" maxlength="2048"
+                                    <input id="muse-url-input" type="text" placeholder="วาง TikTok URL — https://www.tiktok.com/@user/video/..." maxlength="512"
                                         onkeydown="if(event.key==='Enter')_museAddClip()"
                                         style="flex:1;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:11px;padding:0 12px;outline:none;min-width:0;transition:border-color 0.15s,opacity 0.15s;">
                                     <button id="muse-add-btn" onclick="_museAddClip()" style="height:36px;padding:0 18px;border-radius:9px;background:var(--accent);border:none;cursor:pointer;color:white;font-size:11px;font-weight:700;flex-shrink:0;letter-spacing:0.03em;transition:background 0.2s,opacity 0.15s;">+ Add</button>
@@ -12659,10 +12659,6 @@
                         <div class="util-icon" style="background:rgba(99,102,241,0.15)"><svg width="17" height="17" fill="none" stroke="#6366f1" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/><circle cx="2" cy="6.75" r="0.9" fill="#6366f1" stroke="none"/><circle cx="2" cy="12" r="0.9" fill="#6366f1" stroke="none"/><circle cx="2" cy="17.25" r="0.9" fill="#6366f1" stroke="none"/></svg></div>
                         <div class="util-item-text"><span class="util-item-title">PS SpecFlow</span><span class="util-item-sub">Spec Formatter · Export .docx</span></div>
                     </button>
-                    <button onclick="showUtilTool('ps-email-composer')" id="util-btn-ps-email-composer" class="util-item">
-                        <div class="util-icon" style="background:rgba(8,153,129,0.15)"><svg width="17" height="17" fill="none" stroke="#089981" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><polyline points="22,8 12,14 2,8"/></svg></div>
-                        <div class="util-item-text"><span class="util-item-title">PS Email Composer</span><span class="util-item-sub">Approve Config · สั่งของ · Outlook HTML</span></div>
-                    </button>
 
                     <!-- Microscopy -->
                     <div class="util-cat">Microscopy</div>
@@ -12800,8 +12796,6 @@
                     <div id="util-panel-ps-quotation"       class="util-panel" style="display:none;"></div>
                     <!-- PS SpecFlow panel -->
                     <div id="util-panel-ps-specflow"        class="util-panel" style="display:none;"></div>
-                    <!-- PS Email Composer panel -->
-                    <div id="util-panel-ps-email-composer"  class="util-panel" style="display:none;"></div>
                     <!-- Microscopy panel -->
                     <div id="util-panel-ps-micro-imaging"   class="util-panel" style="display:none;"></div>
                     <!-- PS Upscaler panel -->
@@ -12980,7 +12974,6 @@
             // ── Business suite ──
             'ps-quotation': { label: 'PS Quotation', desc: 'Auto-fill competitor Excel quotations from main file', isQuotation: true },
             'ps-specflow':  { label: 'PS SpecFlow',  desc: 'Import SCIEDLink spec · Auto-format numbering & levels · Export .docx', isSpecFlow: true },
-            'ps-email-composer': { label: 'PS Email Composer', desc: 'Approve Configuration / สั่งของ — paste-ready Outlook HTML', isEmailComposer: true },
             // ── Microscopy suite ──
             'ps-micro-imaging':   { label: 'PS Micro Imaging', desc: 'Integrated Image Analysis Suite · runs 100% offline', isMicro: true },
             // ── Image editing ──
@@ -13199,7 +13192,7 @@
             const content = document.getElementById('util-content');
             if (!content) return;
             const t = _utilTools[id] || {};
-            const isWorkstation = !!(t.isMicro || t.isSpecFlow || t.isQuotation || t.isBgRemover || t.isUpscaler || t.isAiStudio || t.isEmailComposer);
+            const isWorkstation = !!(t.isMicro || t.isSpecFlow || t.isQuotation || t.isBgRemover || t.isUpscaler || t.isAiStudio);
             content.style.overflowY = isWorkstation ? 'hidden' : 'auto';
             content.style.padding   = isWorkstation ? '0' : '32px 36px';
             content.style.height    = isWorkstation ? '100%' : '';
@@ -13745,8 +13738,6 @@
                     _psqInit(panel);
                 } else if (tool.isSpecFlow) {
                     _psfInit(panel);
-                } else if (tool.isEmailComposer) {
-                    _psecInit(panel);
                 } else if (tool.isUpscaler) {
                     _psupInit(panel);
                 } else if (tool.isBgRemover) {
@@ -25380,991 +25371,6 @@ ${paras}
 </Relationships>`;
         }
 
-        // ══════════════════════════════════════════════════════════════════
-        //  PS Email Composer — paste-ready Outlook HTML for SCIED workflows
-        // ──────────────────────────────────────────────────────────────────
-        //  Three templates derived from observed SCIED email patterns:
-        //    1. approve-bid    — Approve Configuration สำหรับยื่นซอง (+ submit date/time)
-        //    2. approve-order  — Approve Configuration สำหรับสั่งของ
-        //    3. order          — เรียน ฝ่ายจัดซื้อ (paste TOP of FW: draft)
-        //
-        //  Output is Outlook-safe HTML: Tahoma/Calibri inline styles,
-        //  `<table>` for item lists, no flexbox/grid, no <style> blocks.
-        //  Clipboard write uses ClipboardItem with text/html + text/plain
-        //  so Outlook picks up rich formatting; Notepad gets plain text.
-        // ══════════════════════════════════════════════════════════════════
-
-        const _PSEC_LS = 'ps_psec_state';
-
-        const _psecTemplates = {
-            'approve-bid': {
-                label: 'Approve Configuration — ยื่นซอง',
-                fields: ['agency', 'eqList', 'mainItems', 'submitDate', 'submitTime', 'notes'],
-            },
-            'approve-order': {
-                label: 'Approve Configuration — สั่งของ',
-                fields: ['agency', 'eqList', 'mainItems', 'notes'],
-            },
-            'order': {
-                label: 'สั่งของ (วาง TOP ของ FW: ฝ่ายจัดซื้อ)',
-                fields: ['eqList', 'mainItemsOversea', 'agency', 'orderDate', 'expireDate', 'notes', 'localItems'],
-            },
-        };
-
-        const _psecFieldDefs = {
-            agency:           { label: 'หน่วยงาน', type: 'text', placeholder: 'เช่น คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร' },
-            eqList:           { label: 'เลขที่ใบเสนอราคา / EQ List', type: 'text', placeholder: 'PS260107-0041Rev.02' },
-            mainItems:        { label: 'รายการสินค้าหลัก', type: 'text', placeholder: 'CX23T, SZ61TR, EP50' },
-            mainItemsOversea: { label: 'รายการสินค้าหลัก (Oversea)', type: 'text', placeholder: 'CX43' },
-            submitDate:       { label: 'กำหนดยื่น (วันที่)', type: 'text', placeholder: '18/03/69' },
-            submitTime:       { label: 'กำหนดยื่น (เวลา)', type: 'text', placeholder: '13.00–16.00' },
-            orderDate:        { label: 'ใบสั่งซื้อวันที่', type: 'text', placeholder: '21/01/2569' },
-            expireDate:       { label: 'หมดสัญญาวันที่', type: 'text', placeholder: '21/04/2569' },
-            notes:            { label: 'หมายเหตุ', type: 'textarea', placeholder: 'หนึ่งบรรทัดต่อหนึ่งข้อ — เว้นว่างถ้าไม่มี (จะแสดง "-")' },
-            localItems:       { label: 'รายการสินค้า LOCAL', type: 'items' },
-        };
-
-        let _psecActiveTpl = 'approve-bid';
-        let _psecState = { templates: {}, lastTemplate: 'approve-bid' };
-
-        function _psecLoadState() {
-            try {
-                const raw = localStorage.getItem(_PSEC_LS);
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (parsed && typeof parsed === 'object') _psecState = Object.assign(_psecState, parsed);
-                }
-            } catch (e) {}
-        }
-
-        function _psecSaveState() {
-            try { localStorage.setItem(_PSEC_LS, JSON.stringify(_psecState)); } catch (e) {}
-        }
-
-        function _psecGetForm(tplId) {
-            return _psecState.templates[tplId] || {};
-        }
-
-        function _psecHe(s) {
-            return String(s == null ? '' : s)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        }
-
-        // Convert plain text remarks to HTML — preserve line breaks, auto-link URLs.
-        function _psecFmtRemark(s) {
-            if (!s) return '';
-            const escaped = _psecHe(s);
-            const linked = escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#0066cc;">$1</a>');
-            return linked.replace(/\n/g, '<br>');
-        }
-
-        // Item name escape: preserve newlines (LOCAL service items can be long).
-        // No URL auto-link — item names rarely contain URLs.
-        function _psecFmtItemName(s) {
-            return _psecHe(s).replace(/\n/g, '<br>');
-        }
-
-        // Auto-grow textarea to fit content. Called on input + after _psecRenderItems.
-        function _psecAutogrow(el) {
-            if (!el) return;
-            el.style.height = 'auto';
-            el.style.height = Math.max(30, el.scrollHeight) + 'px';
-        }
-
-        // Smart parser for bulk-paste items. Handles:
-        //   - TAB-separated (Excel paste) — primary format
-        //   - Multi-space (3+) fallback for fixed-width text
-        //   - Pipe (|) separator fallback
-        //   - Numbered prefixes ("1.", "1)", "1:", "1 -") — stripped
-        //   - Empty lines and "-" only lines — skipped
-        //   - Header rows (Item/Qty/Remark/#/No) — skipped
-        // Returns array of { name, qty, remark }.
-        function _psecParseItemsText(text) {
-            if (!text) return [];
-            const out = [];
-            const lines = text.split(/\r?\n/);
-            for (let i = 0; i < lines.length; i++) {
-                let line = lines[i].replace(/ /g, ' ').replace(/\s+$/, '');
-                if (!line.trim()) continue;
-                if (line.trim() === '-') continue;
-                // Skip header rows like "Item\tQty\tRemark"
-                if (/^(item|qty|remark|#|no\.?|name)\s*[\t|]/i.test(line.trim())) continue;
-                // Strip leading number prefix
-                let working = line.trim().replace(/^(\d+)([\.\)\:](\s+|$)|\s+[\-–]\s+|\s{2,})/, '');
-                if (!working) continue;
-                // Try TAB first
-                let parts = working.split('\t').map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
-                if (parts.length === 1) {
-                    const alt = working.split(/\s{3,}/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
-                    if (alt.length > 1) parts = alt;
-                }
-                if (parts.length === 1) {
-                    const alt = working.split('|').map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
-                    if (alt.length > 1) parts = alt;
-                }
-                if (parts.length === 0) continue;
-                // Drop leading row-number column from Outlook/Excel table copy
-                // (e.g. "1\tLC-CODE\t1\tRemark" → drop the "1\t" so name = LC-CODE)
-                if (parts.length >= 4 && /^\d+$/.test(parts[0])) {
-                    parts = parts.slice(1);
-                }
-                const name = parts[0];
-                let qty = '1';
-                let remark = '';
-                if (parts.length >= 2) {
-                    const p2 = parts[1];
-                    if (/^\d+(\.\d+)?$/.test(p2)) {
-                        qty = p2;
-                        remark = parts.slice(2).join(' ');
-                    } else {
-                        remark = parts.slice(1).join(' ');
-                    }
-                }
-                if (remark.trim() === '-') remark = '';
-                out.push({ name: name, qty: qty, remark: remark });
-            }
-            return out;
-        }
-
-        function _psecNotesToHtml(raw) {
-            const trimmed = (raw || '').trim();
-            if (!trimmed) return '-';
-            const lines = trimmed.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
-            if (lines.length === 0) return '-';
-            if (lines.length === 1) return _psecHe(lines[0]);
-            // Numbered list — render as a stacked block with manual numbers (Outlook-safe; ol margins inconsistent).
-            return '<br>' + lines.map(function(l, i){
-                return (i + 1) + '. ' + _psecHe(l);
-            }).join('<br>');
-        }
-
-        function _psecNotesToText(raw) {
-            const trimmed = (raw || '').trim();
-            if (!trimmed) return '-';
-            const lines = trimmed.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
-            if (lines.length <= 1) return lines[0] || '-';
-            return '\n' + lines.map(function(l, i){ return (i + 1) + '. ' + l; }).join('\n');
-        }
-
-        // ── HTML builders (Outlook-safe: Tahoma 11pt, inline styles, <table>) ──
-
-        // ── Style system ────────────────────────────────────────────────
-        // Brand: SCIED logo blue (#0e4d9e) — sampled from the molecule motif
-        // in the SCI·ED wordmark; deeper than the original #1f4e79 for stronger
-        // contrast on white. Style picker lets the user choose tone per
-        // template; defaults below favor visual polish for Approve flows
-        // and plain text for FW order (so it sits cleanly above the
-        // forwarded system-generated email).
-        const _PSEC_BRAND     = '#0e4d9e';
-        const _PSEC_BRAND_LT  = '#9ec1f5';   // for "SCIED ·" overline on dark
-        const _PSEC_BRAND_LT2 = '#bcd4f5';   // sub-text on brand strip
-        const _PSEC_TINT      = '#f4f7fb';   // soft branded card background
-        const _PSEC_BORDER    = '#e5e7eb';
-        const _PSEC_TEXT      = '#1f2937';
-        const _PSEC_DIM       = '#6b7280';
-        const _PSEC_FAINT     = '#9ca3af';
-
-        const _PSEC_FONT = "font-family:Tahoma,'Sans Serif';font-size:11pt;color:" + _PSEC_TEXT + ";";
-        const _PSEC_LINE = "margin:0 0 6pt 0;" + _PSEC_FONT;
-
-        const _psecStyles = {
-            'plain':     { label: 'Plain',     desc: 'ตามต้นฉบับระบบ — เข้ากันกับเมล forward' },
-            'card':      { label: 'Card',      desc: 'Info card + accent bar (premium · ค่าเริ่มต้น Approve)' },
-            'editorial': { label: 'Editorial', desc: 'Typography-driven · letter from CEO feel' },
-            'branded':   { label: 'Branded',   desc: 'SCIED header strip + footer · most designed' },
-        };
-
-        const _psecDefaultStyle = {
-            'approve-bid':   'card',
-            'approve-order': 'card',
-            'order':         'plain',
-        };
-
-        function _psecGetStyle(tplId) {
-            return (_psecState.styles && _psecState.styles[tplId]) || _psecDefaultStyle[tplId] || 'plain';
-        }
-
-        function _psecSwitchStyle(tplId, style) {
-            if (!_psecStyles[style] || !_psecTemplates[tplId]) return;
-            _psecState.styles = _psecState.styles || {};
-            _psecState.styles[tplId] = style;
-            _psecSaveState();
-            _psecRenderStyleBar();
-            _psecRefreshPreview();
-        }
-
-        // ── Outlook-safe primitives ─────────────────────────────────────
-        // Outlook desktop uses Word's HTML renderer, which strips many CSS
-        // properties when ingesting clipboard HTML. The patterns below use
-        // triple redundancy (HTML attributes + inline CSS + <font> tags) so
-        // colors, spacing, and rules all survive Outlook's normalizer and
-        // render identically in browsers (preview), Outlook desktop, web,
-        // and mobile clients.
-
-        // Wrap text in span+font for color preservation across all clients.
-        // Word strips `color:` from <p>/<div>/<span> in some flows; <font color>
-        // is the only attribute Word always preserves.
-        function _psecColored(text, color) {
-            return '<span style="color:' + color + ';"><font color="' + color + '" face="Tahoma">' + text + '</font></span>';
-        }
-
-        // Solid color rule using bgcolor attribute + explicit height. Avoids
-        // border-top tricks which render unreliably in Word.
-        function _psecAccentRule(widthPx, color, marginBottomPt) {
-            const w = widthPx || 64;
-            const c = color || _PSEC_BRAND;
-            const mb = marginBottomPt != null ? marginBottomPt : 22;
-            return '<table cellpadding="0" cellspacing="0" border="0" width="' + w + '" style="border-collapse:collapse;margin:0 0 ' + mb + 'pt 0;">' +
-                '<tr><td bgcolor="' + c + '" height="3" style="background-color:' + c + ';height:3px;font-size:1px;line-height:1px;mso-line-height-rule:exactly;">&nbsp;</td></tr>' +
-            '</table>';
-        }
-
-        // Subtle full-width divider — same pattern as accent rule but 1px and faint.
-        function _psecDivider(color, marginVertPt) {
-            const c = color || _PSEC_BORDER;
-            const mv = marginVertPt != null ? marginVertPt : 22;
-            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:' + mv + 'pt 0;">' +
-                '<tr><td bgcolor="' + c + '" height="1" style="background-color:' + c + ';height:1px;font-size:1px;line-height:1px;mso-line-height-rule:exactly;">&nbsp;</td></tr>' +
-            '</table>';
-        }
-
-        // Guaranteed vertical spacer — Outlook respects table cell heights,
-        // not always div margins. Use sparingly (only when margin won't survive).
-        function _psecVspace(heightPt) {
-            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">' +
-                '<tr><td height="' + heightPt + '" style="height:' + heightPt + 'pt;font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;">&nbsp;</td></tr>' +
-            '</table>';
-        }
-
-        // Paragraph-style block with explicit margin + line-height. <div> is
-        // more predictable than <p> in Outlook (no auto Word margins).
-        // opts: { bold, color, lineHeight, fontFamily }
-        function _psecPara(html, marginBottomPt, fontSizePt, opts) {
-            opts = opts || {};
-            const mb = marginBottomPt != null ? marginBottomPt : 0;
-            const fs = fontSizePt || 11;
-            const lh = opts.lineHeight || 1.6;
-            const color = opts.color || _PSEC_TEXT;
-            const ff = opts.fontFamily || "Tahoma,'Sans Serif'";
-            const weight = opts.bold ? 'bold' : 'normal';
-            return '<div style="margin:0 0 ' + mb + 'pt 0;font-family:' + ff + ';font-size:' + fs + 'pt;color:' + color + ';line-height:' + lh + ';mso-line-height-rule:exactly;font-weight:' + weight + ';">' + html + '</div>';
-        }
-
-        // Branded-style header strip — each text line in its own <tr><td> with
-        // color applied DIRECTLY on the <td>. This pattern survives Outlook's
-        // paste filter best because Word maps <td> styles to native <w:tcPr>
-        // (table cell properties), which preserve color/background. Nested
-        // <div>/<span>/<font> color is stripped by the paste handler.
-        function _psecBrandStrip(overline, headline, subline) {
-            // Common td base — bgcolor+background+background-color triple to
-            // ensure all paint paths preserve the SCIED blue fill.
-            const tdBase = 'background:' + _PSEC_BRAND + ';background-color:' + _PSEC_BRAND + ';font-family:Tahoma,\'Sans Serif\';mso-line-height-rule:exactly;';
-            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;background-color:' + _PSEC_BRAND + ';">' +
-                // Top accent bar
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" height="6" style="' + tdBase + 'height:6pt;line-height:1pt;font-size:1pt;">&nbsp;</td></tr>' +
-                // Overline (light blue)
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + tdBase + 'padding:11pt 18pt 4pt 18pt;font-size:8.5pt;font-weight:bold;color:' + _PSEC_BRAND_LT + ';line-height:1.4;">' +
-                  '<font color="' + _PSEC_BRAND_LT + '" face="Tahoma"><b>' + _psecHe(overline) + '</b></font>' +
-                '</td></tr>' +
-                // Headline (white, large)
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + tdBase + 'padding:0 18pt 3pt 18pt;font-size:14pt;font-weight:bold;color:#ffffff;line-height:1.3;">' +
-                  '<font color="#ffffff" face="Tahoma"><b>' + _psecHe(headline) + '</b></font>' +
-                '</td></tr>' +
-                // Subline (light blue, smaller)
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + tdBase + 'padding:0 18pt 13pt 18pt;font-size:10pt;color:' + _PSEC_BRAND_LT2 + ';line-height:1.4;">' +
-                  '<font color="' + _PSEC_BRAND_LT2 + '" face="Tahoma">' + _psecHe(subline) + '</font>' +
-                '</td></tr>' +
-                '</table>';
-        }
-
-        // Outer wrapper: <table> instead of <div> so Outlook treats the email
-        // as a layout container and applies the base font to all descendants.
-        function _psecOuterTable(innerHtml) {
-            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';">' +
-                '<tr><td style="padding:0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.6;mso-line-height-rule:exactly;">' +
-                innerHtml +
-                '</td></tr></table>';
-        }
-
-        // ── Premium field helpers ───────────────────────────────────────
-        // Vertical key/value pair inside an info card (label on top, value below).
-        function _psecCardField(label, value, valueBold) {
-            if (!value) return '';
-            return '<tr><td style="padding:0 0 3pt 0;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_DIM + ';font-weight:bold;line-height:1.5;mso-line-height-rule:exactly;">' + _psecColored(_psecHe(label), _PSEC_DIM) + '</td></tr>' +
-                   '<tr><td style="padding:0 0 12pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.5;mso-line-height-rule:exactly;' + (valueBold ? 'font-weight:bold;' : '') + '"><font color="' + _PSEC_TEXT + '">' + _psecHe(value) + '</font></td></tr>';
-        }
-
-        // Horizontal key/value row (label left, value right) — for Editorial / Branded.
-        function _psecRowField(label, value, valueBold) {
-            if (!value) return '';
-            return '<tr>' +
-                '<td valign="top" style="padding:6pt 24pt 6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_DIM + ';font-weight:bold;vertical-align:top;white-space:nowrap;line-height:1.5;mso-line-height-rule:exactly;">' + _psecColored(_psecHe(label), _PSEC_DIM) + '</td>' +
-                '<td valign="top" style="padding:6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';' + (valueBold ? 'font-weight:bold;' : '') + 'vertical-align:top;line-height:1.5;mso-line-height-rule:exactly;"><font color="' + _PSEC_TEXT + '">' + _psecHe(value) + '</font></td>' +
-            '</tr>';
-        }
-
-        function _psecNotesLines(raw) {
-            const trimmed = (raw || '').trim();
-            if (!trimmed) return [];
-            return trimmed.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
-        }
-
-        // Premium notes section — section heading in brand color + numbered items
-        // with hanging indent. Returns '' if no notes (caller decides whether to skip).
-        function _psecPremiumNotes(notes) {
-            const lines = _psecNotesLines(notes);
-            if (lines.length === 0) return '';
-            const heading = _psecPara(_psecColored('หมายเหตุ', _PSEC_BRAND), 8, 10, { bold: true });
-            if (lines.length === 1) {
-                return heading + _psecPara('<font color="' + _PSEC_TEXT + '">' + _psecHe(lines[0]) + '</font>', 18);
-            }
-            const rows = lines.map(function(line, i){
-                return '<tr>' +
-                    '<td valign="top" width="20" style="vertical-align:top;padding:0 10pt 6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;font-weight:bold;width:20pt;line-height:1.6;mso-line-height-rule:exactly;">' + _psecColored((i + 1) + '.', _PSEC_BRAND) + '</td>' +
-                    '<td valign="top" style="padding:0 0 6pt 0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.6;mso-line-height-rule:exactly;"><font color="' + _PSEC_TEXT + '">' + _psecHe(line) + '</font></td>' +
-                '</tr>';
-            }).join('');
-            return heading + '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18pt 0;border-collapse:collapse;">' + rows + '</table>';
-        }
-
-        // Polished LOCAL items table — brand-blue header, alternating row tint,
-        // subtle borders, italic-gray disclaimer. Triple-redundant color
-        // (HTML attr + CSS + <font>) so header stays white-on-blue in Outlook.
-        function _psecPremiumLocalTable(items) {
-            const valid = (items || []).filter(function(it){ return it && (it.name || it.qty || it.remark); });
-            if (valid.length === 0) return '';
-            const rows = valid.map(function(it, i){
-                const bgAttr = i % 2 === 1 ? ' bgcolor="#fafbfc"' : '';
-                return '<tr' + bgAttr + '>' +
-                    '<td valign="top" width="32" style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:' + _PSEC_DIM + ';text-align:center;vertical-align:top;width:32pt;line-height:1.5;mso-line-height-rule:exactly;"><font color="' + _PSEC_DIM + '">' + (i + 1) + '</font></td>' +
-                    '<td valign="top" style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';vertical-align:top;line-height:1.55;mso-line-height-rule:exactly;"><font color="' + _PSEC_TEXT + '">' + _psecFmtItemName(it.name || '') + '</font></td>' +
-                    '<td valign="top" width="48" style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:' + _PSEC_TEXT + ';text-align:center;vertical-align:top;width:48pt;line-height:1.5;mso-line-height-rule:exactly;"><font color="' + _PSEC_TEXT + '">' + _psecHe(it.qty || '') + '</font></td>' +
-                    '<td valign="top" style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10.5pt;color:#4b5563;vertical-align:top;line-height:1.55;mso-line-height-rule:exactly;"><font color="#4b5563">' + _psecFmtRemark(it.remark || '') + '</font></td>' +
-                '</tr>';
-            }).join('');
-            const heading = _psecPara(_psecColored('รายการสินค้า LOCAL', _PSEC_BRAND), 8, 10, { bold: true });
-            return heading +
-                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin:0 0 12pt 0;">' +
-                '<thead><tr bgcolor="' + _PSEC_BRAND + '">' +
-                '<th width="32" align="center" bgcolor="' + _PSEC_BRAND + '" style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:center;width:32pt;background-color:' + _PSEC_BRAND + ';"><font color="#ffffff" face="Tahoma">#</font></th>' +
-                '<th align="left" bgcolor="' + _PSEC_BRAND + '" style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:left;background-color:' + _PSEC_BRAND + ';"><font color="#ffffff" face="Tahoma">Item</font></th>' +
-                '<th width="48" align="center" bgcolor="' + _PSEC_BRAND + '" style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:center;width:48pt;background-color:' + _PSEC_BRAND + ';"><font color="#ffffff" face="Tahoma">Qty</font></th>' +
-                '<th align="left" bgcolor="' + _PSEC_BRAND + '" style="padding:8pt 10pt;font-family:Tahoma,\'Sans Serif\';font-size:10pt;font-weight:bold;color:#ffffff;text-align:left;background-color:' + _PSEC_BRAND + ';"><font color="#ffffff" face="Tahoma">Remark</font></th>' +
-                '</tr></thead><tbody>' + rows + '</tbody></table>' +
-                '<div style="margin:0 0 18pt 0;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_FAINT + ';font-style:italic;line-height:1.5;mso-line-height-rule:exactly;"><i><font color="' + _PSEC_FAINT + '">** Link ของสินค้าที่แนบมาอาจไม่ใช่ราคาที่ต่ำที่สุด — หากมีผู้จัดจำหน่ายรายอื่นที่ราคาต่ำกว่าให้ซื้อผู้จัดจำหน่ายรายนั้น</font></i></div>';
-        }
-
-        // Plain LOCAL items table — original look (kept for Plain style + FW context).
-        function _psecPlainLocalTable(items) {
-            const valid = (items || []).filter(function(it){ return it && (it.name || it.qty || it.remark); });
-            if (valid.length === 0) return '';
-            const rows = valid.map(function(it, i){
-                return '<tr>' +
-                    '<td style="border:1px solid #999;padding:4pt 6pt;text-align:center;vertical-align:top;width:32pt;">' + (i + 1) + '</td>' +
-                    '<td style="border:1px solid #999;padding:4pt 6pt;vertical-align:top;">' + _psecFmtItemName(it.name || '') + '</td>' +
-                    '<td style="border:1px solid #999;padding:4pt 6pt;text-align:center;vertical-align:top;width:42pt;">' + _psecHe(it.qty || '') + '</td>' +
-                    '<td style="border:1px solid #999;padding:4pt 6pt;vertical-align:top;">' + _psecFmtRemark(it.remark || '') + '</td>' +
-                '</tr>';
-            }).join('');
-            return '<p style="' + _PSEC_LINE + 'font-weight:bold;text-decoration:underline;">รายการสินค้า LOCAL:</p>' +
-                '<table style="border-collapse:collapse;width:100%;' + _PSEC_FONT + '" cellpadding="0" cellspacing="0">' +
-                '<thead><tr style="background:#1f4e79;color:#ffffff;">' +
-                '<th style="border:1px solid #999;padding:5pt 6pt;font-weight:bold;text-align:center;width:32pt;">#</th>' +
-                '<th style="border:1px solid #999;padding:5pt 6pt;font-weight:bold;text-align:center;">Item</th>' +
-                '<th style="border:1px solid #999;padding:5pt 6pt;font-weight:bold;text-align:center;width:42pt;">Qty.</th>' +
-                '<th style="border:1px solid #999;padding:5pt 6pt;font-weight:bold;text-align:center;">Remark</th>' +
-                '</tr></thead><tbody>' + rows + '</tbody></table>' +
-                '<p style="margin:6pt 0 6pt 0;' + _PSEC_FONT + 'font-size:10pt;color:#444444;">** Link ของสินค้าที่แนบมาอาจไม่ใช่ราคาที่ต่ำที่สุด หากมีผู้จัดจำหน่ายรายอื่นที่ราคาต่ำกว่าให้ซื้อผู้จัดจำหน่ายรายนั้น</p>';
-        }
-
-        // ══════════════════════════════════════════════════════════════════
-        //  APPROVE — 4 styles (plain · card · editorial · branded)
-        // ══════════════════════════════════════════════════════════════════
-
-        function _psecApproveVerb(tplId) {
-            return tplId === 'approve-bid' ? 'ยื่นซอง' : 'สั่งของ';
-        }
-        function _psecApproveSubmitSuffix(tplId, form, sep) {
-            if (tplId !== 'approve-bid') return '';
-            if (!form.submitDate && !form.submitTime) return '';
-            const dash = sep || '–';
-            return ' (กำหนดยื่น ' + _psecHe(form.submitDate || '') + (form.submitTime ? ' ' + dash + ' ' + _psecHe(form.submitTime) : '') + ')';
-        }
-
-        function _psecBuildApprovePlain(tplId, form) {
-            const verb = _psecApproveVerb(tplId);
-            const submitSuffix = _psecApproveSubmitSuffix(tplId, form);
-            return '<div style="' + _PSEC_FONT + '">' +
-                '<p style="' + _PSEC_LINE + '">Dear All,</p>' +
-                '<p style="' + _PSEC_LINE + '">รบกวนตรวจเช็คเพื่อ Approve Configuration สำหรับ' + verb + submitSuffix + '</p>' +
-                '<p style="' + _PSEC_LINE + '">' +
-                  'หน่วยงาน: ' + _psecHe(form.agency || '') + '<br>' +
-                  'เลขที่ใบเสนอราคา/EQ List: ' + _psecHe(form.eqList || '') + '<br>' +
-                  'รายการสินค้าหลัก: ' + _psecHe(form.mainItems || '') +
-                '</p>' +
-                '<p style="' + _PSEC_LINE + '">หมายเหตุ: ' + _psecNotesToHtml(form.notes) + '</p>' +
-                '<p style="' + _PSEC_LINE + '">Thanks,</p>' +
-                '</div>';
-        }
-
-        function _psecBuildApproveCard(tplId, form) {
-            const verb = _psecApproveVerb(tplId);
-            const submitSuffix = _psecApproveSubmitSuffix(tplId, form);
-            const cardRows =
-                _psecCardField('หน่วยงาน', form.agency || '') +
-                _psecCardField('เลขที่ใบเสนอราคา / EQ List', form.eqList || '', true) +
-                _psecCardField('รายการสินค้าหลัก', form.mainItems || '');
-            const intro = 'รบกวนตรวจเช็คเพื่อ ' + _psecColored('<b>Approve Configuration</b>', _PSEC_BRAND) +
-                ' สำหรับ<b><font color="' + _PSEC_TEXT + '">' + verb + '</font></b>' + _psecHe(submitSuffix);
-            return _psecOuterTable(
-                _psecPara('<font color="' + _PSEC_TEXT + '">Dear All,</font>', 14) +
-                _psecPara(intro, 18) +
-                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
-                '<tr><td bgcolor="' + _PSEC_TINT + '" style="padding:14pt 18pt;border-left:3px solid ' + _PSEC_BRAND + ';background-color:' + _PSEC_TINT + ';">' +
-                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;">' + cardRows + '</table>' +
-                '</td></tr></table>' +
-                _psecPremiumNotes(form.notes) +
-                _psecPara(_psecColored('Thanks,', _PSEC_DIM), 0, 11, { color: _PSEC_DIM })
-            );
-        }
-
-        function _psecBuildApproveEditorial(tplId, form) {
-            const verb = _psecApproveVerb(tplId);
-            const isBid = tplId === 'approve-bid';
-            const heading = _psecColored('Approve Configuration · ' + _psecHe(verb), _PSEC_BRAND);
-            const submitLine = isBid && (form.submitDate || form.submitTime)
-                ? _psecPara(_psecColored('กำหนดยื่น ' + _psecHe(form.submitDate || '') + (form.submitTime ? ' • ' + _psecHe(form.submitTime) : ''), _PSEC_DIM), 22, 10, { color: _PSEC_DIM })
-                : _psecVspace(18);
-            const rows =
-                _psecRowField('หน่วยงาน', form.agency || '') +
-                _psecRowField('EQ List', form.eqList || '', true) +
-                _psecRowField('รายการหลัก', form.mainItems || '');
-            return _psecOuterTable(
-                _psecPara('<font color="' + _PSEC_TEXT + '">Dear All,</font>', 14) +
-                _psecPara(heading, 8, 13, { bold: true, lineHeight: 1.4 }) +
-                submitLine +
-                _psecAccentRule(64, _PSEC_BRAND, 22) +
-                '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22pt 0;border-collapse:collapse;">' + rows + '</table>' +
-                _psecDivider(_PSEC_BORDER, 22) +
-                _psecPremiumNotes(form.notes) +
-                _psecVspace(8) +
-                _psecPara(_psecColored('Thanks,', _PSEC_DIM), 0, 11, { color: _PSEC_DIM })
-            );
-        }
-
-        function _psecBuildApproveBranded(tplId, form) {
-            const verb = _psecApproveVerb(tplId);
-            const isBid = tplId === 'approve-bid';
-            let subline = verb;
-            if (isBid && (form.submitDate || form.submitTime)) {
-                subline += ' · กำหนดยื่น ' + (form.submitDate || '') + (form.submitTime ? ' ' + form.submitTime : '');
-            }
-            const rows =
-                _psecRowField('หน่วยงาน', form.agency || '') +
-                _psecRowField('รายการหลัก', form.mainItems || '');
-            // Brand strip — each text line is its OWN <tr><td> with color
-            // applied DIRECTLY on the <td>. Word's paste filter respects <td>
-            // styling natively (maps to <w:tc>/<w:tcPr>) but strips color from
-            // nested <div>/<span>/<font>. Flat structure = colors survive.
-            const brandStrip = _psecBrandStrip('SCIED · APPROVE CONFIGURATION', form.eqList || '—', subline);
-            const footer =
-                _psecDivider(_PSEC_BORDER, 0) +
-                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:8pt 0 0 0;">' +
-                '<tr>' +
-                '<td valign="top" style="padding:0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;line-height:1.6;mso-line-height-rule:exactly;">' + _psecColored('Thanks,', _PSEC_DIM) + '</td>' +
-                '<td valign="top" align="right" style="padding:0;text-align:right;font-family:Tahoma,\'Sans Serif\';font-size:9pt;line-height:1.6;mso-line-height-rule:exactly;">' + _psecColored('scied.co.th · The Science and Educational', _PSEC_FAINT) + '</td>' +
-                '</tr></table>';
-            return _psecOuterTable(
-                brandStrip +
-                _psecPara('<font color="' + _PSEC_TEXT + '">Dear All,</font>', 14) +
-                _psecPara('<font color="' + _PSEC_TEXT + '">รบกวนตรวจเช็คเพื่อ Approve Configuration ตามรายละเอียดด้านล่างค่ะ</font>', 18) +
-                '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18pt 0;border-collapse:collapse;">' + rows + '</table>' +
-                _psecPremiumNotes(form.notes) +
-                footer
-            );
-        }
-
-        function _psecBuildApproveText(tplId, form) {
-            const isBid = tplId === 'approve-bid';
-            const verb = isBid ? 'ยื่นซอง' : 'สั่งของ';
-            const submitSuffix = isBid && (form.submitDate || form.submitTime)
-                ? ' (กำหนดยื่น ' + (form.submitDate || '') + (form.submitTime ? ' – ' + form.submitTime : '') + ')'
-                : '';
-            return [
-                'Dear All,',
-                '',
-                'รบกวนตรวจเช็คเพื่อ Approve Configuration สำหรับ' + verb + submitSuffix,
-                '',
-                'หน่วยงาน: ' + (form.agency || ''),
-                'เลขที่ใบเสนอราคา/EQ List: ' + (form.eqList || ''),
-                'รายการสินค้าหลัก: ' + (form.mainItems || ''),
-                '',
-                'หมายเหตุ: ' + _psecNotesToText(form.notes),
-                '',
-                'Thanks,'
-            ].join('\n');
-        }
-
-        // ══════════════════════════════════════════════════════════════════
-        //  ORDER (FW ฝ่ายจัดซื้อ) — 4 styles
-        // ══════════════════════════════════════════════════════════════════
-
-        function _psecBuildOrderPlain(form) {
-            const tableHtml = _psecPlainLocalTable(form.localItems || []);
-            const agencyLine = form.agency
-                ? '<p style="' + _PSEC_LINE + '">หน่วยงาน: ' + _psecHe(form.agency) + '</p>'
-                : '';
-            return '<div style="' + _PSEC_FONT + '">' +
-                '<p style="' + _PSEC_LINE + '">เรียน ฝ่ายจัดซื้อ</p>' +
-                '<p style="' + _PSEC_LINE + '">รบกวนสั่งของตามรายละเอียดดังนี้</p>' +
-                '<p style="' + _PSEC_LINE + '">' +
-                  'เลขที่ใบเสนอราคา: ' + _psecHe(form.eqList || '') + '<br>' +
-                  'รายการสินค้าหลัก (Oversea): ' + _psecHe(form.mainItemsOversea || '') +
-                '</p>' +
-                agencyLine +
-                '<p style="' + _PSEC_LINE + '">' +
-                  'ใบสั่งซื้อวันที่: ' + _psecHe(form.orderDate || '') + '<br>' +
-                  'หมดสัญญาวันที่: ' + _psecHe(form.expireDate || '') +
-                '</p>' +
-                '<p style="' + _PSEC_LINE + '">หมายเหตุ: ' + _psecNotesToHtml(form.notes) + '</p>' +
-                tableHtml +
-                '<p style="' + _PSEC_LINE + '">ขอบคุณครับ</p>' +
-                '</div>';
-        }
-
-        function _psecBuildOrderCard(form) {
-            const cardRows =
-                _psecCardField('เลขที่ใบเสนอราคา', form.eqList || '', true) +
-                _psecCardField('รายการสินค้าหลัก (Oversea)', form.mainItemsOversea || '') +
-                _psecCardField('หน่วยงาน', form.agency || '') +
-                _psecCardField('ใบสั่งซื้อวันที่', form.orderDate || '') +
-                _psecCardField('หมดสัญญาวันที่', form.expireDate || '');
-            return _psecOuterTable(
-                _psecPara('<font color="' + _PSEC_TEXT + '">เรียน ฝ่ายจัดซื้อ</font>', 14) +
-                _psecPara('<font color="' + _PSEC_TEXT + '">รบกวนสั่งของตามรายละเอียดดังนี้</font>', 18) +
-                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
-                '<tr><td bgcolor="' + _PSEC_TINT + '" style="padding:14pt 18pt;border-left:3px solid ' + _PSEC_BRAND + ';background-color:' + _PSEC_TINT + ';">' +
-                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;">' + cardRows + '</table>' +
-                '</td></tr></table>' +
-                _psecPremiumNotes(form.notes) +
-                _psecPremiumLocalTable(form.localItems || []) +
-                _psecPara(_psecColored('ขอบคุณครับ', _PSEC_DIM), 0, 11, { color: _PSEC_DIM })
-            );
-        }
-
-        function _psecBuildOrderEditorial(form) {
-            const rows =
-                _psecRowField('เลขใบเสนอราคา', form.eqList || '', true) +
-                _psecRowField('รายการ Oversea', form.mainItemsOversea || '') +
-                _psecRowField('หน่วยงาน', form.agency || '') +
-                _psecRowField('ใบสั่งซื้อวันที่', form.orderDate || '') +
-                _psecRowField('หมดสัญญาวันที่', form.expireDate || '');
-            return _psecOuterTable(
-                _psecPara('<font color="' + _PSEC_TEXT + '">เรียน ฝ่ายจัดซื้อ</font>', 14) +
-                _psecPara(_psecColored('รบกวนสั่งของตามรายละเอียดดังนี้', _PSEC_BRAND), 8, 13, { bold: true, lineHeight: 1.4 }) +
-                _psecAccentRule(64, _PSEC_BRAND, 22) +
-                '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22pt 0;border-collapse:collapse;">' + rows + '</table>' +
-                _psecDivider(_PSEC_BORDER, 22) +
-                _psecPremiumNotes(form.notes) +
-                _psecPremiumLocalTable(form.localItems || []) +
-                _psecVspace(4) +
-                _psecPara(_psecColored('ขอบคุณครับ', _PSEC_DIM), 0, 11, { color: _PSEC_DIM })
-            );
-        }
-
-        function _psecBuildOrderBranded(form) {
-            let subline = form.agency || '';
-            if (form.expireDate) subline += (subline ? ' · ' : '') + 'หมดสัญญา ' + form.expireDate;
-            const rows =
-                _psecRowField('รายการ Oversea', form.mainItemsOversea || '') +
-                _psecRowField('ใบสั่งซื้อวันที่', form.orderDate || '') +
-                _psecRowField('หมดสัญญาวันที่', form.expireDate || '');
-            const brandStrip = _psecBrandStrip('SCIED · ORDER REQUEST', form.eqList || '—', subline || '—');
-            const footer =
-                _psecDivider(_PSEC_BORDER, 0) +
-                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:8pt 0 0 0;">' +
-                '<tr>' +
-                '<td valign="top" style="padding:0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;line-height:1.6;mso-line-height-rule:exactly;">' + _psecColored('ขอบคุณครับ', _PSEC_DIM) + '</td>' +
-                '<td valign="top" align="right" style="padding:0;text-align:right;font-family:Tahoma,\'Sans Serif\';font-size:9pt;line-height:1.6;mso-line-height-rule:exactly;">' + _psecColored('scied.co.th · The Science and Educational', _PSEC_FAINT) + '</td>' +
-                '</tr></table>';
-            return _psecOuterTable(
-                brandStrip +
-                _psecPara('<font color="' + _PSEC_TEXT + '">เรียน ฝ่ายจัดซื้อ</font>', 14) +
-                _psecPara('<font color="' + _PSEC_TEXT + '">รบกวนสั่งของตามรายละเอียดดังนี้</font>', 18) +
-                '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18pt 0;border-collapse:collapse;">' + rows + '</table>' +
-                _psecPremiumNotes(form.notes) +
-                _psecPremiumLocalTable(form.localItems || []) +
-                footer
-            );
-        }
-
-        function _psecBuildOrderText(form) {
-            const items = (form.localItems || []).filter(function(it){ return it && (it.name || it.qty || it.remark); });
-            const lines = [
-                'เรียน ฝ่ายจัดซื้อ',
-                '',
-                'รบกวนสั่งของตามรายละเอียดดังนี้',
-                '',
-                'เลขที่ใบเสนอราคา: ' + (form.eqList || ''),
-                'รายการสินค้าหลัก (Oversea): ' + (form.mainItemsOversea || ''),
-            ];
-            if (form.agency) { lines.push(''); lines.push('หน่วยงาน: ' + form.agency); }
-            lines.push('');
-            lines.push('ใบสั่งซื้อวันที่: ' + (form.orderDate || ''));
-            lines.push('หมดสัญญาวันที่: ' + (form.expireDate || ''));
-            lines.push('');
-            lines.push('หมายเหตุ: ' + _psecNotesToText(form.notes));
-            if (items.length) {
-                lines.push('');
-                lines.push('รายการสินค้า LOCAL:');
-                items.forEach(function(it, i){
-                    lines.push((i + 1) + '. ' + (it.name || '') + '  [Qty: ' + (it.qty || '') + ']  ' + (it.remark || ''));
-                });
-                lines.push('');
-                lines.push('** Link ของสินค้าที่แนบมาอาจไม่ใช่ราคาที่ต่ำที่สุด หากมีผู้จัดจำหน่ายรายอื่นที่ราคาต่ำกว่าให้ซื้อผู้จัดจำหน่ายรายนั้น');
-            }
-            lines.push('');
-            lines.push('ขอบคุณครับ');
-            return lines.join('\n');
-        }
-
-        function _psecBuildSubject(tplId, form) {
-            if (tplId === 'order') return ''; // user uses Outlook FW: prefix
-            const eq = form.eqList || '';
-            const items = form.mainItems || '';
-            return 'Approve Configuration ' + eq + (items ? ' / ' + items : '');
-        }
-
-        function _psecBuildBody(tplId, form) {
-            const style = _psecGetStyle(tplId);
-            const isOrder = tplId === 'order';
-            if (style === 'card')      return isOrder ? _psecBuildOrderCard(form)      : _psecBuildApproveCard(tplId, form);
-            if (style === 'editorial') return isOrder ? _psecBuildOrderEditorial(form) : _psecBuildApproveEditorial(tplId, form);
-            if (style === 'branded')   return isOrder ? _psecBuildOrderBranded(form)   : _psecBuildApproveBranded(tplId, form);
-            return isOrder ? _psecBuildOrderPlain(form) : _psecBuildApprovePlain(tplId, form);
-        }
-
-        function _psecBuildBodyText(tplId, form) {
-            if (tplId === 'order') return _psecBuildOrderText(form);
-            return _psecBuildApproveText(tplId, form);
-        }
-
-        // ── UI ─────────────────────────────────────────────────────────────
-
-        function _psecInit(panel) {
-            _psecLoadState();
-            _psecActiveTpl = _psecState.lastTemplate || 'approve-bid';
-            panel.innerHTML =
-                '<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-main);box-sizing:border-box;">' +
-                  '<div style="display:flex;align-items:center;gap:14px;padding:14px 20px 12px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--surface,var(--bg-main));">' +
-                    '<div>' +
-                      '<div style="font-family:var(--font-main);font-size:17px;font-weight:800;color:var(--text-primary);line-height:1.2;">PS Email Composer</div>' +
-                      '<div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-top:1px;">Approve Configuration / สั่งของ — paste-ready Outlook HTML</div>' +
-                    '</div>' +
-                    '<div id="psec-tpl-bar" style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;"></div>' +
-                  '</div>' +
-                  '<div style="flex:1;min-height:0;display:flex;gap:14px;padding:14px 20px;box-sizing:border-box;overflow:hidden;">' +
-                    '<div id="psec-form-pane" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding-right:6px;"></div>' +
-                    '<div style="flex:1.1;min-width:0;display:flex;flex-direction:column;gap:8px;">' +
-                      '<div id="psec-subject-row" style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
-                        '<span style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);width:54px;">Subject</span>' +
-                        '<input id="psec-subject-input" readonly style="flex:1;font-family:\'Tahoma\',sans-serif;font-size:12px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface,#fff);color:var(--text-primary);">' +
-                        '<button id="psec-copy-subject" class="psf-btn psf-btn-ghost" onclick="_psecCopy(\'subject\')" style="font-size:11px;padding:7px 10px;white-space:nowrap;">Copy Subject</button>' +
-                      '</div>' +
-                      '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
-                        '<span style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);width:54px;">Style</span>' +
-                        '<div id="psec-style-bar" style="display:flex;gap:4px;flex-wrap:wrap;flex:1;"></div>' +
-                      '</div>' +
-                      '<div style="flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#ffffff;">' +
-                        '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface,#f5f5f7);flex-shrink:0;">' +
-                          '<span style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;">Outlook Preview</span>' +
-                          '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
-                            '<button class="psf-btn psf-btn-ghost" onclick="_psecCopy(\'body\')" title="Copy ไป clipboard — Outlook อาจ strip สีบ้าง" style="font-size:11px;padding:5px 10px;">Copy Body</button>' +
-                            '<button class="psf-btn psf-btn-green" onclick="_psecExportAsEml()" title="ดาวน์โหลด .eml → double-click เปิดใน Outlook พร้อม fidelity 100% (แนะนำ)" style="font-size:11px;padding:5px 10px;">Open in Outlook (.eml)</button>' +
-                          '</div>' +
-                        '</div>' +
-                        '<div id="psec-preview" style="flex:1;min-height:0;overflow-y:auto;padding:14px 18px;background:#ffffff;color:#000000;font-family:Tahoma,\'Sans Serif\',sans-serif;font-size:11pt;line-height:1.6;"></div>' +
-                      '</div>' +
-                      '<div id="psec-status" style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);min-height:14px;flex-shrink:0;"></div>' +
-                    '</div>' +
-                  '</div>' +
-                '</div>';
-            _psecRenderTplBar();
-            _psecRenderStyleBar();
-            _psecRenderForm();
-        }
-
-        function _psecRenderTplBar() {
-            const bar = document.getElementById('psec-tpl-bar');
-            if (!bar) return;
-            bar.innerHTML = Object.keys(_psecTemplates).map(function(id) {
-                const isActive = id === _psecActiveTpl;
-                const bg = isActive ? 'var(--accent)' : 'transparent';
-                const color = isActive ? '#ffffff' : 'var(--text-secondary,var(--text-primary))';
-                const border = isActive ? 'var(--accent)' : 'var(--border)';
-                return '<button onclick="_psecSwitchTpl(\'' + id + '\')" style="font-family:var(--font-mono);font-size:11px;font-weight:600;padding:6px 12px;border:1px solid ' + border + ';border-radius:999px;background:' + bg + ';color:' + color + ';cursor:pointer;white-space:nowrap;">' + _psecTemplates[id].label + '</button>';
-            }).join('');
-        }
-
-        function _psecRenderStyleBar() {
-            const bar = document.getElementById('psec-style-bar');
-            if (!bar) return;
-            const active = _psecGetStyle(_psecActiveTpl);
-            bar.innerHTML = Object.keys(_psecStyles).map(function(s) {
-                const isOn = s === active;
-                const bg = isOn ? _PSEC_BRAND : 'transparent';
-                const color = isOn ? '#ffffff' : 'var(--text-secondary,var(--text-primary))';
-                const border = isOn ? _PSEC_BRAND : 'var(--border)';
-                return '<button onclick="_psecSwitchStyle(\'' + _psecActiveTpl + '\',\'' + s + '\')" title="' + _psecHe(_psecStyles[s].desc) + '" style="font-family:var(--font-mono);font-size:10px;font-weight:600;padding:5px 11px;border:1px solid ' + border + ';border-radius:999px;background:' + bg + ';color:' + color + ';cursor:pointer;white-space:nowrap;">' + _psecStyles[s].label + '</button>';
-            }).join('');
-        }
-
-        function _psecSwitchTpl(id) {
-            if (!_psecTemplates[id]) return;
-            _psecActiveTpl = id;
-            _psecState.lastTemplate = id;
-            _psecSaveState();
-            _psecRenderTplBar();
-            _psecRenderStyleBar();
-            _psecRenderForm();
-        }
-
-        function _psecRenderForm() {
-            const pane = document.getElementById('psec-form-pane');
-            if (!pane) return;
-            const tpl = _psecTemplates[_psecActiveTpl];
-            const form = _psecGetForm(_psecActiveTpl);
-            pane.innerHTML = tpl.fields.map(function(fname) {
-                const def = _psecFieldDefs[fname];
-                if (!def) return '';
-                if (def.type === 'textarea') {
-                    return '<label style="display:flex;flex-direction:column;gap:4px;">' +
-                        '<span style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;">' + def.label + '</span>' +
-                        '<textarea id="psec-f-' + fname + '" rows="4" placeholder="' + (def.placeholder || '') + '" oninput="_psecOnFieldChange(\'' + fname + '\', this.value)" style="font-family:\'Tahoma\',sans-serif;font-size:12px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface,#fff);color:var(--text-primary);resize:vertical;min-height:64px;">' + _psecHe(form[fname] || '') + '</textarea>' +
-                    '</label>';
-                }
-                if (def.type === 'items') {
-                    return '<div style="display:flex;flex-direction:column;gap:6px;">' +
-                        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
-                          '<span style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;">' + def.label + '</span>' +
-                          '<div style="display:flex;gap:6px;">' +
-                            '<button class="psf-btn psf-btn-ghost" onclick="_psecOpenPaste()" title="วาง TSV จาก Excel หรือเมลเดิม — รองรับ Tab-separated, numbered prefix, ข้าม blank/dash" style="font-size:11px;padding:4px 10px;">วางจาก Excel</button>' +
-                            '<button class="psf-btn psf-btn-ghost" onclick="_psecAddItem()" style="font-size:11px;padding:4px 10px;">+ เพิ่มแถว</button>' +
-                          '</div>' +
-                        '</div>' +
-                        '<div id="psec-items-list" style="display:flex;flex-direction:column;gap:6px;"></div>' +
-                        '<div id="psec-paste-area" style="display:none;border:1px dashed ' + _PSEC_BRAND + ';border-radius:6px;padding:10px;background:var(--surface,#fff);margin-top:4px;">' +
-                          '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap;">' +
-                            '<span style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);line-height:1.55;">วาง <b>Item ↹ Qty ↹ Remark</b> · 1 บรรทัด = 1 row<br>รองรับ Tab-separated · numbered prefix (<code>1.</code>) · ข้าม "—" และ blank lines</span>' +
-                            '<div style="display:flex;gap:6px;flex-shrink:0;">' +
-                              '<button onclick="_psecParsePasteText(false)" class="psf-btn psf-btn-ghost" title="ล้างรายการเดิมก่อน parse" style="font-size:11px;padding:5px 10px;">Replace</button>' +
-                              '<button onclick="_psecParsePasteText(true)" class="psf-btn psf-btn-green" style="font-size:11px;padding:5px 10px;">Parse &amp; Append</button>' +
-                              '<button onclick="_psecClosePaste()" class="psf-btn psf-btn-ghost" style="font-size:11px;padding:5px 10px;">ยกเลิก</button>' +
-                            '</div>' +
-                          '</div>' +
-                          '<textarea id="psec-paste-textarea" rows="6" placeholder="LC-MONITOR-23\t1\t(JIB) Monitor 23in https://www.jib.co.th/...&#10;LC-USB-TO-RJ45\t1\t-&#10;(LOCAL) งานเดินระบบไฟ + HDMI\t1\tตามใบเสนอราคาที่แนบมา (Vendor.pdf) *ลูกค้าจัดหามาเอง&#10;LC-TL-WN725N\t1\t-" style="width:100%;font-family:Consolas,monospace;font-size:11px;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);resize:vertical;min-height:100px;box-sizing:border-box;line-height:1.5;"></textarea>' +
-                        '</div>' +
-                    '</div>';
-                }
-                return '<label style="display:flex;flex-direction:column;gap:4px;">' +
-                    '<span style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;">' + def.label + '</span>' +
-                    '<input id="psec-f-' + fname + '" type="text" placeholder="' + (def.placeholder || '') + '" value="' + _psecHe(form[fname] || '') + '" oninput="_psecOnFieldChange(\'' + fname + '\', this.value)" style="font-family:\'Tahoma\',sans-serif;font-size:12px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface,#fff);color:var(--text-primary);">' +
-                '</label>';
-            }).join('');
-            if (tpl.fields.indexOf('localItems') !== -1) _psecRenderItems();
-            _psecRefreshPreview();
-        }
-
-        function _psecRenderItems() {
-            const host = document.getElementById('psec-items-list');
-            if (!host) return;
-            const form = _psecGetForm(_psecActiveTpl);
-            const items = form.localItems || [];
-            if (items.length === 0) {
-                host.innerHTML = '<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);padding:10px 12px;border:1px dashed var(--border);border-radius:6px;text-align:center;line-height:1.6;">ยังไม่มีรายการ — กด <b>+ เพิ่มแถว</b> หรือ <b>วางจาก Excel</b> เพื่อเริ่ม</div>';
-                return;
-            }
-            const taStyle = "font-family:'Tahoma','Sans Serif';font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);resize:none;overflow:hidden;line-height:1.55;box-sizing:border-box;width:100%;";
-            host.innerHTML = items.map(function(it, i){
-                return '<div style="display:grid;grid-template-columns:1fr 56px 1fr 28px;gap:6px;align-items:start;">' +
-                    '<textarea rows="1" placeholder="Item · ภาษาไทยยาวได้" oninput="_psecAutogrow(this);_psecOnItemChange(' + i + ', \'name\', this.value)" style="' + taStyle + '">' + _psecHe(it.name || '') + '</textarea>' +
-                    '<input type="text" placeholder="Qty" value="' + _psecHe(it.qty || '') + '" oninput="_psecOnItemChange(' + i + ', \'qty\', this.value)" style="font-family:\'Tahoma\',sans-serif;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);text-align:center;height:30px;box-sizing:border-box;">' +
-                    '<textarea rows="1" placeholder="Remark · URL · multi-line" oninput="_psecAutogrow(this);_psecOnItemChange(' + i + ', \'remark\', this.value)" style="' + taStyle + '">' + _psecHe(it.remark || '') + '</textarea>' +
-                    '<button onclick="_psecDelItem(' + i + ')" title="ลบ" style="font-family:var(--font-mono);font-size:14px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--text-dim);cursor:pointer;line-height:1;padding:0;height:30px;align-self:start;">×</button>' +
-                '</div>';
-            }).join('');
-            // Initial heights for pre-filled content
-            host.querySelectorAll('textarea').forEach(_psecAutogrow);
-        }
-
-        function _psecOnFieldChange(fname, val) {
-            const form = _psecGetForm(_psecActiveTpl);
-            form[fname] = val;
-            _psecState.templates[_psecActiveTpl] = form;
-            _psecSaveState();
-            _psecRefreshPreview();
-        }
-
-        function _psecOnItemChange(i, key, val) {
-            const form = _psecGetForm(_psecActiveTpl);
-            form.localItems = form.localItems || [];
-            form.localItems[i] = form.localItems[i] || { name: '', qty: '', remark: '' };
-            form.localItems[i][key] = val;
-            _psecState.templates[_psecActiveTpl] = form;
-            _psecSaveState();
-            _psecRefreshPreview();
-        }
-
-        function _psecAddItem() {
-            const form = _psecGetForm(_psecActiveTpl);
-            form.localItems = form.localItems || [];
-            form.localItems.push({ name: '', qty: '1', remark: '' });
-            _psecState.templates[_psecActiveTpl] = form;
-            _psecSaveState();
-            _psecRenderItems();
-            _psecRefreshPreview();
-        }
-
-        function _psecDelItem(i) {
-            const form = _psecGetForm(_psecActiveTpl);
-            if (!form.localItems) return;
-            form.localItems.splice(i, 1);
-            _psecState.templates[_psecActiveTpl] = form;
-            _psecSaveState();
-            _psecRenderItems();
-            _psecRefreshPreview();
-        }
-
-        function _psecOpenPaste() {
-            const area = document.getElementById('psec-paste-area');
-            if (!area) return;
-            area.style.display = 'block';
-            const ta = document.getElementById('psec-paste-textarea');
-            if (ta) {
-                ta.value = '';
-                setTimeout(function() {
-                    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    ta.focus();
-                }, 30);
-            }
-        }
-
-        function _psecClosePaste() {
-            const area = document.getElementById('psec-paste-area');
-            if (area) area.style.display = 'none';
-        }
-
-        function _psecParsePasteText(append) {
-            const ta = document.getElementById('psec-paste-textarea');
-            if (!ta) return;
-            const items = _psecParseItemsText(ta.value);
-            if (items.length === 0) {
-                _psecStatus('Parse ไม่ได้ — ตรวจรูปแบบ (Tab คั่น Item / Qty / Remark)', 'err');
-                return;
-            }
-            const form = _psecGetForm(_psecActiveTpl);
-            if (append) {
-                form.localItems = (form.localItems || []).concat(items);
-            } else {
-                form.localItems = items;
-            }
-            _psecState.templates[_psecActiveTpl] = form;
-            _psecSaveState();
-            _psecClosePaste();
-            _psecRenderItems();
-            _psecRefreshPreview();
-            _psecStatus((append ? 'เพิ่ม ' : 'แทนที่ด้วย ') + items.length + ' รายการแล้ว', 'ok');
-        }
-
-        function _psecRefreshPreview() {
-            const form = _psecGetForm(_psecActiveTpl);
-            const subjEl = document.getElementById('psec-subject-input');
-            const subjRow = document.getElementById('psec-subject-row');
-            const bodyEl = document.getElementById('psec-preview');
-            if (!subjEl || !bodyEl) return;
-            const subject = _psecBuildSubject(_psecActiveTpl, form);
-            subjEl.value = subject;
-            // Order template uses Outlook FW: prefix — hide subject row entirely
-            if (subjRow) subjRow.style.display = (_psecActiveTpl === 'order') ? 'none' : 'flex';
-            bodyEl.innerHTML = _psecBuildBody(_psecActiveTpl, form);
-        }
-
-        // Bypass Outlook's paste filter entirely by exporting as .eml file.
-        // User double-clicks the downloaded file → Outlook opens a NEW email
-        // with full HTML body preserved (received-email path, not paste path).
-        // Reuses _psqEmlBuild + _psqDownloadEml from PSQ Stage 2.
-        function _psecExportAsEml() {
-            if (typeof _psqEmlBuild !== 'function' || typeof _psqDownloadEml !== 'function') {
-                _psecStatus('ไม่พบ .eml builder (PSQ ต้อง init ก่อน)', 'err');
-                return;
-            }
-            const form = _psecGetForm(_psecActiveTpl);
-            const subject = _psecBuildSubject(_psecActiveTpl, form) || ('PS Email · ' + _psecTemplates[_psecActiveTpl].label);
-            const html = _psecBuildBody(_psecActiveTpl, form);
-            const text = _psecBuildBodyText(_psecActiveTpl, form);
-            // Wrap in proper HTML5 doc so Outlook's HTML import treats it as
-            // a complete email body, not a fragment (preserves fragment vs.
-            // file-mode parsing distinction).
-            const fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:16px;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:#1f2937;">' + html + '</body></html>';
-            try {
-                const blob = _psqEmlBuild({
-                    from: '',
-                    to: '',
-                    subject: subject,
-                    bodyText: text,
-                    bodyHtml: fullHtml
-                });
-                const safeBase = (form.eqList || _psecActiveTpl).toString().replace(/[^a-zA-Z0-9_\-\.]+/g, '_').slice(0, 60);
-                _psqDownloadEml(blob, safeBase + '.eml');
-                _psecStatus('Download .eml แล้ว — double-click ไฟล์เพื่อเปิด Outlook (fidelity 100%)', 'ok');
-            } catch (e) {
-                _psecStatus('.eml error: ' + (e && e.message ? e.message : e), 'err');
-            }
-        }
-
-        async function _psecCopy(what) {
-            const form = _psecGetForm(_psecActiveTpl);
-            const subject = _psecBuildSubject(_psecActiveTpl, form);
-            const html = _psecBuildBody(_psecActiveTpl, form);
-            const text = _psecBuildBodyText(_psecActiveTpl, form);
-            try {
-                if (what === 'subject') {
-                    await navigator.clipboard.writeText(subject);
-                    _psecStatus('Subject คัดลอกแล้ว — Ctrl+V ในช่อง Subject ของ Outlook', 'ok');
-                } else if (what === 'body') {
-                    await navigator.clipboard.write([new ClipboardItem({
-                        'text/html':  new Blob([html], { type: 'text/html' }),
-                        'text/plain': new Blob([text], { type: 'text/plain' })
-                    })]);
-                    _psecStatus('Body คัดลอกแล้ว — เปิด Outlook → New Mail → Ctrl+V ในช่อง body', 'ok');
-                } else { // 'all' — copy body, then return subject in status text
-                    await navigator.clipboard.write([new ClipboardItem({
-                        'text/html':  new Blob([html], { type: 'text/html' }),
-                        'text/plain': new Blob([text], { type: 'text/plain' })
-                    })]);
-                    if (subject) {
-                        _psecStatus('Body คัดลอกแล้ว · Subject: "' + subject + '" (กด Copy Subject ก่อนวาง subject เอง)', 'ok');
-                    } else {
-                        _psecStatus('Body คัดลอกแล้ว — Forward เมล Approve เดิม → วาง body ที่ TOP ของ draft', 'ok');
-                    }
-                }
-            } catch (e) {
-                _psecStatus('Clipboard error: ' + (e && e.message ? e.message : e), 'err');
-            }
-        }
-
-        function _psecStatus(msg, kind) {
-            const el = document.getElementById('psec-status');
-            if (!el) return;
-            el.textContent = msg;
-            el.style.color = kind === 'err' ? 'var(--danger)' : 'var(--accent)';
-            clearTimeout(el._t);
-            el._t = setTimeout(function() { el.textContent = ''; }, 6000);
-        }
-
         // ── Microscopy Engine (OpenCV.js WASM) ─────────────────────────
         // Phase 0: Architecture stub — ready for Web Worker integration in Phase 1+
         let _microEngineState = 'idle'; // 'idle' | 'loading' | 'ready' | 'error'
@@ -31132,7 +30138,7 @@ ${paras}
             // Sync Phosphor scan-lines suppression: only when on utilities tab AND active tool is workstation
             (function(){
                 var _ws = _utilTools[_activeUtilTool];
-                var _active = t === 'utilities' && _ws && !!(_ws.isMicro || _ws.isSpecFlow || _ws.isQuotation || _ws.isBgRemover || _ws.isUpscaler || _ws.isAiStudio || _ws.isEmailComposer);
+                var _active = t === 'utilities' && _ws && !!(_ws.isMicro || _ws.isSpecFlow || _ws.isQuotation || _ws.isBgRemover || _ws.isUpscaler || _ws.isAiStudio);
                 document.body.classList.toggle('util-workstation-active', _active);
             })();
             // Reset scroll to top on mobile/tablet when switching tabs
@@ -49331,72 +48337,35 @@ ${_clip(contextSections, 2600)}`;
         function _museAddClip() {
             var input = document.getElementById('muse-url-input');
             if (!input) return;
-            var raw = input.value.trim();
-            if (!raw) return;
-
-            // Batch paste: extract ALL TikTok URLs from input (whitespace/newline separated)
-            var urlRe = /https?:\/\/(?:www\.|m\.|vm\.)?tiktok\.com\/@[^/?#\s]+\/video\/\d+(?:\?[^\s]*)?/g;
-            var urls = raw.match(urlRe);
-            if (!urls || urls.length === 0) {
-                input.style.outline = '2px solid var(--danger,#f23645)';
-                setTimeout(function() { input.style.outline = ''; }, 1500);
-                _museToast('URL ไม่ถูกต้อง — ต้องเป็น TikTok link');
-                return;
-            }
-
-            // Dedupe (same URL pasted twice in same batch)
-            var seen = {};
-            urls = urls.filter(function(u) { var id = _museParseTikTokId(u); if (!id || seen[id]) return false; seen[id] = true; return true; });
-
-            // Skip URLs already in playlist
-            var existingIds = {};
-            _museClips.forEach(function(c) { var id = _museParseTikTokId(c.url || ''); if (id) existingIds[id] = true; });
-            urls = urls.filter(function(u) { var id = _museParseTikTokId(u); return id && !existingIds[id]; });
-
-            if (urls.length === 0) {
-                _museToast('คลิปทั้งหมดมีในรายการแล้ว');
-                input.value = '';
-                return;
-            }
-
-            var slotsLeft = _MUSE_MAX_CLIPS - _museClips.length;
-            if (slotsLeft <= 0) {
+            if (_museClips.length >= _MUSE_MAX_CLIPS) {
                 var addBtn = document.getElementById('muse-add-btn');
                 if (addBtn) { addBtn.style.background = 'var(--danger,#f23645)'; setTimeout(function() { addBtn.style.background = 'var(--accent)'; }, 800); }
                 _museToast('Playlist เต็มแล้ว (' + _MUSE_MAX_CLIPS + ')');
                 return;
             }
-            var truncated = false;
-            if (urls.length > slotsLeft) { urls = urls.slice(0, slotsLeft); truncated = true; }
-
-            var firstNewIdx = _museClips.length;
-            var addedClips = [];
-            urls.forEach(function(u) {
-                var label = 'Clip ' + (_museClips.length + 1);
-                var clip = { url: u, label: label, duration: 0, thumbnail: '', replay: false };
-                _museClips.push(clip);
-                addedClips.push(clip);
-            });
+            var url = input.value.trim();
+            if (!url) return;
+            var id = _museParseTikTokId(url);
+            if (!id) {
+                input.style.outline = '2px solid var(--danger,#f23645)';
+                setTimeout(function() { input.style.outline = ''; }, 1500);
+                _museToast('URL ไม่ถูกต้อง — ต้องเป็น TikTok link');
+                return;
+            }
+            var label = 'Clip ' + (_museClips.length + 1);
+            var clip = { url: url, label: label, duration: 0, thumbnail: '', replay: false };
+            _museClips.push(clip);
             _museSaveCurrentPreset();
+            _museToast('เพิ่ม Video ' + _museClips.length + ' รายการ');
             input.value = '';
-
-            var msg = urls.length === 1 ? ('เพิ่ม Video ' + _museClips.length + ' รายการ')
-                                        : ('เพิ่ม ' + urls.length + ' คลิป (รวม ' + _museClips.length + ' รายการ)');
-            if (truncated) msg += ' — ตัดที่ขีดจำกัด';
-            _museToast(msg);
-
+            // Auto-navigate to page containing new clip
+            var newIdx = _museClips.length - 1;
             var _sc = _museGetSlotCount();
-            _musePageOffset = Math.floor(firstNewIdx / _sc) * _sc;
+            _musePageOffset = Math.floor(newIdx / _sc) * _sc;
             _museRenderSlots();
             if (_museEditOpen) _museRenderEditList();
             _museUpdateAddFooter();
-            // Stagger thumbnail fetches so the proxy doesn't get hit with N parallel requests
-            addedClips.forEach(function(c, i) {
-                setTimeout(function() {
-                    var idx = _museClips.indexOf(c);
-                    if (idx >= 0) _museFetchThumbnail(c, function() { _museUpdateSlotCover(idx); if (_museEditOpen) _museRenderEditList(); });
-                }, i * 250);
-            });
+            _museFetchThumbnail(clip, function() { _museUpdateSlotCover(newIdx); if (_museEditOpen) _museRenderEditList(); });
         }
 
         function _museCompressImage(file, callback) {
@@ -49490,57 +48459,27 @@ ${_clip(contextSections, 2600)}`;
             input.value = '';
         }
 
-        // Multi-proxy fallback: try corsproxy.io -> codetabs -> allorigins in sequence.
-        // validator(text) decides if the body is acceptable; if not, fall through to next proxy.
-        // This is needed because some proxies return HTTP 200 with corrupted/garbage body
-        // (e.g. corsproxy.io serves binary garbage for TikTok oEmbed even though Content-Type is application/json).
-        function _museFetchViaProxy(targetUrl, validator) {
-            var proxies = [
-                function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
-                function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
-                function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); }
-            ];
-            validator = validator || function(t) { return !!t; };
-            return new Promise(function(resolve, reject) {
-                var idx = 0;
-                function tryNext() {
-                    if (idx >= proxies.length) { reject(new Error('All proxies failed')); return; }
-                    var proxyUrl = proxies[idx++](targetUrl);
-                    fetch(proxyUrl).then(function(r) {
-                        if (!r.ok) { tryNext(); return; }
-                        return r.text().then(function(text) {
-                            if (validator(text)) { resolve(text); } else { tryNext(); }
-                        });
-                    }).catch(function() { tryNext(); });
-                }
-                tryNext();
-            });
-        }
-
         function _museFetchThumbnail(clip, cb) {
-            var oembedUrl = 'https://www.tiktok.com/oembed?url=' + encodeURIComponent(clip.url);
-            // Validator: must parse as JSON with expected oEmbed fields
-            var jsonValidator = function(text) {
-                try { var j = JSON.parse(text); return j && (j.thumbnail_url || j.title || j.author_url); } catch (e) { return false; }
-            };
-            _museFetchViaProxy(oembedUrl, jsonValidator).then(function(text) {
-                var data = null;
-                try { data = JSON.parse(text); } catch (e) { data = null; }
+            var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://www.tiktok.com/oembed?url=' + encodeURIComponent(clip.url));
+            fetch(proxyUrl).then(function(r) { return r.json(); }).then(function(data) {
                 if (data && data.thumbnail_url) {
                     clip.thumbnail = data.thumbnail_url;
                     if (data.title && clip.label.match(/^Clip \d+$/)) clip.label = data.title.substring(0, 40);
                 }
+                // Auto-detect duration from oEmbed if not yet set
                 if (data && data.duration && !clip.duration) {
                     clip.duration = parseInt(data.duration) || 0;
                 }
                 _museSaveCurrentPreset();
                 if (cb) cb();
+                // If oEmbed didn't provide duration, auto-scrape from TikTok page
                 if (!clip.duration) {
                     var autoIdx = _museClips.indexOf(clip);
                     if (autoIdx >= 0) setTimeout(function() { _museFetchClipDuration(autoIdx); }, 120);
                 }
             }).catch(function() {
                 if (cb) cb();
+                // oEmbed failed entirely — still try to scrape duration
                 if (!clip.duration) {
                     var autoIdx = _museClips.indexOf(clip);
                     if (autoIdx >= 0) setTimeout(function() { _museFetchClipDuration(autoIdx); }, 120);
@@ -49553,9 +48492,8 @@ ${_clip(contextSections, 2600)}`;
             if (!clip) return;
             var btn = document.getElementById('muse-dur-fetch-' + idx);
             if (btn) { btn.textContent = '...'; btn.disabled = true; btn.style.opacity = '0.5'; }
-            // Validator: must look like a TikTok HTML page (has og:video meta or video JSON-LD)
-            var htmlValidator = function(text) { return text && text.length > 1000 && /tiktok|og:video|"duration"/i.test(text); };
-            _museFetchViaProxy(clip.url, htmlValidator).then(function(html) {
+            var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(clip.url);
+            fetch(proxyUrl).then(function(r) { return r.text(); }).then(function(html) {
                 var dur = 0;
                 // 1. og:video:duration meta tag (various attribute orders)
                 var ogM = html.match(/property="og:video:duration"\s+content="(\d+)"/)
