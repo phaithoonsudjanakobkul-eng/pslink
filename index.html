@@ -48496,21 +48496,27 @@ ${_clip(contextSections, 2600)}`;
             input.value = '';
         }
 
-        // Multi-proxy fallback: try corsproxy.io -> allorigins.win -> codetabs in sequence
-        // Returns Promise resolving to Response, or rejects if all fail
-        function _museFetchViaProxy(targetUrl) {
+        // Multi-proxy fallback: try corsproxy.io -> codetabs -> allorigins in sequence.
+        // validator(text) decides if the body is acceptable; if not, fall through to next proxy.
+        // This is needed because some proxies return HTTP 200 with corrupted/garbage body
+        // (e.g. corsproxy.io serves binary garbage for TikTok oEmbed even though Content-Type is application/json).
+        function _museFetchViaProxy(targetUrl, validator) {
             var proxies = [
                 function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
-                function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
-                function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+                function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
+                function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); }
             ];
+            validator = validator || function(t) { return !!t; };
             return new Promise(function(resolve, reject) {
                 var idx = 0;
                 function tryNext() {
                     if (idx >= proxies.length) { reject(new Error('All proxies failed')); return; }
                     var proxyUrl = proxies[idx++](targetUrl);
                     fetch(proxyUrl).then(function(r) {
-                        if (r.ok) { resolve(r); } else { tryNext(); }
+                        if (!r.ok) { tryNext(); return; }
+                        return r.text().then(function(text) {
+                            if (validator(text)) { resolve(text); } else { tryNext(); }
+                        });
                     }).catch(function() { tryNext(); });
                 }
                 tryNext();
@@ -48519,25 +48525,28 @@ ${_clip(contextSections, 2600)}`;
 
         function _museFetchThumbnail(clip, cb) {
             var oembedUrl = 'https://www.tiktok.com/oembed?url=' + encodeURIComponent(clip.url);
-            _museFetchViaProxy(oembedUrl).then(function(r) { return r.json(); }).then(function(data) {
+            // Validator: must parse as JSON with expected oEmbed fields
+            var jsonValidator = function(text) {
+                try { var j = JSON.parse(text); return j && (j.thumbnail_url || j.title || j.author_url); } catch (e) { return false; }
+            };
+            _museFetchViaProxy(oembedUrl, jsonValidator).then(function(text) {
+                var data = null;
+                try { data = JSON.parse(text); } catch (e) { data = null; }
                 if (data && data.thumbnail_url) {
                     clip.thumbnail = data.thumbnail_url;
                     if (data.title && clip.label.match(/^Clip \d+$/)) clip.label = data.title.substring(0, 40);
                 }
-                // Auto-detect duration from oEmbed if not yet set
                 if (data && data.duration && !clip.duration) {
                     clip.duration = parseInt(data.duration) || 0;
                 }
                 _museSaveCurrentPreset();
                 if (cb) cb();
-                // If oEmbed didn't provide duration, auto-scrape from TikTok page
                 if (!clip.duration) {
                     var autoIdx = _museClips.indexOf(clip);
                     if (autoIdx >= 0) setTimeout(function() { _museFetchClipDuration(autoIdx); }, 120);
                 }
             }).catch(function() {
                 if (cb) cb();
-                // oEmbed failed entirely — still try to scrape duration
                 if (!clip.duration) {
                     var autoIdx = _museClips.indexOf(clip);
                     if (autoIdx >= 0) setTimeout(function() { _museFetchClipDuration(autoIdx); }, 120);
@@ -48550,7 +48559,9 @@ ${_clip(contextSections, 2600)}`;
             if (!clip) return;
             var btn = document.getElementById('muse-dur-fetch-' + idx);
             if (btn) { btn.textContent = '...'; btn.disabled = true; btn.style.opacity = '0.5'; }
-            _museFetchViaProxy(clip.url).then(function(r) { return r.text(); }).then(function(html) {
+            // Validator: must look like a TikTok HTML page (has og:video meta or video JSON-LD)
+            var htmlValidator = function(text) { return text && text.length > 1000 && /tiktok|og:video|"duration"/i.test(text); };
+            _museFetchViaProxy(clip.url, htmlValidator).then(function(html) {
                 var dur = 0;
                 // 1. og:video:duration meta tag (various attribute orders)
                 var ogM = html.match(/property="og:video:duration"\s+content="(\d+)"/)
