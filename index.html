@@ -25790,38 +25790,42 @@ ${paras}
                 _psecCardField('หน่วยงาน', form.agency || '') +
                 _psecCardField('เลขที่ใบเสนอราคา / EQ List', form.eqList || '', true) +
                 _psecCardField('รายการสินค้าหลัก', form.mainItems || '');
-            return '<div style="font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.65;">' +
-                '<p style="margin:0 0 14pt 0;">Dear All,</p>' +
-                '<p style="margin:0 0 18pt 0;">รบกวนตรวจเช็คเพื่อ <span style="color:' + _PSEC_BRAND + ';font-weight:bold;">Approve Configuration</span> สำหรับ<b>' + verb + '</b>' + submitSuffix + '</p>' +
-                '<table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
-                '<tr><td bgcolor="' + _PSEC_TINT + '" style="padding:14pt 18pt;border-left:3px solid ' + _PSEC_BRAND + ';">' +
-                '<table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">' + cardRows + '</table>' +
+            const intro = 'รบกวนตรวจเช็คเพื่อ ' + _psecColored('<b>Approve Configuration</b>', _PSEC_BRAND) +
+                ' สำหรับ<b><font color="' + _PSEC_TEXT + '">' + verb + '</font></b>' + _psecHe(submitSuffix);
+            return _psecOuterTable(
+                _psecPara('<font color="' + _PSEC_TEXT + '">Dear All,</font>', 14) +
+                _psecPara(intro, 18) +
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
+                '<tr><td bgcolor="' + _PSEC_TINT + '" style="padding:14pt 18pt;border-left:3px solid ' + _PSEC_BRAND + ';background-color:' + _PSEC_TINT + ';">' +
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;">' + cardRows + '</table>' +
                 '</td></tr></table>' +
                 _psecPremiumNotes(form.notes) +
-                '<p style="margin:18pt 0 0 0;color:' + _PSEC_DIM + ';">Thanks,</p>' +
-                '</div>';
+                _psecPara(_psecColored('Thanks,', _PSEC_DIM), 0, 11, { color: _PSEC_DIM })
+            );
         }
 
         function _psecBuildApproveEditorial(tplId, form) {
             const verb = _psecApproveVerb(tplId);
             const isBid = tplId === 'approve-bid';
+            const heading = _psecColored('Approve Configuration · ' + _psecHe(verb), _PSEC_BRAND);
             const submitLine = isBid && (form.submitDate || form.submitTime)
-                ? '<p style="margin:0 0 22pt 0;font-family:Tahoma,\'Sans Serif\';font-size:10pt;color:' + _PSEC_DIM + ';">กำหนดยื่น ' + _psecHe(form.submitDate || '') + (form.submitTime ? ' • ' + _psecHe(form.submitTime) : '') + '</p>'
-                : '<div style="height:18pt;line-height:18pt;font-size:1pt;">&nbsp;</div>';
+                ? _psecPara(_psecColored('กำหนดยื่น ' + _psecHe(form.submitDate || '') + (form.submitTime ? ' • ' + _psecHe(form.submitTime) : ''), _PSEC_DIM), 22, 10, { color: _PSEC_DIM })
+                : _psecVspace(18);
             const rows =
                 _psecRowField('หน่วยงาน', form.agency || '') +
                 _psecRowField('EQ List', form.eqList || '', true) +
                 _psecRowField('รายการหลัก', form.mainItems || '');
-            return '<div style="font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.7;">' +
-                '<p style="margin:0 0 14pt 0;">Dear All,</p>' +
-                '<p style="margin:0 0 8pt 0;font-family:Tahoma,\'Sans Serif\';font-size:13pt;font-weight:bold;color:' + _PSEC_BRAND + ';">Approve Configuration · ' + verb + '</p>' +
+            return _psecOuterTable(
+                _psecPara('<font color="' + _PSEC_TEXT + '">Dear All,</font>', 14) +
+                _psecPara(heading, 8, 13, { bold: true, lineHeight: 1.4 }) +
                 submitLine +
-                '<table cellpadding="0" cellspacing="0" border="0" style="border-top:2pt solid ' + _PSEC_BRAND + ';width:48pt;margin:0 0 22pt 0;border-collapse:collapse;"><tr><td style="line-height:0;font-size:0;">&nbsp;</td></tr></table>' +
+                _psecAccentRule(64, _PSEC_BRAND, 22) +
                 '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22pt 0;border-collapse:collapse;">' + rows + '</table>' +
-                '<table cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ' + _PSEC_BORDER + ';width:100%;margin:0 0 22pt 0;border-collapse:collapse;"><tr><td style="line-height:0;font-size:0;">&nbsp;</td></tr></table>' +
+                _psecDivider(_PSEC_BORDER, 22) +
                 _psecPremiumNotes(form.notes) +
-                '<p style="margin:22pt 0 0 0;color:' + _PSEC_DIM + ';">Thanks,</p>' +
-                '</div>';
+                _psecVspace(8) +
+                _psecPara(_psecColored('Thanks,', _PSEC_DIM), 0, 11, { color: _PSEC_DIM })
+            );
         }
 
         function _psecBuildApproveBranded(tplId, form) {
@@ -25834,24 +25838,31 @@ ${paras}
             const rows =
                 _psecRowField('หน่วยงาน', form.agency || '') +
                 _psecRowField('รายการหลัก', form.mainItems || '');
-            return '<div style="font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.6;">' +
-                '<table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" style="height:6pt;line-height:6pt;font-size:1pt;">&nbsp;</td></tr>' +
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" style="padding:11pt 18pt 13pt 18pt;">' +
-                '<p style="margin:0;font-family:Tahoma,\'Sans Serif\';font-size:8.5pt;font-weight:bold;color:' + _PSEC_BRAND_LT + ';">SCIED · APPROVE CONFIGURATION</p>' +
-                '<p style="margin:5pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:14pt;font-weight:bold;color:#ffffff;">' + _psecHe(form.eqList || '—') + '</p>' +
-                '<p style="margin:3pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:10pt;color:' + _PSEC_BRAND_LT2 + ';">' + _psecHe(subline) + '</p>' +
-                '</td></tr></table>' +
-                '<p style="margin:0 0 14pt 0;">Dear All,</p>' +
-                '<p style="margin:0 0 18pt 0;">รบกวนตรวจเช็คเพื่อ Approve Configuration ตามรายละเอียดด้านล่างค่ะ</p>' +
+            // Brand strip uses bgcolor on td + <font color> on every text element
+            // for max color preservation. White text on brand-blue background.
+            const brandStrip =
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" height="6" style="background-color:' + _PSEC_BRAND + ';height:6pt;line-height:1pt;font-size:1pt;mso-line-height-rule:exactly;">&nbsp;</td></tr>' +
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" style="padding:11pt 18pt 13pt 18pt;background-color:' + _PSEC_BRAND + ';">' +
+                '<div style="margin:0;font-family:Tahoma,\'Sans Serif\';font-size:8.5pt;font-weight:bold;line-height:1.4;mso-line-height-rule:exactly;">' + _psecColored('SCIED · APPROVE CONFIGURATION', _PSEC_BRAND_LT) + '</div>' +
+                '<div style="margin:5pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:14pt;font-weight:bold;line-height:1.3;mso-line-height-rule:exactly;">' + _psecColored('<b>' + _psecHe(form.eqList || '—') + '</b>', '#ffffff') + '</div>' +
+                '<div style="margin:3pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:10pt;line-height:1.4;mso-line-height-rule:exactly;">' + _psecColored(_psecHe(subline), _PSEC_BRAND_LT2) + '</div>' +
+                '</td></tr></table>';
+            const footer =
+                _psecDivider(_PSEC_BORDER, 0) +
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:8pt 0 0 0;">' +
+                '<tr>' +
+                '<td valign="top" style="padding:0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;line-height:1.6;mso-line-height-rule:exactly;">' + _psecColored('Thanks,', _PSEC_DIM) + '</td>' +
+                '<td valign="top" align="right" style="padding:0;text-align:right;font-family:Tahoma,\'Sans Serif\';font-size:9pt;line-height:1.6;mso-line-height-rule:exactly;">' + _psecColored('scied.co.th · The Science and Educational', _PSEC_FAINT) + '</td>' +
+                '</tr></table>';
+            return _psecOuterTable(
+                brandStrip +
+                _psecPara('<font color="' + _PSEC_TEXT + '">Dear All,</font>', 14) +
+                _psecPara('<font color="' + _PSEC_TEXT + '">รบกวนตรวจเช็คเพื่อ Approve Configuration ตามรายละเอียดด้านล่างค่ะ</font>', 18) +
                 '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18pt 0;border-collapse:collapse;">' + rows + '</table>' +
                 _psecPremiumNotes(form.notes) +
-                '<table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-top:1px solid ' + _PSEC_BORDER + ';margin:18pt 0 0 0;border-collapse:collapse;">' +
-                '<tr>' +
-                '<td style="padding:8pt 0 0 0;font-family:Tahoma,\'Sans Serif\';color:' + _PSEC_DIM + ';">Thanks,</td>' +
-                '<td style="padding:8pt 0 0 0;text-align:right;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_FAINT + ';">scied.co.th · The Science and Educational</td>' +
-                '</tr></table>' +
-                '</div>';
+                footer
+            );
         }
 
         function _psecBuildApproveText(tplId, form) {
@@ -25909,17 +25920,17 @@ ${paras}
                 _psecCardField('หน่วยงาน', form.agency || '') +
                 _psecCardField('ใบสั่งซื้อวันที่', form.orderDate || '') +
                 _psecCardField('หมดสัญญาวันที่', form.expireDate || '');
-            return '<div style="font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.65;">' +
-                '<p style="margin:0 0 14pt 0;">เรียน ฝ่ายจัดซื้อ</p>' +
-                '<p style="margin:0 0 18pt 0;">รบกวนสั่งของตามรายละเอียดดังนี้</p>' +
-                '<table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
-                '<tr><td bgcolor="' + _PSEC_TINT + '" style="padding:14pt 18pt;border-left:3px solid ' + _PSEC_BRAND + ';">' +
-                '<table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">' + cardRows + '</table>' +
+            return _psecOuterTable(
+                _psecPara('<font color="' + _PSEC_TEXT + '">เรียน ฝ่ายจัดซื้อ</font>', 14) +
+                _psecPara('<font color="' + _PSEC_TEXT + '">รบกวนสั่งของตามรายละเอียดดังนี้</font>', 18) +
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
+                '<tr><td bgcolor="' + _PSEC_TINT + '" style="padding:14pt 18pt;border-left:3px solid ' + _PSEC_BRAND + ';background-color:' + _PSEC_TINT + ';">' +
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;">' + cardRows + '</table>' +
                 '</td></tr></table>' +
                 _psecPremiumNotes(form.notes) +
                 _psecPremiumLocalTable(form.localItems || []) +
-                '<p style="margin:18pt 0 0 0;color:' + _PSEC_DIM + ';">ขอบคุณครับ</p>' +
-                '</div>';
+                _psecPara(_psecColored('ขอบคุณครับ', _PSEC_DIM), 0, 11, { color: _PSEC_DIM })
+            );
         }
 
         function _psecBuildOrderEditorial(form) {
@@ -25929,16 +25940,17 @@ ${paras}
                 _psecRowField('หน่วยงาน', form.agency || '') +
                 _psecRowField('ใบสั่งซื้อวันที่', form.orderDate || '') +
                 _psecRowField('หมดสัญญาวันที่', form.expireDate || '');
-            return '<div style="font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.7;">' +
-                '<p style="margin:0 0 14pt 0;">เรียน ฝ่ายจัดซื้อ</p>' +
-                '<p style="margin:0 0 18pt 0;font-family:Tahoma,\'Sans Serif\';font-size:13pt;font-weight:bold;color:' + _PSEC_BRAND + ';">รบกวนสั่งของตามรายละเอียดดังนี้</p>' +
-                '<table cellpadding="0" cellspacing="0" border="0" style="border-top:2pt solid ' + _PSEC_BRAND + ';width:48pt;margin:0 0 22pt 0;border-collapse:collapse;"><tr><td style="line-height:0;font-size:0;">&nbsp;</td></tr></table>' +
+            return _psecOuterTable(
+                _psecPara('<font color="' + _PSEC_TEXT + '">เรียน ฝ่ายจัดซื้อ</font>', 14) +
+                _psecPara(_psecColored('รบกวนสั่งของตามรายละเอียดดังนี้', _PSEC_BRAND), 8, 13, { bold: true, lineHeight: 1.4 }) +
+                _psecAccentRule(64, _PSEC_BRAND, 22) +
                 '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22pt 0;border-collapse:collapse;">' + rows + '</table>' +
-                '<table cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid ' + _PSEC_BORDER + ';width:100%;margin:0 0 22pt 0;border-collapse:collapse;"><tr><td style="line-height:0;font-size:0;">&nbsp;</td></tr></table>' +
+                _psecDivider(_PSEC_BORDER, 22) +
                 _psecPremiumNotes(form.notes) +
                 _psecPremiumLocalTable(form.localItems || []) +
-                '<p style="margin:22pt 0 0 0;color:' + _PSEC_DIM + ';">ขอบคุณครับ</p>' +
-                '</div>';
+                _psecVspace(4) +
+                _psecPara(_psecColored('ขอบคุณครับ', _PSEC_DIM), 0, 11, { color: _PSEC_DIM })
+            );
         }
 
         function _psecBuildOrderBranded(form) {
@@ -25948,25 +25960,30 @@ ${paras}
                 _psecRowField('รายการ Oversea', form.mainItemsOversea || '') +
                 _psecRowField('ใบสั่งซื้อวันที่', form.orderDate || '') +
                 _psecRowField('หมดสัญญาวันที่', form.expireDate || '');
-            return '<div style="font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:' + _PSEC_TEXT + ';line-height:1.6;">' +
-                '<table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" style="height:6pt;line-height:6pt;font-size:1pt;">&nbsp;</td></tr>' +
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" style="padding:11pt 18pt 13pt 18pt;">' +
-                '<p style="margin:0;font-family:Tahoma,\'Sans Serif\';font-size:8.5pt;font-weight:bold;color:' + _PSEC_BRAND_LT + ';">SCIED · ORDER REQUEST</p>' +
-                '<p style="margin:5pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:14pt;font-weight:bold;color:#ffffff;">' + _psecHe(form.eqList || '—') + '</p>' +
-                '<p style="margin:3pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:10pt;color:' + _PSEC_BRAND_LT2 + ';">' + _psecHe(subline || '—') + '</p>' +
-                '</td></tr></table>' +
-                '<p style="margin:0 0 14pt 0;">เรียน ฝ่ายจัดซื้อ</p>' +
-                '<p style="margin:0 0 18pt 0;">รบกวนสั่งของตามรายละเอียดดังนี้</p>' +
+            const brandStrip =
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" height="6" style="background-color:' + _PSEC_BRAND + ';height:6pt;line-height:1pt;font-size:1pt;mso-line-height-rule:exactly;">&nbsp;</td></tr>' +
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" style="padding:11pt 18pt 13pt 18pt;background-color:' + _PSEC_BRAND + ';">' +
+                '<div style="margin:0;font-family:Tahoma,\'Sans Serif\';font-size:8.5pt;font-weight:bold;line-height:1.4;mso-line-height-rule:exactly;">' + _psecColored('SCIED · ORDER REQUEST', _PSEC_BRAND_LT) + '</div>' +
+                '<div style="margin:5pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:14pt;font-weight:bold;line-height:1.3;mso-line-height-rule:exactly;">' + _psecColored('<b>' + _psecHe(form.eqList || '—') + '</b>', '#ffffff') + '</div>' +
+                '<div style="margin:3pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:10pt;line-height:1.4;mso-line-height-rule:exactly;">' + _psecColored(_psecHe(subline || '—'), _PSEC_BRAND_LT2) + '</div>' +
+                '</td></tr></table>';
+            const footer =
+                _psecDivider(_PSEC_BORDER, 0) +
+                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:8pt 0 0 0;">' +
+                '<tr>' +
+                '<td valign="top" style="padding:0;font-family:Tahoma,\'Sans Serif\';font-size:11pt;line-height:1.6;mso-line-height-rule:exactly;">' + _psecColored('ขอบคุณครับ', _PSEC_DIM) + '</td>' +
+                '<td valign="top" align="right" style="padding:0;text-align:right;font-family:Tahoma,\'Sans Serif\';font-size:9pt;line-height:1.6;mso-line-height-rule:exactly;">' + _psecColored('scied.co.th · The Science and Educational', _PSEC_FAINT) + '</td>' +
+                '</tr></table>';
+            return _psecOuterTable(
+                brandStrip +
+                _psecPara('<font color="' + _PSEC_TEXT + '">เรียน ฝ่ายจัดซื้อ</font>', 14) +
+                _psecPara('<font color="' + _PSEC_TEXT + '">รบกวนสั่งของตามรายละเอียดดังนี้</font>', 18) +
                 '<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18pt 0;border-collapse:collapse;">' + rows + '</table>' +
                 _psecPremiumNotes(form.notes) +
                 _psecPremiumLocalTable(form.localItems || []) +
-                '<table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-top:1px solid ' + _PSEC_BORDER + ';margin:18pt 0 0 0;border-collapse:collapse;">' +
-                '<tr>' +
-                '<td style="padding:8pt 0 0 0;font-family:Tahoma,\'Sans Serif\';color:' + _PSEC_DIM + ';">ขอบคุณครับ</td>' +
-                '<td style="padding:8pt 0 0 0;text-align:right;font-family:Tahoma,\'Sans Serif\';font-size:9pt;color:' + _PSEC_FAINT + ';">scied.co.th · The Science and Educational</td>' +
-                '</tr></table>' +
-                '</div>';
+                footer
+            );
         }
 
         function _psecBuildOrderText(form) {
@@ -26054,7 +26071,7 @@ ${paras}
                             '<button class="psf-btn psf-btn-green" onclick="_psecCopy(\'all\')" style="font-size:11px;padding:5px 10px;">Copy All (Subject + Body)</button>' +
                           '</div>' +
                         '</div>' +
-                        '<div id="psec-preview" style="flex:1;min-height:0;overflow-y:auto;padding:14px 18px;background:#ffffff;color:#000000;"></div>' +
+                        '<div id="psec-preview" style="flex:1;min-height:0;overflow-y:auto;padding:14px 18px;background:#ffffff;color:#000000;font-family:Tahoma,\'Sans Serif\',sans-serif;font-size:11pt;line-height:1.6;"></div>' +
                       '</div>' +
                       '<div id="psec-status" style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);min-height:14px;flex-shrink:0;"></div>' +
                     '</div>' +
