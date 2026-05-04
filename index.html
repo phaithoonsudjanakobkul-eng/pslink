@@ -11520,7 +11520,7 @@
                                     <span id="muse-clip-count" style="font-size:10px;color:var(--text-dim);font-weight:700;opacity:0.6;">0/5</span>
                                 </div>
                                 <div style="display:flex;gap:8px;">
-                                    <input id="muse-url-input" type="text" placeholder="วาง TikTok URL — https://www.tiktok.com/@user/video/..." maxlength="512"
+                                    <input id="muse-url-input" type="text" placeholder="วาง TikTok URL (รับหลายอันคั่นด้วย space/newline)" maxlength="2048"
                                         onkeydown="if(event.key==='Enter')_museAddClip()"
                                         style="flex:1;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:11px;padding:0 12px;outline:none;min-width:0;transition:border-color 0.15s,opacity 0.15s;">
                                     <button id="muse-add-btn" onclick="_museAddClip()" style="height:36px;padding:0 18px;border-radius:9px;background:var(--accent);border:none;cursor:pointer;color:white;font-size:11px;font-weight:700;flex-shrink:0;letter-spacing:0.03em;transition:background 0.2s,opacity 0.15s;">+ Add</button>
@@ -48337,35 +48337,72 @@ ${_clip(contextSections, 2600)}`;
         function _museAddClip() {
             var input = document.getElementById('muse-url-input');
             if (!input) return;
-            if (_museClips.length >= _MUSE_MAX_CLIPS) {
-                var addBtn = document.getElementById('muse-add-btn');
-                if (addBtn) { addBtn.style.background = 'var(--danger,#f23645)'; setTimeout(function() { addBtn.style.background = 'var(--accent)'; }, 800); }
-                _museToast('Playlist เต็มแล้ว (' + _MUSE_MAX_CLIPS + ')');
-                return;
-            }
-            var url = input.value.trim();
-            if (!url) return;
-            var id = _museParseTikTokId(url);
-            if (!id) {
+            var raw = input.value.trim();
+            if (!raw) return;
+
+            // Batch paste: extract ALL TikTok URLs from input (whitespace/newline separated)
+            var urlRe = /https?:\/\/(?:www\.|m\.|vm\.)?tiktok\.com\/@[^/?#\s]+\/video\/\d+(?:\?[^\s]*)?/g;
+            var urls = raw.match(urlRe);
+            if (!urls || urls.length === 0) {
                 input.style.outline = '2px solid var(--danger,#f23645)';
                 setTimeout(function() { input.style.outline = ''; }, 1500);
                 _museToast('URL ไม่ถูกต้อง — ต้องเป็น TikTok link');
                 return;
             }
-            var label = 'Clip ' + (_museClips.length + 1);
-            var clip = { url: url, label: label, duration: 0, thumbnail: '', replay: false };
-            _museClips.push(clip);
+
+            // Dedupe (same URL pasted twice in same batch)
+            var seen = {};
+            urls = urls.filter(function(u) { var id = _museParseTikTokId(u); if (!id || seen[id]) return false; seen[id] = true; return true; });
+
+            // Skip URLs already in playlist
+            var existingIds = {};
+            _museClips.forEach(function(c) { var id = _museParseTikTokId(c.url || ''); if (id) existingIds[id] = true; });
+            urls = urls.filter(function(u) { var id = _museParseTikTokId(u); return id && !existingIds[id]; });
+
+            if (urls.length === 0) {
+                _museToast('คลิปทั้งหมดมีในรายการแล้ว');
+                input.value = '';
+                return;
+            }
+
+            var slotsLeft = _MUSE_MAX_CLIPS - _museClips.length;
+            if (slotsLeft <= 0) {
+                var addBtn = document.getElementById('muse-add-btn');
+                if (addBtn) { addBtn.style.background = 'var(--danger,#f23645)'; setTimeout(function() { addBtn.style.background = 'var(--accent)'; }, 800); }
+                _museToast('Playlist เต็มแล้ว (' + _MUSE_MAX_CLIPS + ')');
+                return;
+            }
+            var truncated = false;
+            if (urls.length > slotsLeft) { urls = urls.slice(0, slotsLeft); truncated = true; }
+
+            var firstNewIdx = _museClips.length;
+            var addedClips = [];
+            urls.forEach(function(u) {
+                var label = 'Clip ' + (_museClips.length + 1);
+                var clip = { url: u, label: label, duration: 0, thumbnail: '', replay: false };
+                _museClips.push(clip);
+                addedClips.push(clip);
+            });
             _museSaveCurrentPreset();
-            _museToast('เพิ่ม Video ' + _museClips.length + ' รายการ');
             input.value = '';
-            // Auto-navigate to page containing new clip
-            var newIdx = _museClips.length - 1;
+
+            var msg = urls.length === 1 ? ('เพิ่ม Video ' + _museClips.length + ' รายการ')
+                                        : ('เพิ่ม ' + urls.length + ' คลิป (รวม ' + _museClips.length + ' รายการ)');
+            if (truncated) msg += ' — ตัดที่ขีดจำกัด';
+            _museToast(msg);
+
             var _sc = _museGetSlotCount();
-            _musePageOffset = Math.floor(newIdx / _sc) * _sc;
+            _musePageOffset = Math.floor(firstNewIdx / _sc) * _sc;
             _museRenderSlots();
             if (_museEditOpen) _museRenderEditList();
             _museUpdateAddFooter();
-            _museFetchThumbnail(clip, function() { _museUpdateSlotCover(newIdx); if (_museEditOpen) _museRenderEditList(); });
+            // Stagger thumbnail fetches so the proxy doesn't get hit with N parallel requests
+            addedClips.forEach(function(c, i) {
+                setTimeout(function() {
+                    var idx = _museClips.indexOf(c);
+                    if (idx >= 0) _museFetchThumbnail(c, function() { _museUpdateSlotCover(idx); if (_museEditOpen) _museRenderEditList(); });
+                }, i * 250);
+            });
         }
 
         function _museCompressImage(file, callback) {
@@ -48459,9 +48496,30 @@ ${_clip(contextSections, 2600)}`;
             input.value = '';
         }
 
+        // Multi-proxy fallback: try corsproxy.io -> allorigins.win -> codetabs in sequence
+        // Returns Promise resolving to Response, or rejects if all fail
+        function _museFetchViaProxy(targetUrl) {
+            var proxies = [
+                function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
+                function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+                function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); }
+            ];
+            return new Promise(function(resolve, reject) {
+                var idx = 0;
+                function tryNext() {
+                    if (idx >= proxies.length) { reject(new Error('All proxies failed')); return; }
+                    var proxyUrl = proxies[idx++](targetUrl);
+                    fetch(proxyUrl).then(function(r) {
+                        if (r.ok) { resolve(r); } else { tryNext(); }
+                    }).catch(function() { tryNext(); });
+                }
+                tryNext();
+            });
+        }
+
         function _museFetchThumbnail(clip, cb) {
-            var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://www.tiktok.com/oembed?url=' + encodeURIComponent(clip.url));
-            fetch(proxyUrl).then(function(r) { return r.json(); }).then(function(data) {
+            var oembedUrl = 'https://www.tiktok.com/oembed?url=' + encodeURIComponent(clip.url);
+            _museFetchViaProxy(oembedUrl).then(function(r) { return r.json(); }).then(function(data) {
                 if (data && data.thumbnail_url) {
                     clip.thumbnail = data.thumbnail_url;
                     if (data.title && clip.label.match(/^Clip \d+$/)) clip.label = data.title.substring(0, 40);
@@ -48492,8 +48550,7 @@ ${_clip(contextSections, 2600)}`;
             if (!clip) return;
             var btn = document.getElementById('muse-dur-fetch-' + idx);
             if (btn) { btn.textContent = '...'; btn.disabled = true; btn.style.opacity = '0.5'; }
-            var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(clip.url);
-            fetch(proxyUrl).then(function(r) { return r.text(); }).then(function(html) {
+            _museFetchViaProxy(clip.url).then(function(r) { return r.text(); }).then(function(html) {
                 var dur = 0;
                 // 1. og:video:duration meta tag (various attribute orders)
                 var ogM = html.match(/property="og:video:duration"\s+content="(\d+)"/)
