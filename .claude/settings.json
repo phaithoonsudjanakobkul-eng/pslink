@@ -1,5 +1,4 @@
 {
-  "_comment": "Project-level Claude Code config — auto-loaded when opening PSLink Project workspace. See .claude/hooks/sync-memory.ps1 for memory backup/restore logic.",
   "hooks": {
     "SessionStart": [
       {
@@ -31,6 +30,12 @@
           }
         ]
       }
+    ]
+  },
+  "_comment": "Project-level Claude Code config — auto-loaded when opening PSLink Project workspace. See .claude/hooks/sync-memory.ps1 for memory backup/restore logic.",
+  "permissions": {
+    "additionalDirectories": [
+      "c:\\Users\\kumic\\.claude\\projects\\c--Users-kumic-OneDrive-Desktop-Dev-PSLink-Project\\memory"
     ]
   }
 }
