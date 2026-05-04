@@ -25653,6 +25653,33 @@ ${paras}
             return '<div style="margin:0 0 ' + mb + 'pt 0;font-family:' + ff + ';font-size:' + fs + 'pt;color:' + color + ';line-height:' + lh + ';mso-line-height-rule:exactly;font-weight:' + weight + ';">' + html + '</div>';
         }
 
+        // Branded-style header strip — each text line in its own <tr><td> with
+        // color applied DIRECTLY on the <td>. This pattern survives Outlook's
+        // paste filter best because Word maps <td> styles to native <w:tcPr>
+        // (table cell properties), which preserve color/background. Nested
+        // <div>/<span>/<font> color is stripped by the paste handler.
+        function _psecBrandStrip(overline, headline, subline) {
+            // Common td base — bgcolor+background+background-color triple to
+            // ensure all paint paths preserve the SCIED blue fill.
+            const tdBase = 'background:' + _PSEC_BRAND + ';background-color:' + _PSEC_BRAND + ';font-family:Tahoma,\'Sans Serif\';mso-line-height-rule:exactly;';
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;background-color:' + _PSEC_BRAND + ';">' +
+                // Top accent bar
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" height="6" style="' + tdBase + 'height:6pt;line-height:1pt;font-size:1pt;">&nbsp;</td></tr>' +
+                // Overline (light blue)
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + tdBase + 'padding:11pt 18pt 4pt 18pt;font-size:8.5pt;font-weight:bold;color:' + _PSEC_BRAND_LT + ';line-height:1.4;">' +
+                  '<font color="' + _PSEC_BRAND_LT + '" face="Tahoma"><b>' + _psecHe(overline) + '</b></font>' +
+                '</td></tr>' +
+                // Headline (white, large)
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + tdBase + 'padding:0 18pt 3pt 18pt;font-size:14pt;font-weight:bold;color:#ffffff;line-height:1.3;">' +
+                  '<font color="#ffffff" face="Tahoma"><b>' + _psecHe(headline) + '</b></font>' +
+                '</td></tr>' +
+                // Subline (light blue, smaller)
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + tdBase + 'padding:0 18pt 13pt 18pt;font-size:10pt;color:' + _PSEC_BRAND_LT2 + ';line-height:1.4;">' +
+                  '<font color="' + _PSEC_BRAND_LT2 + '" face="Tahoma">' + _psecHe(subline) + '</font>' +
+                '</td></tr>' +
+                '</table>';
+        }
+
         // Outer wrapper: <table> instead of <div> so Outlook treats the email
         // as a layout container and applies the base font to all descendants.
         function _psecOuterTable(innerHtml) {
@@ -25838,16 +25865,11 @@ ${paras}
             const rows =
                 _psecRowField('หน่วยงาน', form.agency || '') +
                 _psecRowField('รายการหลัก', form.mainItems || '');
-            // Brand strip uses bgcolor on td + <font color> on every text element
-            // for max color preservation. White text on brand-blue background.
-            const brandStrip =
-                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" height="6" style="background-color:' + _PSEC_BRAND + ';height:6pt;line-height:1pt;font-size:1pt;mso-line-height-rule:exactly;">&nbsp;</td></tr>' +
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" style="padding:11pt 18pt 13pt 18pt;background-color:' + _PSEC_BRAND + ';">' +
-                '<div style="margin:0;font-family:Tahoma,\'Sans Serif\';font-size:8.5pt;font-weight:bold;line-height:1.4;mso-line-height-rule:exactly;">' + _psecColored('SCIED · APPROVE CONFIGURATION', _PSEC_BRAND_LT) + '</div>' +
-                '<div style="margin:5pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:14pt;font-weight:bold;line-height:1.3;mso-line-height-rule:exactly;">' + _psecColored('<b>' + _psecHe(form.eqList || '—') + '</b>', '#ffffff') + '</div>' +
-                '<div style="margin:3pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:10pt;line-height:1.4;mso-line-height-rule:exactly;">' + _psecColored(_psecHe(subline), _PSEC_BRAND_LT2) + '</div>' +
-                '</td></tr></table>';
+            // Brand strip — each text line is its OWN <tr><td> with color
+            // applied DIRECTLY on the <td>. Word's paste filter respects <td>
+            // styling natively (maps to <w:tc>/<w:tcPr>) but strips color from
+            // nested <div>/<span>/<font>. Flat structure = colors survive.
+            const brandStrip = _psecBrandStrip('SCIED · APPROVE CONFIGURATION', form.eqList || '—', subline);
             const footer =
                 _psecDivider(_PSEC_BORDER, 0) +
                 '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:8pt 0 0 0;">' +
@@ -25960,14 +25982,7 @@ ${paras}
                 _psecRowField('รายการ Oversea', form.mainItemsOversea || '') +
                 _psecRowField('ใบสั่งซื้อวันที่', form.orderDate || '') +
                 _psecRowField('หมดสัญญาวันที่', form.expireDate || '');
-            const brandStrip =
-                '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 18pt 0;">' +
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" height="6" style="background-color:' + _PSEC_BRAND + ';height:6pt;line-height:1pt;font-size:1pt;mso-line-height-rule:exactly;">&nbsp;</td></tr>' +
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" style="padding:11pt 18pt 13pt 18pt;background-color:' + _PSEC_BRAND + ';">' +
-                '<div style="margin:0;font-family:Tahoma,\'Sans Serif\';font-size:8.5pt;font-weight:bold;line-height:1.4;mso-line-height-rule:exactly;">' + _psecColored('SCIED · ORDER REQUEST', _PSEC_BRAND_LT) + '</div>' +
-                '<div style="margin:5pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:14pt;font-weight:bold;line-height:1.3;mso-line-height-rule:exactly;">' + _psecColored('<b>' + _psecHe(form.eqList || '—') + '</b>', '#ffffff') + '</div>' +
-                '<div style="margin:3pt 0 0 0;font-family:Tahoma,\'Sans Serif\';font-size:10pt;line-height:1.4;mso-line-height-rule:exactly;">' + _psecColored(_psecHe(subline || '—'), _PSEC_BRAND_LT2) + '</div>' +
-                '</td></tr></table>';
+            const brandStrip = _psecBrandStrip('SCIED · ORDER REQUEST', form.eqList || '—', subline || '—');
             const footer =
                 _psecDivider(_PSEC_BORDER, 0) +
                 '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:8pt 0 0 0;">' +
@@ -26066,9 +26081,9 @@ ${paras}
                       '<div style="flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#ffffff;">' +
                         '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface,#f5f5f7);flex-shrink:0;">' +
                           '<span style="font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;">Outlook Preview</span>' +
-                          '<div style="display:flex;gap:6px;">' +
-                            '<button class="psf-btn psf-btn-ghost" onclick="_psecCopy(\'body\')" style="font-size:11px;padding:5px 10px;">Copy Body</button>' +
-                            '<button class="psf-btn psf-btn-green" onclick="_psecCopy(\'all\')" style="font-size:11px;padding:5px 10px;">Copy All (Subject + Body)</button>' +
+                          '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+                            '<button class="psf-btn psf-btn-ghost" onclick="_psecCopy(\'body\')" title="Copy ไป clipboard — Outlook อาจ strip สีบ้าง" style="font-size:11px;padding:5px 10px;">Copy Body</button>' +
+                            '<button class="psf-btn psf-btn-green" onclick="_psecExportAsEml()" title="ดาวน์โหลด .eml → double-click เปิดใน Outlook พร้อม fidelity 100% (แนะนำ)" style="font-size:11px;padding:5px 10px;">Open in Outlook (.eml)</button>' +
                           '</div>' +
                         '</div>' +
                         '<div id="psec-preview" style="flex:1;min-height:0;overflow-y:auto;padding:14px 18px;background:#ffffff;color:#000000;font-family:Tahoma,\'Sans Serif\',sans-serif;font-size:11pt;line-height:1.6;"></div>' +
@@ -26275,6 +26290,39 @@ ${paras}
             // Order template uses Outlook FW: prefix — hide subject row entirely
             if (subjRow) subjRow.style.display = (_psecActiveTpl === 'order') ? 'none' : 'flex';
             bodyEl.innerHTML = _psecBuildBody(_psecActiveTpl, form);
+        }
+
+        // Bypass Outlook's paste filter entirely by exporting as .eml file.
+        // User double-clicks the downloaded file → Outlook opens a NEW email
+        // with full HTML body preserved (received-email path, not paste path).
+        // Reuses _psqEmlBuild + _psqDownloadEml from PSQ Stage 2.
+        function _psecExportAsEml() {
+            if (typeof _psqEmlBuild !== 'function' || typeof _psqDownloadEml !== 'function') {
+                _psecStatus('ไม่พบ .eml builder (PSQ ต้อง init ก่อน)', 'err');
+                return;
+            }
+            const form = _psecGetForm(_psecActiveTpl);
+            const subject = _psecBuildSubject(_psecActiveTpl, form) || ('PS Email · ' + _psecTemplates[_psecActiveTpl].label);
+            const html = _psecBuildBody(_psecActiveTpl, form);
+            const text = _psecBuildBodyText(_psecActiveTpl, form);
+            // Wrap in proper HTML5 doc so Outlook's HTML import treats it as
+            // a complete email body, not a fragment (preserves fragment vs.
+            // file-mode parsing distinction).
+            const fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:16px;font-family:Tahoma,\'Sans Serif\';font-size:11pt;color:#1f2937;">' + html + '</body></html>';
+            try {
+                const blob = _psqEmlBuild({
+                    from: '',
+                    to: '',
+                    subject: subject,
+                    bodyText: text,
+                    bodyHtml: fullHtml
+                });
+                const safeBase = (form.eqList || _psecActiveTpl).toString().replace(/[^a-zA-Z0-9_\-\.]+/g, '_').slice(0, 60);
+                _psqDownloadEml(blob, safeBase + '.eml');
+                _psecStatus('Download .eml แล้ว — double-click ไฟล์เพื่อเปิด Outlook (fidelity 100%)', 'ok');
+            } catch (e) {
+                _psecStatus('.eml error: ' + (e && e.message ? e.message : e), 'err');
+            }
         }
 
         async function _psecCopy(what) {
