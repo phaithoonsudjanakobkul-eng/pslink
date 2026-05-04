@@ -12974,6 +12974,7 @@
             // ── Business suite ──
             'ps-quotation': { label: 'PS Quotation', desc: 'Auto-fill competitor Excel quotations from main file', isQuotation: true },
             'ps-specflow':  { label: 'PS SpecFlow',  desc: 'Import SCIEDLink spec · Auto-format numbering & levels · Export .docx', isSpecFlow: true },
+            'ps-email-composer': { label: 'PS Email Composer', desc: 'Approve Configuration / สั่งของ — paste-ready Outlook HTML', isEmailComposer: true },
             // ── Microscopy suite ──
             'ps-micro-imaging':   { label: 'PS Micro Imaging', desc: 'Integrated Image Analysis Suite · runs 100% offline', isMicro: true },
             // ── Image editing ──
@@ -13192,7 +13193,7 @@
             const content = document.getElementById('util-content');
             if (!content) return;
             const t = _utilTools[id] || {};
-            const isWorkstation = !!(t.isMicro || t.isSpecFlow || t.isQuotation || t.isBgRemover || t.isUpscaler || t.isAiStudio);
+            const isWorkstation = !!(t.isMicro || t.isSpecFlow || t.isQuotation || t.isBgRemover || t.isUpscaler || t.isAiStudio || t.isEmailComposer);
             content.style.overflowY = isWorkstation ? 'hidden' : 'auto';
             content.style.padding   = isWorkstation ? '0' : '32px 36px';
             content.style.height    = isWorkstation ? '100%' : '';
@@ -13738,6 +13739,8 @@
                     _psqInit(panel);
                 } else if (tool.isSpecFlow) {
                     _psfInit(panel);
+                } else if (tool.isEmailComposer) {
+                    _psecInit(panel);
                 } else if (tool.isUpscaler) {
                     _psupInit(panel);
                 } else if (tool.isBgRemover) {
@@ -30138,7 +30141,7 @@ ${paras}
             // Sync Phosphor scan-lines suppression: only when on utilities tab AND active tool is workstation
             (function(){
                 var _ws = _utilTools[_activeUtilTool];
-                var _active = t === 'utilities' && _ws && !!(_ws.isMicro || _ws.isSpecFlow || _ws.isQuotation || _ws.isBgRemover || _ws.isUpscaler || _ws.isAiStudio);
+                var _active = t === 'utilities' && _ws && !!(_ws.isMicro || _ws.isSpecFlow || _ws.isQuotation || _ws.isBgRemover || _ws.isUpscaler || _ws.isAiStudio || _ws.isEmailComposer);
                 document.body.classList.toggle('util-workstation-active', _active);
             })();
             // Reset scroll to top on mobile/tablet when switching tabs
