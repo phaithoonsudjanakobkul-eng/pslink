@@ -25409,6 +25409,15 @@ ${paras}
         // Template order follows the workflow stages:
         //   1. ตั้งงบประมาณ (budget setup) → 2. ยื่นซอง (bid) → 3. Approve สั่งของ → 4. สั่งของจริง (FW to ฝ่ายจัดซื้อ)
         const _psecTemplates = {
+            // Standalone — outgoing-to-customer flow, not part of 4-step internal approval.
+            // step:null hides the stepper dots & step badge; tagline shows shortLabel only.
+            'quotation-customer': {
+                label: 'ใบเสนอราคา (ลูกค้า)',
+                shortLabel: 'ส่งใบเสนอราคา',
+                step: null,
+                fields: ['recipient', 'cc', 'subjectMatter', 'closing'],
+                defaultClosing: 'ขอแสดงความนับถือ',
+            },
             'approve-budget': {
                 label: 'Approve Configuration — ตั้งงบประมาณ',
                 shortLabel: 'ตั้งงบประมาณ',
@@ -25448,6 +25457,10 @@ ${paras}
         }
 
         const _psecFieldDefs = {
+            // Quotation-customer fields (outgoing-to-customer flow)
+            recipient:        { label: 'เรียน (ชื่อลูกค้า)', type: 'text', placeholder: 'เช่น คุณสมชาย / นพ.อรรถพล / สพ.ญ.ชนากานต์ ไพรคงคาธรรม' },
+            cc:               { label: 'สำเนาถึง (optional)', type: 'text', placeholder: 'เว้นว่างถ้าไม่มี' },
+            subjectMatter:    { label: 'เรื่อง / รายการ (optional)', type: 'text', placeholder: 'เช่น กล้องจุลทรรศน์ CX23 จำนวน 1 เครื่อง — เว้นว่างได้' },
             agency:           { label: 'หน่วยงาน', type: 'text', placeholder: 'เช่น คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร' },
             eqList:           { label: 'เลขที่ใบเสนอราคา / EQ List', type: 'text', placeholder: 'PS260107-0041Rev.02' },
             mainItems:        { label: 'รายการสินค้าหลัก', type: 'text', placeholder: 'CX23T, SZ61TR, EP50' },
@@ -25469,9 +25482,9 @@ ${paras}
             return (tpl && tpl.defaultClosing) || 'Thanks,';
         }
 
-        let _psecActiveTpl = 'approve-bid';
+        let _psecActiveTpl = 'quotation-customer';
         let _psecActiveStyle = 'exec';
-        let _psecState = { templates: {}, lastTemplate: 'approve-budget', lastStyle: 'exec' };
+        let _psecState = { templates: {}, lastTemplate: 'quotation-customer', lastStyle: 'exec' };
 
         function _psecLoadState() {
             try {
@@ -26226,13 +26239,101 @@ ${paras}
         }
 
         // ══════════════════════════════════════════════════════════════════
+        //  QUOTATION (customer-facing) — body shared across all 3 styles
+        //  Header chrome differs per style; body content is identical.
+        // ══════════════════════════════════════════════════════════════════
+
+        // Today in Thai BE — auto-shown in subline if no subjectMatter, so the banner
+        // never looks empty. Outgoing letters traditionally carry a date.
+        function _psecTodayBE() {
+            const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+            const d = new Date();
+            return d.getDate() + ' ' + months[d.getMonth()] + ' ' + (d.getFullYear() + 543);
+        }
+
+        // Shared body block for all 3 styles — recipient + optional cc, intro, follow-up.
+        // accent param drives the brand-color emphasis on "ใบเสนอราคา" inside intro.
+        function _psecQuotation_Body(form, opts) {
+            opts = opts || {};
+            const accent = opts.accent || _PSEC_BRAND;
+            const recipient = (form.recipient || '').trim() || '—';
+            const cc = (form.cc || '').trim();
+            const sm = (form.subjectMatter || '').trim();
+            const ccLine = cc
+                ? _psecPara('<span style="color:' + _PSEC_DIM + ';">สำเนาถึง</span> ' + _psecHe(cc), 4)
+                : '';
+            const intro = 'ทางบริษัทฯ ขอนำส่ง<b><span style="color:' + accent + ';">ใบเสนอราคา</span></b>'
+                + (sm ? ' ' + _psecHe(sm) : '')
+                + ' พร้อมแนบเอกสารประกอบมาเพื่อการพิจารณาครับ';
+            const followup = 'หากมีข้อสงสัย หรือต้องการสอบถามข้อมูลเพิ่มเติม ยินดีให้บริการครับ';
+            return _psecPara('เรียน ' + _psecHe(recipient), cc ? 4 : 12) +
+                   ccLine +
+                   (cc ? _psecSpacer(8) : '') +
+                   _psecPara(intro, 12) +
+                   _psecPara(followup, 0);
+        }
+
+        function _psecExec_Quotation(form) {
+            const sm = (form.subjectMatter || '').trim();
+            const overline = 'SCIED · QUOTATION';
+            const headline = 'ใบเสนอราคา';
+            const subline = sm || _psecTodayBE();
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
+              '<tr><td style="padding:0;">' +
+                _psecExec_Hero(overline, headline, subline) +
+                _psecSpacer(14) +
+                _psecQuotation_Body(form, { accent: _PSEC_BRAND }) +
+                _psecSpacer(14) +
+                _psecHairline(_PSEC_CONS_DIVIDER, 0, 0) +
+                _psecSpacer(10) +
+                _psecPara(_psecHe(_psecResolveClosing('quotation-customer', form)), 0) +
+              '</td></tr>' +
+            '</table>';
+        }
+
+        function _psecBanner_Quotation(form) {
+            const sm = (form.subjectMatter || '').trim();
+            const overline = 'SCIED · QUOTATION';
+            const headline = 'ใบเสนอราคา';
+            const subline = sm || _psecTodayBE();
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
+              '<tr><td style="padding:0;">' +
+                _psecBanner_BuildBanner(overline, headline, subline) +
+                _psecSpacer(12) +
+                _psecQuotation_Body(form, { accent: _PSEC_BRAND }) +
+                _psecSpacer(14) +
+                _psecHairline(_PSEC_BORDER, 0, 0) +
+                _psecSpacer(10) +
+                _psecPara(_psecHe(_psecResolveClosing('quotation-customer', form)), 0) +
+              '</td></tr>' +
+            '</table>';
+        }
+
+        function _psecEdit_Quotation(form) {
+            const sm = (form.subjectMatter || '').trim();
+            const overline = 'SCIED · QUOTATION';
+            const heading = 'ใบเสนอราคา';
+            const subtitle = sm || _psecTodayBE();
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
+              '<tr><td style="padding:0;">' +
+                _psecEdit_Header(overline, heading, subtitle) +
+                _psecQuotation_Body(form, { accent: _PSEC_BRAND }) +
+                _psecSpacer(14) +
+                _psecHairline('#d1d5db', 0, 0) +
+                _psecSpacer(10) +
+                _psecPara(_psecHe(_psecResolveClosing('quotation-customer', form)), 0) +
+              '</td></tr>' +
+            '</table>';
+        }
+
+        // ══════════════════════════════════════════════════════════════════
         //  Style registry + dispatch
         // ══════════════════════════════════════════════════════════════════
 
         const _PSEC_STYLES = {
-            exec:      { label: 'Console',   desc: 'Dark hero · mono ID · subtle data grid', buildApprove: _psecExec_Approve, buildOrder: _psecExec_Order },
-            banner:    { label: 'Branded',   desc: 'Bold brand banner header',     buildApprove: _psecBanner_Approve, buildOrder: _psecBanner_Order },
-            editorial: { label: 'Spec',      desc: 'Brand stripe · bold ID · heavy black rules', buildApprove: _psecEdit_Approve, buildOrder: _psecEdit_Order }
+            exec:      { label: 'Console',   desc: 'Dark hero · mono ID · subtle data grid', buildApprove: _psecExec_Approve, buildOrder: _psecExec_Order, buildQuotation: _psecExec_Quotation },
+            banner:    { label: 'Branded',   desc: 'Bold brand banner header',     buildApprove: _psecBanner_Approve, buildOrder: _psecBanner_Order, buildQuotation: _psecBanner_Quotation },
+            editorial: { label: 'Spec',      desc: 'Brand stripe · bold ID · heavy black rules', buildApprove: _psecEdit_Approve, buildOrder: _psecEdit_Order, buildQuotation: _psecEdit_Quotation }
         };
 
         // ── Plain-text builders (style-agnostic) ───────────────────────────
@@ -26290,6 +26391,10 @@ ${paras}
 
         function _psecBuildSubject(tplId, form) {
             if (tplId === 'order') return ''; // user uses Outlook FW: prefix
+            if (tplId === 'quotation-customer') {
+                const sm = (form.subjectMatter || '').trim();
+                return sm ? 'ใบเสนอราคา / ' + sm : 'ใบเสนอราคา';
+            }
             const eq = form.eqList || '';
             const items = form.mainItems || '';
             const verb = _psecApproveVerb(tplId);
@@ -26301,19 +26406,35 @@ ${paras}
         function _psecBuildBody(tplId, form) {
             const style = _PSEC_STYLES[_psecActiveStyle] || _PSEC_STYLES.exec;
             if (tplId === 'order') return style.buildOrder(form);
+            if (tplId === 'quotation-customer') return style.buildQuotation(form);
             return style.buildApprove(tplId, form);
         }
 
         function _psecBuildBodyText(tplId, form) {
             if (tplId === 'order') return _psecBuildOrderText(form);
+            if (tplId === 'quotation-customer') return _psecBuildQuotationText(form);
             return _psecBuildApproveText(tplId, form);
+        }
+
+        function _psecBuildQuotationText(form) {
+            const lines = [];
+            lines.push('เรียน ' + (form.recipient || ''));
+            if ((form.cc || '').trim()) lines.push('สำเนาถึง ' + form.cc);
+            lines.push('');
+            const sm = (form.subjectMatter || '').trim();
+            lines.push('ทางบริษัทฯ ขอนำส่งใบเสนอราคา' + (sm ? ' ' + sm : '') + ' พร้อมแนบเอกสารประกอบมาเพื่อการพิจารณาครับ');
+            lines.push('');
+            lines.push('หากมีข้อสงสัย หรือต้องการสอบถามข้อมูลเพิ่มเติม ยินดีให้บริการครับ');
+            lines.push('');
+            lines.push(_psecResolveClosing('quotation-customer', form));
+            return lines.join('\n');
         }
 
         // ── UI ─────────────────────────────────────────────────────────────
 
         function _psecInit(panel) {
             _psecLoadState();
-            _psecActiveTpl = (_psecState.lastTemplate && _psecTemplates[_psecState.lastTemplate]) ? _psecState.lastTemplate : 'approve-budget';
+            _psecActiveTpl = (_psecState.lastTemplate && _psecTemplates[_psecState.lastTemplate]) ? _psecState.lastTemplate : 'quotation-customer';
             _psecActiveStyle = (_psecState.lastStyle && _PSEC_STYLES[_psecState.lastStyle]) ? _psecState.lastStyle : 'exec';
             panel.innerHTML =
                 // Scoped polish: focus ring on inputs, hover lift on action pills.
@@ -26418,7 +26539,10 @@ ${paras}
                 const color = isActive ? '#ffffff' : 'var(--text-secondary,var(--text-primary))';
                 const border = isActive ? 'var(--accent)' : 'var(--border)';
                 const stepBadgeColor = isActive ? 'rgba(255,255,255,0.85)' : 'var(--text-dim)';
-                const stepStr = '<span style="opacity:0.7;color:' + stepBadgeColor + ';margin-right:6px;font-weight:700;">' + tpl.step + '</span>';
+                // step:null = standalone template (e.g. quotation-customer) — no step badge
+                const stepStr = (tpl.step != null)
+                    ? '<span style="opacity:0.7;color:' + stepBadgeColor + ';margin-right:6px;font-weight:700;">' + tpl.step + '</span>'
+                    : '';
                 return '<button onclick="_psecSwitchTpl(\'' + id + '\')" title="' + _psecHe(tpl.label) + '" style="font-family:var(--font-mono);font-size:11px;font-weight:600;padding:6px 12px;border:1px solid ' + border + ';border-radius:999px;background:' + bg + ';color:' + color + ';cursor:pointer;white-space:nowrap;">' + stepStr + (tpl.shortLabel || tpl.label) + '</button>';
             }).join('');
         }
@@ -26429,9 +26553,16 @@ ${paras}
         function _psecUpdateTagline() {
             const el = document.getElementById('psec-tagline');
             if (!el) return;
-            const ids = Object.keys(_psecTemplates);
             const tpl = _psecTemplates[_psecActiveTpl];
             if (!tpl) { el.innerHTML = ''; return; }
+            // step:null = standalone template (e.g. quotation-customer, outgoing-to-customer flow).
+            // Show only the shortLabel — internal 4-step stepper would be misleading.
+            if (tpl.step == null) {
+                el.innerHTML = '<span style="color:var(--text-secondary,var(--text-primary));font-weight:600;letter-spacing:0.04em;">' + _psecHe(tpl.shortLabel || tpl.label) + '</span>';
+                return;
+            }
+            // Stepper only iterates over numbered (step:1-4) templates — standalone ones excluded.
+            const ids = Object.keys(_psecTemplates).filter(function(id){ return _psecTemplates[id].step != null; });
             const activeStep = tpl.step;
             const dots = ids.map(function(id, idx) {
                 const t = _psecTemplates[id];
