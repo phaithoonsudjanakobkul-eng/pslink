@@ -25487,7 +25487,8 @@ ${paras}
             // Step 1: pull out [text](url) markdown links into placeholders so the
             // bare-URL auto-linker doesn't re-wrap them.
             const slots = [];
-            html = html.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, function(_, text, url) {
+            // Accept both [text](url) AND [text]url (parens optional, whitespace allowed between)
+            html = html.replace(/\[([^\]\n]+)\]\s*\(?\s*(https?:\/\/[^\s)<]+)\s*\)?/g, function(_, text, url) {
                 const i = slots.length;
                 slots.push('<a href="' + url + '" style="' + linkStyle + '">' + text + '</a>');
                 return 'PSEC' + i + 'LINK';
@@ -26353,7 +26354,7 @@ ${paras}
                 return '<div style="display:grid;grid-template-columns:1fr 60px 1fr 28px;gap:6px;align-items:start;">' +
                     '<input type="text" placeholder="Item" value="' + _psecHe(it.name || '') + '" oninput="_psecOnItemChange(' + i + ', \'name\', this.value)" style="font-family:\'Tahoma\',sans-serif;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);">' +
                     '<input type="text" placeholder="Qty" value="' + _psecHe(it.qty || '') + '" oninput="_psecOnItemChange(' + i + ', \'qty\', this.value)" style="font-family:\'Tahoma\',sans-serif;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);text-align:center;">' +
-                    '<input type="text" placeholder="Remark / URL  ·  [คลิกที่นี่](https://...)" value="' + _psecHe(it.remark || '') + '" oninput="_psecOnItemChange(' + i + ', \'remark\', this.value)" title="ใส่ URL ตรงๆ จะ auto-link เป็นลิงก์ยาว, หรือใช้ [ข้อความ](url) เพื่อแสดงแค่ข้อความที่ครอบลิงก์" style="font-family:\'Tahoma\',sans-serif;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);">' +
+                    '<input type="text" placeholder="Remark / URL  ·  [ดูสินค้า]https://..." value="' + _psecHe(it.remark || '') + '" oninput="_psecOnItemChange(' + i + ', \'remark\', this.value)" title="• ใส่ URL ตรงๆ → auto-link เป็นลิงก์ยาว\n• ใช้ [ข้อความ]URL → แสดงแค่ข้อความเป็นลิงก์ (ไม่ต้องมีวงเล็บ)\n• [ข้อความ](URL) ก็ได้ (markdown มาตรฐาน)" style="font-family:\'Tahoma\',sans-serif;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface,#fff);color:var(--text-primary);">' +
                     '<button onclick="_psecDelItem(' + i + ')" title="ลบ" style="font-family:var(--font-mono);font-size:14px;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--text-dim);cursor:pointer;line-height:1;padding:0;">×</button>' +
                 '</div>';
             }).join('');
