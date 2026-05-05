@@ -25522,7 +25522,7 @@ ${paras}
             if (mb == null) mb = 6;
             if (!fs) fs = 11;
             if (!color) color = _PSEC_TEXT;
-            return '<p style="margin:0 0 ' + mb + 'pt 0;font-family:' + _PSEC_FF + ';font-size:' + fs + 'pt;color:' + color + ';line-height:1.55;mso-line-height-rule:exactly;">' + html + '</p>';
+            return '<p style="margin:0 0 ' + mb + 'pt 0;mso-margin-top-alt:0;mso-margin-bottom-alt:' + mb + 'pt;font-family:' + _PSEC_FF + ';font-size:' + fs + 'pt;color:' + color + ';line-height:1.55;mso-line-height-rule:exactly;">' + html + '</p>';
         }
 
         function _psecHairline(color, mt, mb) {
@@ -25549,9 +25549,14 @@ ${paras}
             const valueWeight = opts.valueWeight || '600';
             const labelStyle = opts.labelStyle || '';   // e.g. 'font-style:italic;'
             const pad         = opts.pad || '5pt 0';
+            const pZero = 'margin:0;mso-margin-top-alt:0;mso-margin-bottom-alt:0;mso-line-height-rule:exactly;';
             return '<tr>' +
-                '<td style="padding:' + pad + ';font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + labelColor + ';width:' + labelW + 'pt;vertical-align:top;line-height:1.45;mso-line-height-rule:exactly;' + labelStyle + '">' + _psecHe(label) + '</td>' +
-                '<td style="padding:' + pad + ';font-family:' + _PSEC_FF + ';font-size:11pt;color:' + valueColor + ';font-weight:' + valueWeight + ';vertical-align:top;line-height:1.45;mso-line-height-rule:exactly;">' + _psecHe(value || '—') + '</td>' +
+                '<td style="padding:' + pad + ';width:' + labelW + 'pt;vertical-align:top;">' +
+                  '<p style="' + pZero + 'font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + labelColor + ';line-height:1.45;' + labelStyle + '">' + _psecHe(label) + '</p>' +
+                '</td>' +
+                '<td style="padding:' + pad + ';vertical-align:top;">' +
+                  '<p style="' + pZero + 'font-family:' + _PSEC_FF + ';font-size:11pt;color:' + valueColor + ';font-weight:' + valueWeight + ';line-height:1.45;">' + _psecHe(value || '—') + '</p>' +
+                '</td>' +
             '</tr>';
         }
 
@@ -25672,20 +25677,21 @@ ${paras}
 
         function _psecBanner_BuildBanner(overline, headline, subline) {
             const cellTd = 'background:' + _PSEC_BRAND + ';background-color:' + _PSEC_BRAND + ';';
+            const pZero = 'margin:0;mso-margin-top-alt:0;mso-margin-bottom-alt:0;mso-line-height-rule:exactly;';
             return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 16pt 0;background-color:' + _PSEC_BRAND + ';">' +
                 // Top accent strip
                 '<tr><td bgcolor="' + _PSEC_BRAND + '" height="6" style="' + cellTd + 'height:6pt;line-height:1pt;font-size:1pt;">&nbsp;</td></tr>' +
                 // Overline
                 '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + cellTd + 'padding:11pt 18pt 4pt 18pt;">' +
-                  '<span style="font-family:' + _PSEC_FF + ';font-size:8.5pt;font-weight:bold;color:' + _PSEC_BRAND_LT + ';line-height:1.3;mso-line-height-rule:exactly;">' + _psecHe(overline) + '</span>' +
+                  '<p style="' + pZero + 'font-family:' + _PSEC_FF + ';font-size:8.5pt;font-weight:bold;color:' + _PSEC_BRAND_LT + ';line-height:1.2;">' + _psecHe(overline) + '</p>' +
                 '</td></tr>' +
                 // Headline
                 '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + cellTd + 'padding:0 18pt 4pt 18pt;">' +
-                  '<span style="font-family:' + _PSEC_FF + ';font-size:14pt;font-weight:bold;color:#ffffff;line-height:1.3;mso-line-height-rule:exactly;">' + _psecHe(headline) + '</span>' +
+                  '<p style="' + pZero + 'font-family:' + _PSEC_FF + ';font-size:14pt;font-weight:bold;color:#ffffff;line-height:1.2;">' + _psecHe(headline) + '</p>' +
                 '</td></tr>' +
                 // Subline
                 '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + cellTd + 'padding:0 18pt 13pt 18pt;">' +
-                  '<span style="font-family:' + _PSEC_FF + ';font-size:10pt;color:' + _PSEC_BRAND_LT + ';line-height:1.4;mso-line-height-rule:exactly;">' + _psecHe(subline) + '</span>' +
+                  '<p style="' + pZero + 'font-family:' + _PSEC_FF + ';font-size:10pt;color:' + _PSEC_BRAND_LT + ';line-height:1.3;">' + _psecHe(subline) + '</p>' +
                 '</td></tr>' +
                 '</table>';
         }
