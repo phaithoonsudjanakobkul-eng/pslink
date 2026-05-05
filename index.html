@@ -25587,12 +25587,17 @@ ${paras}
             const dark = _PSEC_CONS_DARK;
             const dim  = _PSEC_CONS_DIM_LT;
             const pBase = 'mso-margin-top-alt:0;mso-line-height-rule:exactly;';
-            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;background-color:' + dark + ';">' +
-              '<tr><td bgcolor="' + dark + '" style="background:' + dark + ';background-color:' + dark + ';padding:16pt 20pt 16pt 20pt;border-left:3pt solid ' + _PSEC_BRAND + ';">' +
-                '<p style="margin:0 0 8pt 0;mso-margin-bottom-alt:8pt;' + pBase + 'font-family:' + _PSEC_FF + ';font-size:8.5pt;font-weight:bold;color:' + dim + ';line-height:1.2;">' + _psecHe(overline) + '</p>' +
-                '<p style="margin:0 0 4pt 0;mso-margin-bottom-alt:4pt;' + pBase + 'font-family:' + _PSEC_CONS_MONO + ';font-size:18pt;font-weight:bold;color:#ffffff;line-height:1.15;">' + _psecHe(headline) + '</p>' +
-                '<p style="margin:0;mso-margin-bottom-alt:0;' + pBase + 'font-family:' + _PSEC_FF + ';font-size:10pt;color:' + dim + ';line-height:1.35;">' + _psecHe(subline) + '</p>' +
-              '</td></tr>' +
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="' + dark + '" style="width:100%;border-collapse:collapse;background:' + dark + ';background-color:' + dark + ';">' +
+              '<tr bgcolor="' + dark + '" style="background:' + dark + ';">' +
+                '<td bgcolor="' + dark + '" style="background:' + dark + ';background-color:' + dark + ';padding:16pt 20pt 16pt 20pt;border-left:3pt solid ' + _PSEC_BRAND + ';">' +
+                  '<p style="margin:0 0 8pt 0;mso-margin-bottom-alt:8pt;' + pBase + 'font-family:' + _PSEC_FF + ';font-size:8.5pt;font-weight:bold;color:' + dim + ';line-height:1.2;">' + _psecHe(overline) + '</p>' +
+                  '<p style="margin:0 0 4pt 0;mso-margin-bottom-alt:4pt;' + pBase + 'font-family:' + _PSEC_CONS_MONO + ';font-size:18pt;font-weight:bold;color:#ffffff;line-height:1.15;">' + _psecHe(headline) + '</p>' +
+                  '<p style="margin:0;mso-margin-bottom-alt:0;' + pBase + 'font-family:' + _PSEC_FF + ';font-size:10pt;color:' + dim + ';line-height:1.35;">' + _psecHe(subline) + '</p>' +
+                  // Phantom <o:p> absorber — colored to match dark bg so any Word-injected
+                  // trailing paragraph blends into the hero instead of showing as a white strip.
+                  '<p style="margin:0;mso-margin-bottom-alt:0;font-size:1pt;line-height:1pt;color:' + dark + ';">&nbsp;</p>' +
+                '</td>' +
+              '</tr>' +
             '</table>';
         }
 
