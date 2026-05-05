@@ -25549,7 +25549,11 @@ ${paras}
             if (!color) color = _PSEC_BORDER;
             if (!mt) mt = 0;
             if (!mb) mb = 0;
-            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;border-top:1px solid ' + color + ';margin:' + mt + 'pt 0 ' + mb + 'pt 0;"><tr><td style="line-height:0;font-size:0;height:0;">&nbsp;</td></tr></table>';
+            // 1pt bg-color row instead of border-top — Word/Outlook reliably honor cell
+            // backgrounds even on tiny rows; pure border-top often collapses to nothing.
+            return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:' + mt + 'pt 0 ' + mb + 'pt 0;">' +
+              '<tr><td bgcolor="' + color + '" style="height:1pt;line-height:1pt;font-size:1pt;background:' + color + ';background-color:' + color + ';">&nbsp;</td></tr>' +
+            '</table>';
         }
 
         function _psecAccentRule(width, color, mt, mb) {
@@ -25629,7 +25633,7 @@ ${paras}
             const pZero = 'margin:0;mso-margin-top-alt:0;mso-margin-bottom-alt:0;mso-line-height-rule:exactly;';
             return '<tr>' +
                 '<td style="padding:7pt 14pt 7pt 0;width:130pt;vertical-align:top;border-bottom:1px solid ' + _PSEC_CONS_DIVIDER + ';">' +
-                  '<p style="' + pZero + 'font-family:' + _PSEC_FF + ';font-size:9.5pt;color:#6b7280;font-weight:bold;line-height:1.4;">' + _psecHe(label) + '</p>' +
+                  '<p style="' + pZero + 'font-family:' + _PSEC_FF + ';font-size:9.5pt;color:#4b5563;font-weight:bold;line-height:1.4;">' + _psecHe(label) + '</p>' +
                 '</td>' +
                 '<td style="padding:7pt 0;vertical-align:top;border-bottom:1px solid ' + _PSEC_CONS_DIVIDER + ';">' +
                   '<p style="' + pZero + 'font-family:' + _PSEC_FF + ';font-size:11pt;color:#1f2937;font-weight:600;line-height:1.4;">' + _psecHe(value || '—') + '</p>' +
@@ -25640,6 +25644,31 @@ ${paras}
         // 4pt spacer row to insert at top of K/V table — gives breathing space
         // between the table's border-top and the first row's content.
         const _PSEC_EXEC_TOP_SPACER_ROW = '<tr><td colspan="2" style="padding:0;height:4pt;line-height:4pt;font-size:1pt;border:0;">&nbsp;</td></tr>';
+
+        // Console-specific notes block — mono brand-blue numbers + hanging indent
+        // (uses 2-col table so wrapped lines align with first line, not under the number).
+        function _psecExec_NotesBlock(raw) {
+            const trimmed = (raw || '').trim();
+            if (!trimmed) return '';
+            const lines = trimmed.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
+            if (lines.length === 0) return '';
+            const pZero = 'margin:0;mso-margin-top-alt:0;mso-margin-bottom-alt:0;mso-line-height-rule:exactly;';
+            if (lines.length === 1) {
+                return '<p style="' + pZero + 'font-family:' + _PSEC_FF + ';font-size:11pt;color:#1f2937;line-height:1.5;">' + _psecHe(lines[0]) + '</p>';
+            }
+            const rows = lines.map(function(l, i){
+                const padBottom = (i === lines.length - 1) ? 0 : 5;
+                return '<tr>' +
+                    '<td style="padding:0 8pt ' + padBottom + 'pt 0;width:24pt;vertical-align:top;">' +
+                      '<p style="' + pZero + 'font-family:' + _PSEC_CONS_MONO + ';font-size:11pt;font-weight:bold;color:' + _PSEC_BRAND + ';line-height:1.5;text-align:right;">' + (i + 1) + '.</p>' +
+                    '</td>' +
+                    '<td style="padding:0 0 ' + padBottom + 'pt 0;vertical-align:top;">' +
+                      '<p style="' + pZero + 'font-family:' + _PSEC_FF + ';font-size:11pt;color:#1f2937;line-height:1.5;word-wrap:break-word;overflow-wrap:break-word;">' + _psecHe(l) + '</p>' +
+                    '</td>' +
+                '</tr>';
+            }).join('');
+            return '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">' + rows + '</table>';
+        }
 
         function _psecExec_Approve(tplId, form) {
             const isBid = tplId === 'approve-bid';
@@ -25664,7 +25693,7 @@ ${paras}
                 notesBlock =
                     _psecSpacer(14) +
                     _psecExec_SectionLabel('หมายเหตุ') +
-                    _psecPara(_psecNotesToHtml(form.notes), 0);
+                    _psecExec_NotesBlock(form.notes);
             }
 
             return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
@@ -25744,7 +25773,10 @@ ${paras}
 
             let notesBlock = '';
             if ((form.notes || '').trim()) {
-                notesBlock = _psecSpacer(8) + _psecPara('<b>หมายเหตุ:</b> ' + _psecNotesToHtml(form.notes), 0);
+                notesBlock =
+                    _psecSpacer(12) +
+                    _psecExec_SectionLabel('หมายเหตุ') +
+                    _psecExec_NotesBlock(form.notes);
             }
 
             return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;font-family:' + _PSEC_FF + ';">' +
