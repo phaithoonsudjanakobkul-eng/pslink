@@ -1771,10 +1771,16 @@
             flex: 1;
             min-height: 0;
         }
+        /* Right column children — equal vertical distribution. flex: 1 1 0
+           "share remaining row 1 height equally, ignoring content". Without
+           this, sections collapse to content size and leave empty space below
+           the last one (Hero towers over Right column at wide viewport).
+           Was inside @media (max-width: 1799px); promoted to global so
+           home desktop 2560×1440 gets the same layout as notebook 1707. */
         html[data-preset="cinematic"] #profile-wl-console {
-            flex: 0 0 auto !important;
+            flex: 1 1 0 !important;
             max-height: none !important;
-            min-height: 180px;
+            min-height: 0 !important;
         }
         /* Cinematic Phase 14 — Row 1 inside ratio: LOW Alerts vs Pinned.
            Default inline style is `flex:0 0 36%` (Slate/Onyx default look). Per
@@ -1809,39 +1815,11 @@
                with Hero. */
             /* Phase 14c: 4-col grid (Hero col 1 = 25% | Right cols 2-4 = 75%).
                Bottom row inherits via subgrid → first card aligns with Hero. */
-            html[data-preset="cinematic"] #dash-content:not(.hidden) {
-                grid-template-columns: repeat(4, 1fr) !important;
-                grid-template-rows: minmax(calc(100vh - 90px), auto) auto auto auto !important;
-            }
-            html[data-preset="cinematic"] #muse-card {
-                width: 100% !important;
-                height: 100% !important;
-                min-height: 0 !important;
-                max-height: none !important;
-            }
-            /* Right column children — equal vertical distribution.
-               flex: 1 1 0 means "share remaining height equally, ignoring content".
-               Without this, sections collapse to content size and leave empty space
-               below the last one (Hero would visually tower over Right column). */
-            html[data-preset="cinematic"] #profile-wl-console {
-                flex: 1 1 0 !important;
-                max-height: none !important;
-                min-height: 0 !important;
-            }
-            html[data-preset="cinematic"] .cine-profile-row {
-                flex: 1 1 0 !important;
-                max-height: none;
-                min-height: 0;
-            }
-            html[data-preset="cinematic"] .cine-mini-frames {
-                flex: 1 1 0 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                min-height: 0 !important;
-            }
-            html[data-preset="cinematic"] .cine-mf-grid {
-                flex: 1 1 auto !important;
-            }
+            /* (Hero + Right column flex rules moved OUT of this @media block —
+               see globals just before this @media. They now apply at ALL viewports
+               so Hero stretches + Right column distributes evenly on home desktop
+               2560×1440 too, not just notebook ≤1799. Empty `#dash-content` rule
+               removed: now identical to default rule at line ~1716.) */
             /* Bottom finance row: 4 cards align with Hero edge.
                Apply on #dash-fin-row (the actual card container; #ddr-fin wraps it
                with drag handle + collapsed bar). Tailwind class
@@ -1886,6 +1864,7 @@
             gap: 12px;
             align-items: stretch;
             min-height: 340px;
+            flex: 1 1 0 !important;
         }
         html[data-preset="cinematic"] .cine-profile-row > #profile-card-main {
             order: 3;
@@ -2488,9 +2467,14 @@
            in the right stack. Click switches preset via _museLoadPreset. */
         .cine-mini-frames { display: none; }
         html[data-preset="cinematic"] .cine-mini-frames {
-            display: block;
+            display: flex !important;
+            flex-direction: column !important;
             padding: 14px !important;
-            flex: 0 0 auto !important;
+            flex: 1 1 0 !important;
+            min-height: 0 !important;
+        }
+        html[data-preset="cinematic"] .cine-mf-grid {
+            flex: 1 1 auto !important;
         }
         html[data-preset="cinematic"] .cine-mf-header {
             display: flex;
