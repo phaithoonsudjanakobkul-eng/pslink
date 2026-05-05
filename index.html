@@ -1844,11 +1844,23 @@
                with drag handle + collapsed bar). Tailwind class
                `grid-cols-1 md:grid-cols-2 lg:grid-cols-4` lives at (0,1,0) specificity
                — overridden cleanly by this (0,2,1) + !important rule. */
-            /* Pinned watchlist — base CSS caps grid column max widths (~583px total).
-               Override to 1fr columns so the table stretches the full Right column
-               width (~1230px on notebook) instead of leaving empty space on the right. */
+            /* Pinned watchlist — Cinematic 7-col gcols. Capped max-px (NOT 1fr)
+               so columns don't stretch arbitrarily wide in the now-75% Right
+               column. Total max ~735px + gaps; with `justify-content: center`
+               in GSTYLE, the table centers itself in the wider Pinned area
+               instead of spreading values too far apart. */
             html[data-preset="cinematic"] #wl-pinned-list {
-                --pinned-gcols: minmax(60px, 1.4fr) minmax(54px, 1.2fr) minmax(72px, 1fr) minmax(60px, 1fr) minmax(72px, 1fr) minmax(72px, 1fr) minmax(72px, 1fr) !important;
+                --pinned-gcols: minmax(60px, 110px) minmax(80px, 160px) minmax(72px, 95px) minmax(60px, 75px) minmax(72px, 105px) minmax(72px, 95px) minmax(72px, 95px) !important;
+            }
+        }
+        /* Cinematic — 4-col gcols at 768-1279px (when wl-pinned-col-hide is
+           applied via line 6074/6079, hiding CHG/HIGH/LOW). Without this,
+           the 7-col template above renders with 3 empty tracks and the 4
+           visible cells bunch left. TREND uses 1fr to fill the remaining
+           horizontal space at narrow viewports where the table area is small. */
+        @media (min-width: 768px) and (max-width: 1279px) {
+            html[data-preset="cinematic"] #wl-pinned-list {
+                --pinned-gcols: minmax(70px, 100px) minmax(80px, 1fr) minmax(72px, 95px) minmax(80px, 110px) !important;
             }
         }
 
