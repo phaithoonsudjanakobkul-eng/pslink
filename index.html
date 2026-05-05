@@ -25409,15 +25409,18 @@ ${paras}
         const _psecTemplates = {
             'approve-bid': {
                 label: 'Approve Configuration — ยื่นซอง',
-                fields: ['agency', 'eqList', 'mainItems', 'submitDate', 'submitTime', 'notes'],
+                fields: ['agency', 'eqList', 'mainItems', 'submitDate', 'submitTime', 'notes', 'closing'],
+                defaultClosing: 'Thanks,',
             },
             'approve-order': {
                 label: 'Approve Configuration — สั่งของ',
-                fields: ['agency', 'eqList', 'mainItems', 'notes'],
+                fields: ['agency', 'eqList', 'mainItems', 'notes', 'closing'],
+                defaultClosing: 'Thanks,',
             },
             'order': {
                 label: 'สั่งของ (วาง TOP ของ FW: ฝ่ายจัดซื้อ)',
-                fields: ['eqList', 'mainItemsOversea', 'agency', 'orderDate', 'expireDate', 'notes', 'localItems'],
+                fields: ['eqList', 'mainItemsOversea', 'agency', 'orderDate', 'expireDate', 'notes', 'localItems', 'closing'],
+                defaultClosing: 'ขอบคุณครับ',
             },
         };
 
@@ -25432,7 +25435,16 @@ ${paras}
             expireDate:       { label: 'หมดสัญญาวันที่', type: 'text', placeholder: '21/04/2569' },
             notes:            { label: 'หมายเหตุ', type: 'textarea', placeholder: 'หนึ่งบรรทัดต่อหนึ่งข้อ — เว้นว่างถ้าไม่มี (จะแสดง "-")' },
             localItems:       { label: 'รายการสินค้า LOCAL', type: 'items' },
+            closing:          { label: 'ประโยคปิดท้าย', type: 'text', placeholder: 'Thanks, / ขอบคุณครับ / ขอแสดงความนับถือ' },
         };
+
+        // Resolve final closing line — user-typed value or template default
+        function _psecResolveClosing(tplId, form) {
+            const typed = (form && form.closing != null) ? String(form.closing).trim() : '';
+            if (typed) return typed;
+            const tpl = _psecTemplates[tplId];
+            return (tpl && tpl.defaultClosing) || 'Thanks,';
+        }
 
         let _psecActiveTpl = 'approve-bid';
         let _psecActiveStyle = 'exec';
@@ -25652,7 +25664,7 @@ ${paras}
                 '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;border-top:1px solid ' + _PSEC_CONS_DIVIDER + ';">' + rows + '</table>' +
                 notesBlock +
                 _psecSpacer(14) +
-                _psecPara('Thanks,', 0) +
+                _psecPara(_psecHe(_psecResolveClosing(tplId, form)), 0) +
               '</td></tr>' +
             '</table>';
         }
@@ -25727,7 +25739,7 @@ ${paras}
                 notesBlock +
                 itemsBlock +
                 _psecSpacer(12) +
-                _psecPara('ขอบคุณครับ', 0) +
+                _psecPara(_psecHe(_psecResolveClosing('order', form)), 0) +
               '</td></tr>' +
             '</table>';
         }
@@ -25782,7 +25794,7 @@ ${paras}
                 _psecPara('รบกวนตรวจเช็คเพื่อ Approve Configuration สำหรับ' + _psecHe(verb), 14) +
                 '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 12pt 0;">' + rows + '</table>' +
                 notesBlock +
-                _psecPara('Thanks,', 0) +
+                _psecPara(_psecHe(_psecResolveClosing(tplId, form)), 0) +
               '</td></tr>' +
             '</table>';
         }
@@ -25852,7 +25864,7 @@ ${paras}
                 notesBlock +
                 itemsBlock +
                 _psecSpacer(8) +
-                _psecPara('ขอบคุณครับ', 0) +
+                _psecPara(_psecHe(_psecResolveClosing('order', form)), 0) +
               '</td></tr>' +
             '</table>';
         }
@@ -25910,7 +25922,7 @@ ${paras}
                 '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 14pt 0;">' + rows + '</table>' +
                 notesBlock +
                 _psecHairline(_PSEC_BORDER, 12, 10) +
-                _psecPara('Thanks,', 0) +
+                _psecPara(_psecHe(_psecResolveClosing(tplId, form)), 0) +
               '</td></tr>' +
             '</table>';
         }
@@ -25970,7 +25982,7 @@ ${paras}
                 notesBlock +
                 itemsBlock +
                 _psecHairline(_PSEC_BORDER, 12, 10) +
-                _psecPara('ขอบคุณครับ', 0) +
+                _psecPara(_psecHe(_psecResolveClosing('order', form)), 0) +
               '</td></tr>' +
             '</table>';
         }
@@ -26004,7 +26016,7 @@ ${paras}
                 '',
                 'หมายเหตุ: ' + _psecNotesToText(form.notes),
                 '',
-                'Thanks,'
+                _psecResolveClosing(tplId, form)
             ].join('\n');
         }
 
@@ -26034,7 +26046,7 @@ ${paras}
                 lines.push('** Link ของสินค้าที่แนบมาอาจไม่ใช่ราคาที่ต่ำที่สุด หากมีผู้จัดจำหน่ายรายอื่นที่ราคาต่ำกว่าให้ซื้อผู้จัดจำหน่ายรายนั้น');
             }
             lines.push('');
-            lines.push('ขอบคุณครับ');
+            lines.push(_psecResolveClosing('order', form));
             return lines.join('\n');
         }
 
