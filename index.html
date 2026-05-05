@@ -1769,14 +1769,11 @@
            below the fold). Phase 2 aux-card overrides live AFTER the base aux rules
            below (specificity tie requires source-order win). */
         @media (max-width: 1399px) {
-            html[data-preset="cinematic"] #profile-wl-console {
-                max-height: 160px !important;
-            }
-            /* Phase 7+8: per pi-keng's wireframe, Hero column narrows to ~28%
-               and Right column expands to ~72%. Hero fills its column completely
-               (free aspect, image covers). Grid row 1 = full viewport so all
-               4 Right-column children (Pinned + 3-cards + Mini frames) sit
-               within the first fold. */
+            /* Per pi-keng's wireframe: Hero column 28% × full viewport;
+               Right column 72% with 3 children that EACH take ~1/3 of vertical
+               space (Pinned / 3-cards / Mini frames). Bottom 4 cards (#ddr-fin)
+               also use 28% first column so the leftmost edge aligns vertically
+               with Hero. */
             html[data-preset="cinematic"] #dash-content:not(.hidden) {
                 grid-template-columns: minmax(280px, 28%) 1fr !important;
                 grid-template-rows: minmax(calc(100vh - 90px), auto) auto auto auto !important;
@@ -1788,13 +1785,37 @@
                 min-height: 0 !important;
                 max-height: none !important;
             }
+            /* Right column children — equal vertical distribution.
+               flex: 1 1 0 means "share remaining height equally, ignoring content".
+               Without this, sections collapse to content size and leave empty space
+               below the last one (Hero would visually tower over Right column). */
+            html[data-preset="cinematic"] #profile-wl-console {
+                flex: 1 1 0 !important;
+                max-height: none !important;
+                min-height: 0 !important;
+            }
+            html[data-preset="cinematic"] .cine-profile-row {
+                flex: 1 1 0 !important;
+                max-height: none;
+                min-height: 0;
+            }
             html[data-preset="cinematic"] .cine-mini-frames {
-                flex: 1 1 auto !important;
+                flex: 1 1 0 !important;
                 display: flex !important;
                 flex-direction: column !important;
+                min-height: 0 !important;
             }
             html[data-preset="cinematic"] .cine-mf-grid {
                 flex: 1 1 auto !important;
+            }
+            /* Bottom row alignment: empty first col matches Hero, 4 cards in col 2 */
+            html[data-preset="cinematic"] #ddr-fin {
+                display: grid !important;
+                grid-template-columns: minmax(280px, 28%) repeat(4, 1fr) !important;
+                gap: 12px !important;
+            }
+            html[data-preset="cinematic"] #ddr-fin > *:first-child {
+                grid-column: 2 !important;
             }
         }
 
