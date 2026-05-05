@@ -25406,7 +25406,14 @@ ${paras}
 
         const _PSEC_LS = 'ps_psec_state';
 
+        // Template order follows the workflow stages:
+        //   1. ตั้งงบประมาณ (budget setup) → 2. ยื่นซอง (bid) → 3. Approve สั่งของ → 4. สั่งของจริง (FW to ฝ่ายจัดซื้อ)
         const _psecTemplates = {
+            'approve-budget': {
+                label: 'Approve Configuration — ตั้งงบประมาณ',
+                fields: ['agency', 'eqList', 'mainItems', 'notes', 'closing'],
+                defaultClosing: 'Thanks,',
+            },
             'approve-bid': {
                 label: 'Approve Configuration — ยื่นซอง',
                 fields: ['agency', 'eqList', 'mainItems', 'submitDate', 'submitTime', 'notes', 'closing'],
@@ -25414,11 +25421,6 @@ ${paras}
             },
             'approve-order': {
                 label: 'Approve Configuration — สั่งของ',
-                fields: ['agency', 'eqList', 'mainItems', 'notes', 'closing'],
-                defaultClosing: 'Thanks,',
-            },
-            'approve-budget': {
-                label: 'Approve Configuration — ตั้งงบประมาณ',
                 fields: ['agency', 'eqList', 'mainItems', 'notes', 'closing'],
                 defaultClosing: 'Thanks,',
             },
@@ -25461,7 +25463,7 @@ ${paras}
 
         let _psecActiveTpl = 'approve-bid';
         let _psecActiveStyle = 'exec';
-        let _psecState = { templates: {}, lastTemplate: 'approve-bid', lastStyle: 'exec' };
+        let _psecState = { templates: {}, lastTemplate: 'approve-budget', lastStyle: 'exec' };
 
         function _psecLoadState() {
             try {
@@ -25475,6 +25477,9 @@ ${paras}
 
         function _psecSaveState() {
             try { localStorage.setItem(_PSEC_LS, JSON.stringify(_psecState)); } catch (e) {}
+            // Push to Gist so opening on another device picks up the same drafts/selection.
+            // scheduleAutoSave is debounced (4s) — high-frequency typing won't spam Gist.
+            if (typeof scheduleAutoSave === 'function') { try { scheduleAutoSave(); } catch(e){} }
         }
 
         function _psecGetForm(tplId) {
@@ -26279,7 +26284,10 @@ ${paras}
             if (tplId === 'order') return ''; // user uses Outlook FW: prefix
             const eq = form.eqList || '';
             const items = form.mainItems || '';
-            return 'Approve Configuration ' + eq + (items ? ' / ' + items : '');
+            const verb = _psecApproveVerb(tplId);
+            // Verb in parens right after "Approve Configuration" so recipients can
+            // tell the purpose (ตั้งงบประมาณ / ยื่นซอง / สั่งของ) at a glance.
+            return 'Approve Configuration (' + verb + ') ' + eq + (items ? ' / ' + items : '');
         }
 
         function _psecBuildBody(tplId, form) {
@@ -26297,7 +26305,7 @@ ${paras}
 
         function _psecInit(panel) {
             _psecLoadState();
-            _psecActiveTpl = _psecState.lastTemplate || 'approve-bid';
+            _psecActiveTpl = (_psecState.lastTemplate && _psecTemplates[_psecState.lastTemplate]) ? _psecState.lastTemplate : 'approve-budget';
             _psecActiveStyle = (_psecState.lastStyle && _PSEC_STYLES[_psecState.lastStyle]) ? _psecState.lastStyle : 'exec';
             panel.innerHTML =
                 '<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-main);box-sizing:border-box;">' +
@@ -26316,6 +26324,8 @@ ${paras}
                         '<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;">Template</span>' +
                         '<div id="psec-tpl-bar" style="display:flex;gap:6px;flex-wrap:wrap;"></div>' +
                       '</div>' +
+                      '<div style="width:1px;height:22px;background:var(--border);"></div>' +
+                      '<button onclick="_psecClearForm()" title="ล้างข้อมูลทั้งหมดใน template ที่เลือกอยู่" style="font-family:var(--font-mono);font-size:11px;font-weight:600;padding:6px 12px;border:1px solid var(--border);border-radius:999px;background:transparent;color:var(--danger,#dc2626);cursor:pointer;white-space:nowrap;">Clear</button>' +
                     '</div>' +
                   '</div>' +
                   '<div style="flex:1;min-height:0;display:flex;gap:14px;padding:14px 20px;box-sizing:border-box;overflow:hidden;">' +
@@ -26386,6 +26396,18 @@ ${paras}
             _psecSaveState();
             _psecRenderTplBar();
             _psecRenderForm();
+        }
+
+        // Wipe form data of the currently-selected template (with confirmation).
+        // Other templates' data is preserved.
+        function _psecClearForm() {
+            const tplLabel = (_psecTemplates[_psecActiveTpl] && _psecTemplates[_psecActiveTpl].label) || _psecActiveTpl;
+            if (!confirm('ล้างข้อมูลทั้งหมดใน "' + tplLabel + '" ?\n(template อื่นไม่กระทบ)')) return;
+            _psecState.templates[_psecActiveTpl] = {};
+            _psecSaveState();
+            _psecRenderForm();
+            _psecRefreshPreview();
+            _psecStatus('ล้างข้อมูลแล้ว', 'ok');
         }
 
         function _psecRenderForm() {
@@ -52849,6 +52871,24 @@ ${_clip(contextSections, 2600)}`;
                             }
                         } catch(e) { console.warn('[Gist] psqState restore failed:', e); }
                     }
+                    // PS Email Composer: restore form drafts + last-selected template/style.
+                    // Last-write-wins (simple) — Gist always reflects the most recently saved device.
+                    // If the composer panel is currently mounted, repopulate inputs immediately.
+                    if (data.psecState && typeof data.psecState === 'object') {
+                        try {
+                            localStorage.setItem('ps_psec_state', JSON.stringify(data.psecState));
+                            if (typeof _psecState !== 'undefined') {
+                                _psecState = data.psecState;
+                                if (document.getElementById('psec-form-pane')) {
+                                    if (data.psecState.lastTemplate && _psecTemplates[data.psecState.lastTemplate]) _psecActiveTpl = data.psecState.lastTemplate;
+                                    if (data.psecState.lastStyle && _PSEC_STYLES[data.psecState.lastStyle]) _psecActiveStyle = data.psecState.lastStyle;
+                                    _psecRenderTplBar();
+                                    _psecRenderStyleBar();
+                                    _psecRenderForm();
+                                }
+                            }
+                        } catch(e) { console.warn('[Gist] psecState restore failed:', e); }
+                    }
                     // PS Quotation templates: restore b64 → IDB if remote is newer
                     if (data.psqTemplates && typeof data.psqTemplates === 'object') {
                         try {
@@ -54748,6 +54788,9 @@ ${_clip(contextSections, 2600)}`;
                 // PS Quotation: period-based counters + quotation history (Comp1 = BT-series, Comp2 = QMVV-series).
                 // Source of truth for cross-device counter continuity — ensures no duplicate quotation numbers.
                 psqState: (function() { try { return JSON.parse(localStorage.getItem('ps_psq_state') || 'null'); } catch(e) { return null; } })(),
+                // PS Email Composer: form drafts per template + last-selected template/style.
+                // Lets a user pick up an in-progress quotation email on another device without retyping.
+                psecState: (function() { try { return JSON.parse(localStorage.getItem('ps_psec_state') || 'null'); } catch(e) { return null; } })(),
                 // PS Quotation templates: b64-encoded xlsx bytes + metadata, synced across devices via Gist
                 psqTemplates: (function() {
                     try {
