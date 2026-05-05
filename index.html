@@ -1772,13 +1772,21 @@
             html[data-preset="cinematic"] #profile-wl-console {
                 max-height: 160px !important;
             }
-            /* Phase 7: Force grid row 1 to full viewport height so Hero stretches
-               to fit (per pi-keng's wireframe), and Mini frames flex:1 fills the
-               remaining vertical space inside the Right column. Without this,
-               Hero shrinks to match Right column content (~544px) and Bottom
-               cards leak into the first viewport. */
+            /* Phase 7+8: per pi-keng's wireframe, Hero column narrows to ~28%
+               and Right column expands to ~72%. Hero fills its column completely
+               (free aspect, image covers). Grid row 1 = full viewport so all
+               4 Right-column children (Pinned + 3-cards + Mini frames) sit
+               within the first fold. */
             html[data-preset="cinematic"] #dash-content:not(.hidden) {
+                grid-template-columns: minmax(280px, 28%) 1fr !important;
                 grid-template-rows: minmax(calc(100vh - 90px), auto) auto auto auto !important;
+            }
+            html[data-preset="cinematic"] #muse-card {
+                aspect-ratio: auto !important;
+                width: 100% !important;
+                height: 100% !important;
+                min-height: 0 !important;
+                max-height: none !important;
             }
             html[data-preset="cinematic"] .cine-mini-frames {
                 flex: 1 1 auto !important;
