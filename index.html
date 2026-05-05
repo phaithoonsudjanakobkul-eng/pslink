@@ -2079,13 +2079,18 @@
             border: 0.5px solid var(--cine-glass-border-strong) !important;
             position: relative !important;
         }
-        /* Phase 5b: Muse Hero compact at <=1399px — original 540 min + 90vh max
+        /* Phase 5b+5c: Muse Hero compact at <=1399px — original 540 min + 90vh max
            consumed full viewport on small laptops, pushing Mini frames + Bottom cards
-           below the fold. Placed AFTER base #muse-card to win source-order tie. */
+           below the fold. The dash-content grid row 1 also enforces minmax(540px),
+           which stretches Hero past any max-height — so override BOTH the grid row
+           min AND the muse-card constraints together. */
         @media (max-width: 1399px) {
+            html[data-preset="cinematic"] #dash-content:not(.hidden) {
+                grid-template-rows: minmax(360px, 60vh) auto auto auto !important;
+            }
             html[data-preset="cinematic"] #muse-card {
                 min-height: 360px !important;
-                max-height: 55vh !important;
+                max-height: 60vh !important;
             }
         }
         /* Muse slots — first slot becomes the hero (fills card),
