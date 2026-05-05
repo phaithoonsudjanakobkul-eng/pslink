@@ -25671,21 +25671,21 @@ ${paras}
         // ══════════════════════════════════════════════════════════════════
 
         function _psecBanner_BuildBanner(overline, headline, subline) {
-            const baseTd = 'background:' + _PSEC_BRAND + ';background-color:' + _PSEC_BRAND + ';font-family:' + _PSEC_FF + ';mso-line-height-rule:exactly;';
+            const cellTd = 'background:' + _PSEC_BRAND + ';background-color:' + _PSEC_BRAND + ';';
             return '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 16pt 0;background-color:' + _PSEC_BRAND + ';">' +
                 // Top accent strip
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" height="6" style="' + baseTd + 'height:6pt;line-height:1pt;font-size:1pt;">&nbsp;</td></tr>' +
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" height="6" style="' + cellTd + 'height:6pt;line-height:1pt;font-size:1pt;">&nbsp;</td></tr>' +
                 // Overline
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + baseTd + 'color:' + _PSEC_BRAND_LT + ';padding:11pt 18pt 4pt 18pt;font-size:8.5pt;font-weight:bold;line-height:1.3;letter-spacing:0.06em;">' +
-                  '<font color="' + _PSEC_BRAND_LT + '" face="Tahoma"><b>' + _psecHe(overline) + '</b></font>' +
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + cellTd + 'padding:11pt 18pt 4pt 18pt;">' +
+                  '<span style="font-family:' + _PSEC_FF + ';font-size:8.5pt;font-weight:bold;color:' + _PSEC_BRAND_LT + ';line-height:1.3;mso-line-height-rule:exactly;">' + _psecHe(overline) + '</span>' +
                 '</td></tr>' +
                 // Headline
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + baseTd + 'color:#ffffff;padding:0 18pt 4pt 18pt;font-size:14pt;font-weight:bold;line-height:1.3;">' +
-                  '<font color="#ffffff" face="Tahoma"><b>' + _psecHe(headline) + '</b></font>' +
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + cellTd + 'padding:0 18pt 4pt 18pt;">' +
+                  '<span style="font-family:' + _PSEC_FF + ';font-size:14pt;font-weight:bold;color:#ffffff;line-height:1.3;mso-line-height-rule:exactly;">' + _psecHe(headline) + '</span>' +
                 '</td></tr>' +
                 // Subline
-                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + baseTd + 'color:' + _PSEC_BRAND_LT + ';padding:0 18pt 13pt 18pt;font-size:10pt;line-height:1.4;">' +
-                  '<font color="' + _PSEC_BRAND_LT + '" face="Tahoma">' + _psecHe(subline) + '</font>' +
+                '<tr><td bgcolor="' + _PSEC_BRAND + '" align="left" style="' + cellTd + 'padding:0 18pt 13pt 18pt;">' +
+                  '<span style="font-family:' + _PSEC_FF + ';font-size:10pt;color:' + _PSEC_BRAND_LT + ';line-height:1.4;mso-line-height-rule:exactly;">' + _psecHe(subline) + '</span>' +
                 '</td></tr>' +
                 '</table>';
         }
@@ -25749,15 +25749,16 @@ ${paras}
                         '<td style="border-bottom:1px solid ' + _PSEC_BORDER + ';padding:6pt 8pt;vertical-align:top;font-family:' + _PSEC_FF + ';font-size:10.5pt;color:' + _PSEC_TEXT + ';line-height:1.45;">' + _psecFmtRemark(it.remark || '') + '</td>' +
                     '</tr>';
                 }).join('');
-                const headerTd = 'background:' + _PSEC_BRAND + ';background-color:' + _PSEC_BRAND + ';color:#ffffff;padding:7pt 8pt;font-family:' + _PSEC_FF + ';font-size:10pt;font-weight:bold;';
+                const headerTd = 'background:' + _PSEC_BRAND + ';background-color:' + _PSEC_BRAND + ';padding:7pt 8pt;';
+                const headerSpan = '<span style="font-family:' + _PSEC_FF + ';font-size:10pt;font-weight:bold;color:#ffffff;">';
                 itemsBlock =
                     _psecPara('<b>รายการสินค้า LOCAL</b>', 6, 11, _PSEC_BRAND) +
                     '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;margin:0 0 6pt 0;">' +
                       '<tr>' +
-                        '<th bgcolor="' + _PSEC_BRAND + '" align="center" style="' + headerTd + 'text-align:center;width:32pt;"><font color="#ffffff" face="Tahoma"><b>#</b></font></th>' +
-                        '<th bgcolor="' + _PSEC_BRAND + '" align="left" style="' + headerTd + 'text-align:left;"><font color="#ffffff" face="Tahoma"><b>Item</b></font></th>' +
-                        '<th bgcolor="' + _PSEC_BRAND + '" align="center" style="' + headerTd + 'text-align:center;width:48pt;"><font color="#ffffff" face="Tahoma"><b>Qty</b></font></th>' +
-                        '<th bgcolor="' + _PSEC_BRAND + '" align="left" style="' + headerTd + 'text-align:left;"><font color="#ffffff" face="Tahoma"><b>Remark</b></font></th>' +
+                        '<th bgcolor="' + _PSEC_BRAND + '" align="center" style="' + headerTd + 'text-align:center;width:32pt;">' + headerSpan + '#</span></th>' +
+                        '<th bgcolor="' + _PSEC_BRAND + '" align="left" style="' + headerTd + 'text-align:left;">' + headerSpan + 'Item</span></th>' +
+                        '<th bgcolor="' + _PSEC_BRAND + '" align="center" style="' + headerTd + 'text-align:center;width:48pt;">' + headerSpan + 'Qty</span></th>' +
+                        '<th bgcolor="' + _PSEC_BRAND + '" align="left" style="' + headerTd + 'text-align:left;">' + headerSpan + 'Remark</span></th>' +
                       '</tr>' +
                       rows +
                     '</table>' +
