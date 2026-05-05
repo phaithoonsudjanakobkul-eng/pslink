@@ -1985,20 +1985,12 @@
             }
             html[data-preset="cinematic"] #profile-card-main {
                 min-height: 180px !important;
-                max-height: 220px !important;
                 overflow: hidden !important;
             }
-            /* Phase 6: Cap profile-row max-height so its sibling Mini frames row
-               sits inside the Hero column height. Without the cap, profile content
-               (selfie + ~12 lines of address/email) stretches the row past 400px
-               and pushes Mini frames + Bottom cards out of the fold. */
-            html[data-preset="cinematic"] .cine-profile-row {
-                max-height: 220px;
-            }
-            html[data-preset="cinematic"] .cine-payday-card,
-            html[data-preset="cinematic"] .cine-month-card {
-                max-height: 220px;
-            }
+            /* Phase 10: max-height caps removed — Phase 9 flex:1 1 0 distributes
+               Right column children equally based on viewport (1/3 each). At 720
+               viewport that's ~210px; at 960 it's ~290px — adapts naturally
+               without arbitrary 220px ceiling that wasted ~70px per section. */
             /* Profile-view padding has inline 20px 22px — needs !important to override.
                Compact font + line-height for address text helps the 220px cap fit. */
             html[data-preset="cinematic"] #profile-view {
