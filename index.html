@@ -1713,22 +1713,35 @@
            Finance row also uses cols 2-5 via subgrid below — ensures Bottom card
            leftmost edge aligns pixel-perfect with Hero column right edge across
            ALL viewports (not just small laptops). */
-        /* Phase 14b — 2-col grid: Hero (col 1, 28%) | Right (col 2, 72%) for row 1.
-           Bottom finance + Charts span both cols (full width) so their LEFT edge
-           aligns with Hero LEFT edge = page-padding edge. Reverted Phase 13's
-           5-col + subgrid trickery: pi-keng wants Hero/Bottom/Charts ALL flush
-           to the same left margin (not Bottom-card-aligned-to-Hero-right-edge). */
+        /* Phase 14c — 4-col grid: Hero (col 1, 25%) | Right (cols 2-4, 75%).
+           Bottom finance row uses subgrid to inherit the 4 col tracks → first
+           card width = Hero col 1 width = pixel-perfect alignment. Charts +
+           Footer span all 4 cols (full width). Column gap matches dash-fin-row
+           gap-3 (12px) so subgrid tracks line up. Row gap stays 14px. */
         html[data-preset="cinematic"] #dash-content:not(.hidden) {
             display: grid !important;
-            grid-template-columns: minmax(280px, 28%) 1fr;
+            grid-template-columns: repeat(4, 1fr);
             grid-template-rows: minmax(540px, auto) auto auto auto;
             grid-template-areas:
-                "muse   side"
-                "fin    fin"
-                "charts charts"
-                "footer footer";
-            gap: 14px !important;
+                "muse   side   side   side"
+                "fin    fin    fin    fin"
+                "charts charts charts charts"
+                "footer footer footer footer";
+            row-gap: 14px !important;
+            column-gap: 12px !important;
             align-items: stretch;
+        }
+        /* Bottom finance — subgrid inherits parent's 4 col tracks. dash-fin-row
+           display:contents promotes its 4 cards up to ddr-fin's subgrid → cards
+           sit in cols 1-4 with widths matching Hero/Right column tracks above. */
+        html[data-preset="cinematic"] #ddr-fin {
+            grid-area: fin;
+            display: grid !important;
+            grid-template-columns: subgrid !important;
+            gap: 12px !important;
+        }
+        html[data-preset="cinematic"] #dash-fin-row {
+            display: contents !important;
         }
         html[data-preset="cinematic"] #ddr-muse {
             grid-area: muse;
@@ -1738,7 +1751,6 @@
             justify-content: flex-start;
         }
         html[data-preset="cinematic"] #ddr-row1 { grid-area: side; min-height: 0; display: flex; flex-direction: column; }
-        html[data-preset="cinematic"] #ddr-fin { grid-area: fin; }
         html[data-preset="cinematic"] #ddr-charts { grid-area: charts; }
 
         /* Hide drag chrome — Cinematic feel doesn't fit utility scaffolding */
@@ -1792,11 +1804,10 @@
                space (Pinned / 3-cards / Mini frames). Bottom 4 cards (#ddr-fin)
                also use 28% first column so the leftmost edge aligns vertically
                with Hero. */
-            /* Phase 14b: 2-col grid (Hero 28% | Right 72%). Bottom finance
-               + Charts span full width below — Hero/Bottom/Charts all flush
-               to page-padding LEFT edge. */
+            /* Phase 14c: 4-col grid (Hero col 1 = 25% | Right cols 2-4 = 75%).
+               Bottom row inherits via subgrid → first card aligns with Hero. */
             html[data-preset="cinematic"] #dash-content:not(.hidden) {
-                grid-template-columns: minmax(280px, 28%) 1fr !important;
+                grid-template-columns: repeat(4, 1fr) !important;
                 grid-template-rows: minmax(calc(100vh - 90px), auto) auto auto auto !important;
             }
             html[data-preset="cinematic"] #muse-card {
