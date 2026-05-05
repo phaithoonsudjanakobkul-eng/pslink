@@ -2494,12 +2494,14 @@
         /* Mini Frames glass card (D) — Muse preset chips A-F as 3rd card
            in the right stack. Click switches preset via _museLoadPreset. */
         .cine-mini-frames { display: none; }
-        /* Mini frames — equal-height with Pinned+Aux (3 rows distribute row 1
-           equally). 10 portrait slots have natural max height = col_width × 4/3
-           which at 2560 ≈ 237px; Mini container can be larger (1/3 of row 1).
-           Slots center vertically inside mf-grid, accepting symmetric empty
-           space top/bottom — visually balanced over the alternative of
-           unequal-row-heights with Mini smaller than its siblings. */
+        /* Mini frames — equal-height with Pinned+Aux (3 rows share row 1).
+           Phase 14i: slot height = mf-grid height (full row), slot width =
+           height × 3/4 via aspect-ratio. mf-grid uses flex (NOT grid) +
+           overflow:hidden so the strip shows as many full-size portrait slots
+           as fit the container width — number of visible slots adapts to
+           viewport. At 2560×1440 ~5 slots visible; 1280×720 ~7 slots; 1707
+           ~6. Hidden slots stay in DOM (so JS state for slots 4-10 still
+           updates) but clip via overflow. */
         html[data-preset="cinematic"] .cine-mini-frames {
             display: flex !important;
             flex-direction: column !important;
@@ -2508,8 +2510,12 @@
             min-height: 0 !important;
         }
         html[data-preset="cinematic"] .cine-mf-grid {
+            display: flex !important;
+            flex-wrap: nowrap !important;
             flex: 1 1 auto !important;
-            align-items: center !important;
+            gap: 10px !important;
+            overflow: hidden !important;
+            min-height: 0 !important;
         }
         html[data-preset="cinematic"] .cine-mf-header {
             display: flex;
@@ -2550,7 +2556,9 @@
         html[data-preset="cinematic"] .cine-mf-chip {
             position: relative;
             aspect-ratio: 3/4;
-            max-height: clamp(215px, 32vh, 420px);
+            height: 100%;
+            flex: 0 0 auto;
+            min-width: 0;
             border-radius: 10px;
             background: rgba(245, 241, 232, 0.06);
             border: 0.5px solid var(--cine-glass-border);
