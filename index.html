@@ -25461,7 +25461,7 @@ ${paras}
             recipient:        { label: 'เรียน (ชื่อลูกค้า)', type: 'text', placeholder: 'เช่น คุณสมชาย / นพ.อรรถพล / สพ.ญ.ชนากานต์ ไพรคงคาธรรม' },
             cc:               { label: 'สำเนาถึง (optional)', type: 'text', placeholder: 'เว้นว่างถ้าไม่มี' },
             subjectMatter:    { label: 'เรื่อง / รายการ (optional)', type: 'text', placeholder: 'เช่น กล้องจุลทรรศน์ CX23 จำนวน 1 เครื่อง — เว้นว่างได้' },
-            details:          { label: 'รายละเอียดเพิ่มเติม (optional)', type: 'textarea', placeholder: 'หนึ่งบรรทัด = หนึ่งย่อหน้า — เช่น\nราคานี้รวมส่วนลดพิเศษแล้ว\nสเปคได้ปรับปรุงหลังจากพูดคุยกับท่านอาจารย์แล้ว' },
+            details:          { label: 'รายละเอียดเพิ่มเติม (optional)', type: 'textarea', placeholder: 'Enter 1 ครั้ง = ขึ้นบรรทัดใหม่ในย่อหน้าเดิม (ติดกัน)\nEnter 2 ครั้ง = ขึ้นย่อหน้าใหม่ (มี gap)\n\nเช่น  ราคานี้รวมส่วนลดพิเศษแล้ว...' },
             agency:           { label: 'หน่วยงาน', type: 'text', placeholder: 'เช่น คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร' },
             eqList:           { label: 'เลขที่ใบเสนอราคา / EQ List', type: 'text', placeholder: 'PS260107-0041Rev.02' },
             mainItems:        { label: 'รายการสินค้าหลัก', type: 'text', placeholder: 'CX23T, SZ61TR, EP50' },
@@ -26252,17 +26252,21 @@ ${paras}
             return d.getDate() + ' ' + months[d.getMonth()] + ' ' + (d.getFullYear() + 543);
         }
 
-        // Each non-empty line in `details` → its own paragraph. Plain text (no bullets/numbering)
-        // — keeps the email reading like a letter, not an internal notification.
+        // Markdown-style spacing: blank line = paragraph break (gap), single newline = line break (tight).
+        // Mirrors how GitHub/Slack/most editors behave — most users hit Enter once for a continued
+        // thought and expect tight wrapping; double-Enter signals a real paragraph shift.
         function _psecQuotation_RenderDetails(raw) {
             const trimmed = (raw || '').trim();
             if (!trimmed) return '';
-            const lines = trimmed.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
-            if (!lines.length) return '';
-            return lines.map(function(l, i){
-                const mb = (i === lines.length - 1) ? 12 : 6;
-                return _psecPara(_psecHe(l), mb);
-            }).join('');
+            const paragraphs = trimmed.split(/\n\s*\n/);
+            const html = paragraphs.map(function(para, i){
+                const innerLines = para.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
+                if (!innerLines.length) return '';
+                const inner = innerLines.map(_psecHe).join('<br>');
+                const mb = (i === paragraphs.length - 1) ? 12 : 6;
+                return _psecPara(inner, mb);
+            }).filter(Boolean).join('');
+            return html;
         }
 
         // Shared body block for all 3 styles — recipient + optional cc, intro, optional details, follow-up.
@@ -26442,7 +26446,8 @@ ${paras}
             const det = (form.details || '').trim();
             if (det) {
                 lines.push('');
-                det.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean).forEach(function(l){ lines.push(l); });
+                // Preserve blank lines so paragraph breaks survive in plain-text fallback.
+                det.split(/\r?\n/).forEach(function(l){ lines.push(l.replace(/\s+$/, '')); });
             }
             lines.push('');
             lines.push('หากมีข้อสงสัย หรือต้องการสอบถามข้อมูลเพิ่มเติม ยินดีให้บริการครับ');
