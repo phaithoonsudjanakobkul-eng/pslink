@@ -1776,7 +1776,26 @@
             align-items: stretch;
             min-height: 340px;
         }
-        @media (max-width: 1399px) {
+        /* Small laptop (1024-1399px) — keep 3-column horizontal but compact.
+           Previously fell through to 2-column stack which dumped Profile/Payday/Month
+           across ~1100px vertical, pushing Muse cards 3 viewports down on 720p screens. */
+        @media (max-width: 1399px) and (min-width: 1024px) {
+            html[data-preset="cinematic"] .cine-profile-row {
+                grid-template-columns: 1.5fr 1fr 1fr;
+                min-height: 240px;
+            }
+            html[data-preset="cinematic"] .cine-payday-card,
+            html[data-preset="cinematic"] .cine-month-card {
+                min-height: 240px;
+                padding: 18px 20px 16px;
+            }
+            html[data-preset="cinematic"] .cine-payday-num,
+            html[data-preset="cinematic"] .cine-month-num {
+                font-size: 76px;
+            }
+        }
+        /* Tablet (901-1023px) — old 2-column stack: Payday|Month above, Profile full-width below */
+        @media (max-width: 1023px) and (min-width: 901px) {
             html[data-preset="cinematic"] .cine-profile-row {
                 grid-template-columns: 1fr 1fr;
             }
