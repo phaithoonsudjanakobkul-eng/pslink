@@ -25976,63 +25976,6 @@ ${paras}
             return style.buildApprove(tplId, form);
         }
 
-        // Full HTML document wrapper for clipboard — Outlook's Word HTML engine
-        // needs Word namespaces + a default <body> font so inline styles cascade
-        // correctly. Without this wrapper, pasting into Outlook drops Tahoma and
-        // many color/weight declarations from leaf cells.
-        function _psecWrapHtmlDoc(bodyHtml) {
-            return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
-                '<head>' +
-                  '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
-                  '<meta name="ProgId" content="Word.Document">' +
-                  '<meta name="Generator" content="Microsoft Word 15">' +
-                  '<meta name="Originator" content="Microsoft Word 15">' +
-                  '<style>' +
-                    'body{font-family:' + _PSEC_FF + ';font-size:11pt;color:' + _PSEC_TEXT + ';margin:0;}' +
-                    'table{border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;}' +
-                    'p{margin:0;}' +
-                    'td,th{font-family:' + _PSEC_FF + ';}' +
-                  '</style>' +
-                '</head>' +
-                '<body>' + bodyHtml + '</body>' +
-                '</html>';
-        }
-
-        // Native rich-text copy: render HTML in an offscreen contenteditable,
-        // select it, fire a copy event with explicit text/html + text/plain data.
-        // This bypasses Chromium's Clipboard API HTML sanitizer (which strips
-        // inline color/font/weight that Outlook would otherwise honor) and
-        // instead uses the browser's "Ctrl+C from a rendered page" path.
-        function _psecCopyRich(html, plain) {
-            const host = document.createElement('div');
-            host.setAttribute('contenteditable', 'true');
-            host.style.cssText = 'position:fixed;left:-99999px;top:0;width:800px;opacity:0;pointer-events:none;';
-            host.innerHTML = html;
-            document.body.appendChild(host);
-            const range = document.createRange();
-            range.selectNodeContents(host);
-            const sel = window.getSelection();
-            const savedRanges = [];
-            for (let i = 0; i < sel.rangeCount; i++) savedRanges.push(sel.getRangeAt(i));
-            sel.removeAllRanges();
-            sel.addRange(range);
-            function onCopy(e) {
-                try {
-                    e.clipboardData.setData('text/html', html);
-                    if (plain != null) e.clipboardData.setData('text/plain', plain);
-                    e.preventDefault();
-                } catch (err) {}
-            }
-            document.addEventListener('copy', onCopy, true);
-            let ok = false;
-            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-            document.removeEventListener('copy', onCopy, true);
-            sel.removeAllRanges();
-            savedRanges.forEach(function(r){ sel.addRange(r); });
-            host.parentNode.removeChild(host);
-            return ok;
-        }
-
         function _psecBuildBodyText(tplId, form) {
             if (tplId === 'order') return _psecBuildOrderText(form);
             return _psecBuildApproveText(tplId, form);
@@ -26238,31 +26181,28 @@ ${paras}
         async function _psecCopy(what) {
             const form = _psecGetForm(_psecActiveTpl);
             const subject = _psecBuildSubject(_psecActiveTpl, form);
-            const html = _psecWrapHtmlDoc(_psecBuildBody(_psecActiveTpl, form));
+            const html = _psecBuildBody(_psecActiveTpl, form);
             const text = _psecBuildBodyText(_psecActiveTpl, form);
             try {
                 if (what === 'subject') {
                     await navigator.clipboard.writeText(subject);
                     _psecStatus('Subject คัดลอกแล้ว — Ctrl+V ในช่อง Subject ของ Outlook', 'ok');
-                    return;
-                }
-                // Body / All: prefer execCommand-based rich copy (preserves inline styles
-                // in Outlook); fall back to Clipboard API if execCommand is blocked.
-                let ok = _psecCopyRich(html, text);
-                if (!ok && window.ClipboardItem) {
+                } else if (what === 'body') {
                     await navigator.clipboard.write([new ClipboardItem({
                         'text/html':  new Blob([html], { type: 'text/html' }),
                         'text/plain': new Blob([text], { type: 'text/plain' })
                     })]);
-                    ok = true;
-                }
-                if (!ok) throw new Error('copy command blocked');
-                if (what === 'body') {
                     _psecStatus('Body คัดลอกแล้ว — เปิด Outlook → New Mail → Ctrl+V ในช่อง body', 'ok');
-                } else if (subject) {
-                    _psecStatus('Body คัดลอกแล้ว · Subject: "' + subject + '" (กด Copy Subject ก่อนวาง subject เอง)', 'ok');
-                } else {
-                    _psecStatus('Body คัดลอกแล้ว — Forward เมล Approve เดิม → วาง body ที่ TOP ของ draft', 'ok');
+                } else { // 'all' — copy body, then return subject in status text
+                    await navigator.clipboard.write([new ClipboardItem({
+                        'text/html':  new Blob([html], { type: 'text/html' }),
+                        'text/plain': new Blob([text], { type: 'text/plain' })
+                    })]);
+                    if (subject) {
+                        _psecStatus('Body คัดลอกแล้ว · Subject: "' + subject + '" (กด Copy Subject ก่อนวาง subject เอง)', 'ok');
+                    } else {
+                        _psecStatus('Body คัดลอกแล้ว — Forward เมล Approve เดิม → วาง body ที่ TOP ของ draft', 'ok');
+                    }
                 }
             } catch (e) {
                 _psecStatus('Clipboard error: ' + (e && e.message ? e.message : e), 'err');
