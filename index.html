@@ -1772,13 +1772,8 @@
             html[data-preset="cinematic"] #profile-wl-console {
                 max-height: 160px !important;
             }
-            /* Phase 5b: Muse Hero compact — original min 540 + 90vh consumed
-               the full viewport on small laptops, pushing Mini frames below the fold.
-               Lower min + cap viewport % so Hero shares space with right column properly. */
-            html[data-preset="cinematic"] #muse-card {
-                min-height: 420px !important;
-                max-height: 60vh !important;
-            }
+            /* Phase 5b muse-card override lives AFTER the base #muse-card rule (line ~2070)
+               for source-order win on equal specificity + !important. */
         }
 
         /* Profile row split into 3 cards (Cinematic only): Profile (50%) |
@@ -2083,6 +2078,15 @@
             border-radius: 16px !important;
             border: 0.5px solid var(--cine-glass-border-strong) !important;
             position: relative !important;
+        }
+        /* Phase 5b: Muse Hero compact at <=1399px — original 540 min + 90vh max
+           consumed full viewport on small laptops, pushing Mini frames + Bottom cards
+           below the fold. Placed AFTER base #muse-card to win source-order tie. */
+        @media (max-width: 1399px) {
+            html[data-preset="cinematic"] #muse-card {
+                min-height: 360px !important;
+                max-height: 55vh !important;
+            }
         }
         /* Muse slots — first slot becomes the hero (fills card),
            remaining slots become a bottom thumbnail strip.
