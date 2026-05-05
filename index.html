@@ -1772,6 +1772,22 @@
             html[data-preset="cinematic"] #profile-wl-console {
                 max-height: 160px !important;
             }
+            /* Phase 7: Force grid row 1 to full viewport height so Hero stretches
+               to fit (per pi-keng's wireframe), and Mini frames flex:1 fills the
+               remaining vertical space inside the Right column. Without this,
+               Hero shrinks to match Right column content (~544px) and Bottom
+               cards leak into the first viewport. */
+            html[data-preset="cinematic"] #dash-content:not(.hidden) {
+                grid-template-rows: minmax(calc(100vh - 90px), auto) auto auto auto !important;
+            }
+            html[data-preset="cinematic"] .cine-mini-frames {
+                flex: 1 1 auto !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            html[data-preset="cinematic"] .cine-mf-grid {
+                flex: 1 1 auto !important;
+            }
         }
 
         /* Profile row split into 3 cards (Cinematic only): Profile (50%) |
