@@ -1845,17 +1845,16 @@
                `grid-cols-1 md:grid-cols-2 lg:grid-cols-4` lives at (0,1,0) specificity
                — overridden cleanly by this (0,2,1) + !important rule. */
         }
-        /* Cinematic Pinned watchlist — 7-col %-based caps (applies ALL viewports,
-           NOT gated by @media). Ratios are calibrated against the look pi-keng
-           verified at 1707×960 CSS (notebook 27" 2K @ 150% scale): total ~78%
-           of Pinned area + ~5% gap + ~17% breathing room, centered via
-           `justify-content: center` in GSTYLE. Same ratio applies at home
-           desktop (2560 native @ 100% / 2048 @ 125% / 1707 @ 150%) — table
-           proportionally fills 78% of whatever Pinned area the 4-col Phase 14c
-           grid produces. min-px ensures readability before the 4-col override
-           kicks in at 768-1279px. */
+        /* Cinematic Pinned watchlist — 7-col FIXED-px caps (applies ALL viewports,
+           NOT gated by @media). Calibrated to look pi-keng verified at 1707 CSS
+           (total cap ~735px). Per tabular-data principle: column widths are
+           ABSOLUTE, not proportional — values stay close together for legibility
+           regardless of viewport. At wide viewport (2560 home desktop), table
+           keeps the same ~735px width and CENTERS in the wider Pinned area via
+           `justify-content: center` in GSTYLE — empty breathing room appears as
+           symmetric padding, NOT as values stretching apart. */
         html[data-preset="cinematic"] #wl-pinned-list {
-            --pinned-gcols: minmax(60px, 12%) minmax(80px, 17%) minmax(72px, 10%) minmax(60px, 8%) minmax(72px, 11%) minmax(72px, 10%) minmax(72px, 10%) !important;
+            --pinned-gcols: minmax(60px, 110px) minmax(80px, 160px) minmax(72px, 95px) minmax(60px, 75px) minmax(72px, 105px) minmax(72px, 95px) minmax(72px, 95px) !important;
         }
         /* Cinematic — 4-col gcols at 768-1279px (when wl-pinned-col-hide is
            applied via line 6074/6079, hiding CHG/HIGH/LOW). Without this,
