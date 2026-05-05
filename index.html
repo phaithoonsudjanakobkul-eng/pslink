@@ -1770,7 +1770,14 @@
            below (specificity tie requires source-order win). */
         @media (max-width: 1399px) {
             html[data-preset="cinematic"] #profile-wl-console {
-                max-height: 220px !important;
+                max-height: 160px !important;
+            }
+            /* Phase 5b: Muse Hero compact — original min 540 + 90vh consumed
+               the full viewport on small laptops, pushing Mini frames below the fold.
+               Lower min + cap viewport % so Hero shares space with right column properly. */
+            html[data-preset="cinematic"] #muse-card {
+                min-height: 420px !important;
+                max-height: 60vh !important;
             }
         }
 
