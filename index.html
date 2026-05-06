@@ -47305,6 +47305,17 @@ ${_clip(contextSections, 2600)}`;
                 _museBindSlotInteractions(container);
                 container._slotActionsBound = true;
             }
+            // Cinematic — _musePageOffset is internal state (no visible page-pill in cine);
+            // its only job is to ensure the active slot's DOM exists so the hero can paint.
+            // On viewport resize sc changes and the previous offset can leave the active slot
+            // off-page → CSS hides the entire #muse-slots → blank hero (the close-DevTools bug).
+            // Re-align here, BEFORE clamp + render, so every render path is self-correcting.
+            if (document.documentElement.getAttribute('data-preset') === 'cinematic'
+                && typeof _museActiveIdx === 'number' && _museActiveIdx >= 0
+                && _museActiveIdx < _museClips.length) {
+                var _scAlign = _museGetSlotCount();
+                _musePageOffset = Math.floor(_museActiveIdx / _scAlign) * _scAlign;
+            }
             _museClampPageOffset();
             var html = '';
             var sc = _museGetSlotCount();
@@ -47464,6 +47475,17 @@ ${_clip(contextSections, 2600)}`;
             }
             _museRenderCardPresetBtns();
             _museUpdatePagePill();
+            // Cinematic — keep hero in sync with re-render. Don't rely on the
+            // MutationObserver alone: when the resize handler debounces and rebuilds
+            // slots, the new DOM has no .cine-active class for ~16ms (until the
+            // rAF observer callback runs). During that gap CSS hides EVERY slot
+            // (`#muse-slots > *:not(.cine-active) { display:none }`), so the hero
+            // flashes blank. Closing DevTools triggers exactly this path. Calling
+            // these directly removes the gap.
+            if (document.documentElement.getAttribute('data-preset') === 'cinematic') {
+                if (typeof _cineMarkActiveSlot === 'function') _cineMarkActiveSlot();
+                if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
+            }
         }
 
         function _museScaleSlotIframe(idx) {
