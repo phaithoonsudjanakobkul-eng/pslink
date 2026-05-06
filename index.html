@@ -45659,11 +45659,19 @@ ${_clip(contextSections, 2600)}`;
             }
             const slots = document.querySelectorAll('#muse-slots > *');
             if (!slots.length) return;
+            // Backdrop should follow the ACTIVE slot (.cine-active), not DOM idx 0.
+            // Otherwise OTHER FRAMES chips, multi-paste, and reorder leave hero stale
+            // while ring jumps elsewhere → "hero and selected don't match" bug.
+            let heroSlot = null;
+            for (let s = 0; s < slots.length; s++) {
+                if (slots[s].classList.contains('cine-active')) { heroSlot = slots[s]; break; }
+            }
+            if (!heroSlot) heroSlot = slots[0]; // fallback if nothing marked yet
             slots.forEach((slot, idx) => {
                 const inner = slot.querySelector('[id^="muse-inner-"]');
                 if (!inner) return;
                 const existing = inner.querySelector(':scope > .cine-muse-backdrop');
-                if (idx !== 0) {
+                if (slot !== heroSlot) {
                     if (existing) existing.remove();
                     return;
                 }
@@ -46933,12 +46941,18 @@ ${_clip(contextSections, 2600)}`;
                 _museRenderSlots();
                 if (_museEditOpen) _museRenderEditList();
                 _museUpdateAddFooter();
+                // Refresh Cinematic hero backdrop so it follows the active slot after re-render.
+                if (typeof _cineMarkActiveSlot === 'function') _cineMarkActiveSlot();
+                if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
                 // Fetch thumbnails for the newly-added range (last `added` items)
                 for (var k = _museClips.length - added; k < _museClips.length; k++) {
                     (function(captured) {
                         _museFetchThumbnail(_museClips[captured], function() {
                             _museUpdateSlotCover(captured);
                             if (_museEditOpen) _museRenderEditList();
+                            // Hero backdrop reads img.src from the active slot — re-pull
+                            // once the cover has the freshly-loaded thumbnail.
+                            if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
                         });
                     })(k);
                 }
