@@ -2961,30 +2961,50 @@
         html[data-preset="cinematic"] .cine-mf-chip[draggable="true"] {
             cursor: grab;
         }
-        /* Cinematic clip-cycle entrance animations.
+        /* Cinematic clip-cycle entrance animations — 4 modes.
            Re-fires every time .cine-active is freshly added — i.e., whenever the
            hero swaps to a new slot via _cineMarkActiveSlot. Mode is selected by
-           html[data-cine-trans]. 'none' = unset (no rule matches). */
-        @keyframes cineCycleFade {
-            from { opacity: 0; }
-            to   { opacity: 1; }
+           html[data-cine-trans]; duration is driven by --cine-trans-dur (set by
+           _museApplyCineTrans from _museClipCycleTransSpeed, range 0.3x–3x).
+           'none' = unset attribute (no rule matches). */
+        :root { --cine-trans-dur: 550ms; }
+
+        /* Ken Burns — slow zoom-in pan, cinema-style. Subtle but feels expensive. */
+        @keyframes cineKenBurns {
+            from { opacity: 0; transform: scale(1.16) translate(-2.5%, -1.5%); }
+            to   { opacity: 1; transform: scale(1) translate(0, 0); }
         }
-        @keyframes cineCycleSlide {
-            from { opacity: 0; transform: translateY(14px); }
-            to   { opacity: 1; transform: translateY(0); }
+        /* Glitch — RGB hue jitter + horizontal slips. Stepped easing for chunky feel. */
+        @keyframes cineGlitch {
+            0%   { opacity: 0; transform: translateX(-9px); filter: hue-rotate(120deg) saturate(2.4) blur(2px); }
+            18%  { opacity: 1; transform: translateX(7px) skewX(2.5deg); filter: hue-rotate(-95deg) saturate(1.8) blur(1px); }
+            36%  { transform: translateX(-4px) skewX(-1.5deg); filter: hue-rotate(40deg) saturate(1.3) blur(0.5px); }
+            55%  { transform: translateX(2px) skewX(0.5deg); filter: hue-rotate(-12deg) saturate(1.1); }
+            75%  { transform: translateX(-1px); filter: none; }
+            100% { opacity: 1; transform: none; filter: none; }
         }
-        @keyframes cineCycleZoom {
-            from { opacity: 0; transform: scale(1.05); }
-            to   { opacity: 1; transform: scale(1); }
+        /* Reveal — clip-path wipe left→right, cinematic curtain. */
+        @keyframes cineReveal {
+            0%   { opacity: 1; clip-path: inset(0 100% 0 0); transform: scale(1.04); }
+            100% { opacity: 1; clip-path: inset(0 0 0 0);    transform: scale(1); }
         }
-        html[data-cine-trans="fade"][data-preset="cinematic"]  #muse-slots > .cine-active {
-            animation: cineCycleFade 0.5s ease both;
+        /* Cinema — letterbox open from 50/50 → 0/0 with subtle zoom-in. */
+        @keyframes cineCinema {
+            0%   { opacity: 1; clip-path: inset(50% 0 50% 0); transform: scale(1.10); }
+            55%  { opacity: 1; clip-path: inset(0 0 0 0);     transform: scale(1.04); }
+            100% { opacity: 1; clip-path: inset(0 0 0 0);     transform: scale(1); }
         }
-        html[data-cine-trans="slide"][data-preset="cinematic"] #muse-slots > .cine-active {
-            animation: cineCycleSlide 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        html[data-cine-trans="ken"][data-preset="cinematic"]    #muse-slots > .cine-active {
+            animation: cineKenBurns var(--cine-trans-dur) cubic-bezier(0.22, 1, 0.36, 1) both;
         }
-        html[data-cine-trans="zoom"][data-preset="cinematic"]  #muse-slots > .cine-active {
-            animation: cineCycleZoom 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        html[data-cine-trans="glitch"][data-preset="cinematic"] #muse-slots > .cine-active {
+            animation: cineGlitch var(--cine-trans-dur) steps(10, end) both;
+        }
+        html[data-cine-trans="reveal"][data-preset="cinematic"] #muse-slots > .cine-active {
+            animation: cineReveal var(--cine-trans-dur) cubic-bezier(0.83, 0, 0.17, 1) both;
+        }
+        html[data-cine-trans="cinema"][data-preset="cinematic"] #muse-slots > .cine-active {
+            animation: cineCinema var(--cine-trans-dur) cubic-bezier(0.16, 1, 0.3, 1) both;
         }
         html[data-preset="cinematic"] .cine-mf-chip.is-dnd-src {
             opacity: 0.35 !important;
@@ -46851,9 +46871,10 @@ ${_clip(contextSections, 2600)}`;
         var _museClipCycleEnabled  = false;
         var _museClipCycleInterval = 5;     // seconds per thumbnail
         var _museClipCycleTimer    = null;
-        var _museClipCycleShuffle  = false;          // pick random next instead of sequential
-        var _museClipCycleTrans    = 'fade';         // 'none' | 'fade' | 'slide' | 'zoom'
-        var _museClipShuffleQueue  = [];             // Fisher-Yates queue (runtime, not persisted)
+        var _museClipCycleShuffle    = false;        // pick random next instead of sequential
+        var _museClipCycleTrans      = 'ken';        // 'none' | 'ken' | 'glitch' | 'reveal' | 'cinema'
+        var _museClipCycleTransSpeed = 1.0;          // 0.3 = slow, 1.0 = normal, 3.0 = fast
+        var _museClipShuffleQueue    = [];           // Fisher-Yates queue (runtime, not persisted)
         function _museCalcAutoSlots() {
             var card = document.getElementById('muse-card');
             var w = card ? card.offsetWidth : 0;
@@ -46989,6 +47010,12 @@ ${_clip(contextSections, 2600)}`;
             _museApplyCollapse();
             _museAutoRotateLoad();
             _museTransitionLoad();
+            // Hero must page-jump to the saved active slot — without this, refreshing on
+            // a playlist with 10+ clips and saved active idx > slot count leaves no slot
+            // tagged .cine-active → CSS hides every slot → blank hero.
+            if (typeof _cineEnsureActiveSlotRendered === 'function') _cineEnsureActiveSlotRendered();
+            if (typeof _cineMarkActiveSlot === 'function') _cineMarkActiveSlot();
+            if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
             if (_museAutoRotateEnabled) _museAutoRotateStart();
             if (_museClipCycleEnabled) _museClipCycleStart();
             // Auto-hide btn-row (expanded only):
@@ -50151,9 +50178,16 @@ ${_clip(contextSections, 2600)}`;
                     _museClipCycleInterval = d.clipInterval;
                 }
                 if (typeof d.clipShuffle === 'boolean') _museClipCycleShuffle = d.clipShuffle;
-                if (typeof d.clipTrans === 'string'
-                    && ['none','fade','slide','zoom'].indexOf(d.clipTrans) >= 0) {
-                    _museClipCycleTrans = d.clipTrans;
+                if (typeof d.clipTrans === 'string') {
+                    // Migrate legacy values (fade/slide/zoom) from earlier build.
+                    var _migrate = { fade:'ken', slide:'reveal', zoom:'cinema' };
+                    var v = _migrate[d.clipTrans] || d.clipTrans;
+                    if (['none','ken','glitch','reveal','cinema'].indexOf(v) >= 0) {
+                        _museClipCycleTrans = v;
+                    }
+                }
+                if (typeof d.clipTransSpeed === 'number') {
+                    _museClipCycleTransSpeed = Math.max(0.3, Math.min(3.0, d.clipTransSpeed));
                 }
             } catch(_) {}
             // Apply transition attribute on <html> so CSS rules wire up immediately.
@@ -50168,7 +50202,8 @@ ${_clip(contextSections, 2600)}`;
                 clipEnabled: _museClipCycleEnabled,
                 clipInterval: _museClipCycleInterval,
                 clipShuffle: _museClipCycleShuffle,
-                clipTrans: _museClipCycleTrans
+                clipTrans: _museClipCycleTrans,
+                clipTransSpeed: _museClipCycleTransSpeed
             }));
             // Debounce Gist push — settings only, not hot-path
             clearTimeout(_museAutoRotateSaveTimer);
@@ -50253,35 +50288,73 @@ ${_clip(contextSections, 2600)}`;
             } else {
                 document.documentElement.setAttribute('data-cine-trans', _museClipCycleTrans);
             }
+            // Speed driver: base = 550ms; faster → shorter duration. Clamp matches setter.
+            var spd = Math.max(0.3, Math.min(3.0, _museClipCycleTransSpeed || 1));
+            document.documentElement.style.setProperty('--cine-trans-dur', Math.round(550 / spd) + 'ms');
         }
-        // Pick the next clip index. Sequential: (cur+1) % len. Shuffle: drain a
-        // pre-shuffled queue (Fisher-Yates), refill when empty so every clip plays
-        // once before any repeats — avoids the "same clip 3 times in a row" feel
-        // that pure Math.random gives on small playlists.
-        function _museClipPickNext() {
+        // Returns the set of clip indices represented by VISIBLE OTHER FRAMES chips.
+        // _cineUpdateMiniSlotCount sets style.display='none' on chips that overflow the
+        // grid — those clips should NOT be picked by the cycle (the user can't see them
+        // in the mini-strip and would lose track of where the hero is). Excludes empty
+        // placeholder chips. Falls back to "all clips" when the strip isn't built yet.
+        function _museClipCycleVisibleSet() {
+            var grid = document.querySelector('.cine-mini-frames .cine-mf-grid');
             var len = (typeof _museClips !== 'undefined') ? _museClips.length : 0;
-            if (len < 2) return -1;
-            var cur = (typeof _museActiveIdx === 'number' && _museActiveIdx >= 0) ? _museActiveIdx : 0;
+            if (!grid) {
+                var all = [];
+                for (var i = 0; i < len; i++) all.push(i);
+                return all;
+            }
+            var chips = grid.querySelectorAll('.cine-mf-chip');
+            var visible = [];
+            chips.forEach(function(chip) {
+                if (chip.classList.contains('is-empty')) return;
+                if (chip.style.display === 'none') return;
+                var idx = parseInt(chip.getAttribute('data-cine-mf-idx'), 10);
+                if (!isNaN(idx) && idx >= 0 && idx < len) visible.push(idx);
+            });
+            // Safety: never return an empty set when clips exist — fall back to all.
+            if (visible.length === 0) {
+                for (var k = 0; k < len; k++) visible.push(k);
+            }
+            return visible;
+        }
+        // Pick the next clip index from the VISIBLE set. Sequential: next-after-cur in
+        // visible order (wrap). Shuffle: drain a Fisher-Yates queue of visible indices,
+        // refill when empty — every visible clip plays once before any repeats.
+        function _museClipPickNext() {
+            var visible = _museClipCycleVisibleSet();
+            if (visible.length < 2) return -1;
+            var cur = (typeof _museActiveIdx === 'number' && _museActiveIdx >= 0) ? _museActiveIdx : -1;
             if (_museClipCycleShuffle) {
                 if (!_museClipShuffleQueue || _museClipShuffleQueue.length === 0) {
-                    var arr = [];
-                    for (var i = 0; i < len; i++) if (i !== cur) arr.push(i);
+                    var arr = visible.slice().filter(function(x) { return x !== cur; });
                     for (var k = arr.length - 1; k > 0; k--) {
                         var j = Math.floor(Math.random() * (k + 1));
                         var tmp = arr[k]; arr[k] = arr[j]; arr[j] = tmp;
                     }
                     _museClipShuffleQueue = arr;
                 }
-                // Edge case: queue may contain stale indices if clips were deleted/reordered
-                // between refills. Clamp + skip out-of-range entries.
+                // Edge case: queue may contain stale indices (clips deleted/reordered
+                // between refills, or visibility changed). Skip entries that aren't in
+                // the current visible set or are == cur.
+                var visibleMap = {};
+                for (var v = 0; v < visible.length; v++) visibleMap[visible[v]] = 1;
                 var pick = _museClipShuffleQueue.shift();
-                while (typeof pick === 'number' && (pick < 0 || pick >= len || pick === cur)) {
-                    if (_museClipShuffleQueue.length === 0) return (cur + 1) % len; // safety
+                while (typeof pick === 'number' && (!visibleMap[pick] || pick === cur)) {
+                    if (_museClipShuffleQueue.length === 0) {
+                        // Safety: pick first non-cur visible idx
+                        for (var f = 0; f < visible.length; f++) if (visible[f] !== cur) return visible[f];
+                        return visible[0];
+                    }
                     pick = _museClipShuffleQueue.shift();
                 }
                 return pick;
             }
-            return (cur + 1) % len;
+            // Sequential: find cur in visible order, advance by 1 (wrap)
+            var pos = visible.indexOf(cur);
+            if (pos < 0) return visible[0];
+            return visible[(pos + 1) % visible.length];
         }
         function _museClipCycleStart() {
             if (_museClipCycleTimer) { clearTimeout(_museClipCycleTimer); _museClipCycleTimer = null; }
@@ -50341,11 +50414,22 @@ ${_clip(contextSections, 2600)}`;
             _museRenderAutoRotateUI();
         }
         function _museClipCycleSetTrans(mode) {
-            if (['none','fade','slide','zoom'].indexOf(mode) < 0) return;
+            if (['none','ken','glitch','reveal','cinema'].indexOf(mode) < 0) return;
             _museClipCycleTrans = mode;
             _museApplyCineTrans();
             _museAutoRotateSave();
             _museRenderAutoRotateUI();
+        }
+        function _museClipCycleSetTransSpeed(val) {
+            var v = parseFloat(val);
+            if (!isFinite(v)) v = 1.0;
+            v = Math.max(0.3, Math.min(3.0, v));
+            _museClipCycleTransSpeed = v;
+            _museApplyCineTrans();
+            _museAutoRotateSave();
+            // Update inline label without full re-render (slider may be focused/dragging)
+            var lbl = document.getElementById('muse-clip-trans-speed-label');
+            if (lbl) lbl.textContent = v.toFixed(1).replace(/\.0$/, '') + '×';
         }
 
         function _museRenderAutoRotateUI() {
@@ -50435,22 +50519,36 @@ ${_clip(contextSections, 2600)}`;
                     + '<span style="position:absolute;top:2px;left:' + (shOn ? '20px' : '2px') + ';width:16px;height:16px;border-radius:50%;background:white;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>'
                     + '</label>'
                     + '</div>';
-                // Transition picker — segmented buttons
+                // Transition picker — segmented buttons (5 modes, more cinematic palette)
                 var transModes = [
-                    ['none',  'None'],
-                    ['fade',  'Fade'],
-                    ['slide', 'Slide'],
-                    ['zoom',  'Zoom']
+                    ['none',   'None'],
+                    ['ken',    'Ken Burns'],
+                    ['glitch', 'Glitch'],
+                    ['reveal', 'Reveal'],
+                    ['cinema', 'Cinema']
                 ];
                 html += '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;">'
                     + '<div style="font-size:10.5px;color:var(--text-dim);font-weight:600;margin-bottom:8px;letter-spacing:0.04em;">TRANSITION</div>'
                     + '<div style="display:flex;background:var(--bg-card2,rgba(0,0,0,0.15));border-radius:9px;padding:2px;gap:1px;border:1px solid var(--border);">';
                 for (var t = 0; t < transModes.length; t++) {
                     var key = transModes[t][0], lbl = transModes[t][1];
-                    var sel = (_museClipCycleTrans || 'fade') === key;
-                    html += '<button onclick="_museClipCycleSetTrans(\'' + key + '\')" style="flex:1;height:28px;border-radius:7px;border:1px solid ' + (sel ? 'color-mix(in srgb,var(--accent) 35%,var(--border))' : 'transparent') + ';cursor:pointer;font-size:10px;font-weight:700;letter-spacing:0.04em;transition:all 0.15s;background:' + (sel ? 'color-mix(in srgb,var(--accent) 14%,transparent)' : 'transparent') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-dim)') + ';">' + lbl + '</button>';
+                    var sel = (_museClipCycleTrans || 'ken') === key;
+                    html += '<button onclick="_museClipCycleSetTrans(\'' + key + '\')" style="flex:1;height:28px;border-radius:7px;border:1px solid ' + (sel ? 'color-mix(in srgb,var(--accent) 35%,var(--border))' : 'transparent') + ';cursor:pointer;font-size:9.5px;font-weight:700;letter-spacing:0.03em;transition:all 0.15s;background:' + (sel ? 'color-mix(in srgb,var(--accent) 14%,transparent)' : 'transparent') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-dim)') + ';white-space:nowrap;">' + lbl + '</button>';
                 }
-                html += '</div></div>';
+                html += '</div>';
+                // Speed slider — only meaningful when transition isn't 'none'
+                if (_museClipCycleTrans && _museClipCycleTrans !== 'none') {
+                    var sp = _museClipCycleTransSpeed || 1.0;
+                    var spLabel = sp.toFixed(1).replace(/\.0$/, '') + '×';
+                    html += '<div style="display:flex;align-items:center;gap:10px;margin-top:10px;">'
+                        + '<span style="font-size:10px;color:var(--text-dim);font-weight:600;letter-spacing:0.04em;flex-shrink:0;">SPEED</span>'
+                        + '<input type="range" min="0.3" max="3.0" step="0.1" value="' + sp + '" '
+                        + 'oninput="_museClipCycleSetTransSpeed(this.value)" '
+                        + 'style="flex:1;min-width:0;accent-color:var(--accent);height:18px;">'
+                        + '<span id="muse-clip-trans-speed-label" style="font-size:11px;font-weight:700;color:var(--text-primary);font-family:var(--font-mono);min-width:32px;text-align:right;">' + spLabel + '</span>'
+                        + '</div>';
+                }
+                html += '</div>';
             }
             html += '</div>';
             section.innerHTML = html;
