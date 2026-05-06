@@ -2958,6 +2958,18 @@
         html[data-preset="cinematic"] .cine-mf-chip.is-active:not(.has-thumb) {
             background: color-mix(in srgb, var(--accent) 10%, transparent);
         }
+        html[data-preset="cinematic"] .cine-mf-chip[draggable="true"] {
+            cursor: grab;
+        }
+        html[data-preset="cinematic"] .cine-mf-chip.is-dnd-src {
+            opacity: 0.35 !important;
+            transform: scale(0.96);
+        }
+        html[data-preset="cinematic"] .cine-mf-chip.is-dnd-over {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent),
+                        0 0 18px color-mix(in srgb, var(--accent) 40%, transparent) !important;
+        }
 
         /* ─────────────────────────────────────────────────────────────
            CINEMATIC MARKETS — palette polish (Phase 1).
@@ -45518,7 +45530,12 @@ ${_clip(contextSections, 2600)}`;
                 let chipsHtml = '';
                 for (let i = 0; i < _CINE_FIXED_SLOTS; i++) {
                     chipsHtml +=
-                        '<button class="cine-mf-chip" data-cine-mf-idx="' + i + '" ' +
+                        '<button class="cine-mf-chip" data-cine-mf-idx="' + i + '" type="button" ' +
+                            'ondragstart="_cineMfDragStart(event,' + i + ')" ' +
+                            'ondragend="_cineMfDragEnd(event,' + i + ')" ' +
+                            'ondragover="_cineMfDragOver(event,' + i + ')" ' +
+                            'ondragleave="_cineMfDragLeave(event,' + i + ')" ' +
+                            'ondrop="_cineMfDrop(event,' + i + ')" ' +
                             'onclick="if(this.classList.contains(\'is-empty\'))return;' +
                             'if(typeof _cineSwitchToSlot===\'function\')_cineSwitchToSlot(' + i + ');' +
                             'if(typeof _cineEnsureMiniFrames===\'function\')requestAnimationFrame(_cineEnsureMiniFrames);">' +
@@ -45552,6 +45569,9 @@ ${_clip(contextSections, 2600)}`;
                 const isEmpty = !clip;
                 chip.classList.toggle('is-empty', isEmpty);
                 chip.classList.toggle('is-active', !isEmpty && i === activeIdx);
+                // Only filled chips are draggable — empty placeholders shouldn't move.
+                if (isEmpty) chip.removeAttribute('draggable');
+                else chip.setAttribute('draggable', 'true');
                 const img = chip.querySelector('.cine-mf-img');
                 if (!img) return;
                 if (isEmpty) {
@@ -45581,6 +45601,107 @@ ${_clip(contextSections, 2600)}`;
                 img.removeAttribute('src');
             });
         }
+
+        // ── Cinematic OTHER FRAMES — drag-to-reorder ──────────────────
+        // Mirrors _museSlotDrop (mutates _museClips in place + saves preset),
+        // but operates on chip indices instead of slot DOM. Visual feedback
+        // is on the chip itself (slots are hidden behind the hero in cinematic).
+        var _cineMfDragSrc = -1;
+        var _cineMfDragTgt = -1;
+        function _cineMfChipBy(idx) {
+            return document.querySelector('.cine-mf-chip[data-cine-mf-idx="' + idx + '"]');
+        }
+        function _cineMfDragStart(e, idx) {
+            if (typeof _museClips === 'undefined' || idx >= _museClips.length || idx < 0) {
+                e.preventDefault();
+                return;
+            }
+            _cineMfDragSrc = idx;
+            _cineMfDragTgt = -1;
+            // Mirror to global drag state so any slot-level handlers stay consistent
+            if (typeof _museDragSrcIdx !== 'undefined') _museDragSrcIdx = idx;
+            try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)); } catch(_) {}
+            requestAnimationFrame(function() {
+                var chip = _cineMfChipBy(idx);
+                if (chip) chip.classList.add('is-dnd-src');
+            });
+        }
+        function _cineMfDragEnd(e, idx) {
+            var chip = _cineMfChipBy(idx);
+            if (chip) chip.classList.remove('is-dnd-src');
+            document.querySelectorAll('.cine-mf-chip.is-dnd-over').forEach(function(c) {
+                c.classList.remove('is-dnd-over');
+            });
+            _cineMfDragSrc = -1;
+            _cineMfDragTgt = -1;
+            if (typeof _museDragSrcIdx !== 'undefined') _museDragSrcIdx = -1;
+        }
+        function _cineMfDragOver(e, idx) {
+            if (_cineMfDragSrc < 0 || _cineMfDragSrc === idx) return;
+            if (typeof _museClips === 'undefined' || idx >= _museClips.length) return; // can't drop on empty
+            e.preventDefault();
+            try { e.dataTransfer.dropEffect = 'move'; } catch(_) {}
+            if (_cineMfDragTgt !== idx) {
+                if (_cineMfDragTgt >= 0) {
+                    var prev = _cineMfChipBy(_cineMfDragTgt);
+                    if (prev) prev.classList.remove('is-dnd-over');
+                }
+                _cineMfDragTgt = idx;
+                var chip = _cineMfChipBy(idx);
+                if (chip) chip.classList.add('is-dnd-over');
+            }
+        }
+        function _cineMfDragLeave(e, idx) {
+            // Only clear if we actually left the chip box (not a child element)
+            var chip = _cineMfChipBy(idx);
+            if (!chip) return;
+            var rect = chip.getBoundingClientRect();
+            if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                chip.classList.remove('is-dnd-over');
+                if (_cineMfDragTgt === idx) _cineMfDragTgt = -1;
+            }
+        }
+        function _cineMfDrop(e, tgt) {
+            e.preventDefault();
+            var src = _cineMfDragSrc;
+            // Clear visual highlights regardless
+            document.querySelectorAll('.cine-mf-chip.is-dnd-over,.cine-mf-chip.is-dnd-src').forEach(function(c) {
+                c.classList.remove('is-dnd-over');
+                c.classList.remove('is-dnd-src');
+            });
+            if (src < 0 || src === tgt || src >= _museClips.length || tgt >= _museClips.length) {
+                _cineMfDragSrc = -1; _cineMfDragTgt = -1;
+                if (typeof _museDragSrcIdx !== 'undefined') _museDragSrcIdx = -1;
+                return;
+            }
+            // Reorder _museClips in place — same insert-at semantics as _museSlotDrop.
+            var moved = _museClips.splice(src, 1)[0];
+            _museClips.splice(tgt, 0, moved);
+            // Keep _museActiveIdx pointing at the same CLIP (not the same index slot).
+            if (typeof _museActiveIdx === 'number' && _museActiveIdx >= 0) {
+                if (_museActiveIdx === src) {
+                    _museActiveIdx = tgt;
+                } else if (src < _museActiveIdx && tgt >= _museActiveIdx) {
+                    _museActiveIdx -= 1;
+                } else if (src > _museActiveIdx && tgt <= _museActiveIdx) {
+                    _museActiveIdx += 1;
+                }
+                if (typeof _museSaveActiveSlot === 'function' && typeof _musePresetIdx === 'number') {
+                    _museSaveActiveSlot(_musePresetIdx, _museActiveIdx);
+                }
+            }
+            _museSaveCurrentPreset();
+            _cineMfDragSrc = -1; _cineMfDragTgt = -1;
+            if (typeof _museDragSrcIdx !== 'undefined') _museDragSrcIdx = -1;
+            if (typeof _museRenderSlots === 'function') _museRenderSlots();
+            if (typeof _cineEnsureMiniFrames === 'function') _cineEnsureMiniFrames();
+            if (typeof _cineEnsureActiveSlotRendered === 'function') _cineEnsureActiveSlotRendered();
+            if (typeof _cineMarkActiveSlot === 'function') _cineMarkActiveSlot();
+            if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
+            if (_museEditOpen) { _museRenderPresetTabs(); _museRenderEditList(); }
+            if (typeof _museToast === 'function') _museToast('เรียงลำดับแล้ว');
+        }
+
         // ── Cinematic Utilities hero (empty state) ────────────────────
         // Replaces the tiny gear+placeholder of #util-panel-default with a
         // Fraunces italic hero + 6 tool chips when on cinematic + utilities tab
