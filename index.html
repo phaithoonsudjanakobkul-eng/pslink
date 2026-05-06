@@ -2520,6 +2520,37 @@
             html[data-preset="cinematic"] #tab-dashboard {
                 padding: 12px !important;
             }
+            /* HERO PHOTO FIT — switch from desktop `object-fit:contain`
+               (designed for portrait 9:16 muse content where letterbox
+               sides are filled by blurred backdrop) to `cover` at
+               mobile/tablet. At narrow viewport with 16/9 or 4/3 hero
+               banner, `contain` shrinks the portrait to fit the wider
+               banner → tiny center strip + huge blur bars top/bottom
+               which reads as "broken cropped photo". `cover` fills the
+               banner, blur backdrop becomes redundant (no letterbox
+               area visible), and face is properly framed via
+               object-position center 25% (slightly above center so the
+               head doesn't get cut off when subject is photographed
+               from chest up). */
+            html[data-preset="cinematic"] #muse-slots > .cine-active [id^="muse-cover-"] img,
+            html[data-preset="cinematic"] #muse-slots > .cine-active [id^="muse-cover-"] video {
+                object-fit: cover !important;
+                object-position: center 25% !important;
+            }
+            /* Hide the blurred backdrop at mobile/tablet — it's there to
+               fill letterbox area when contain leaves bars; with cover
+               there's no letterbox, the backdrop just dims the photo. */
+            html[data-preset="cinematic"] .cine-muse-backdrop {
+                display: none !important;
+            }
+            /* PROFILE PHOTO at mobile — same cover treatment. The desktop
+               photo column uses object-fit cover already (default img
+               behavior with no override), but mobile banner needs explicit
+               sizing to face area. */
+            html[data-preset="cinematic"] #profilePhotoImg {
+                object-fit: cover !important;
+                object-position: center 25% !important;
+            }
             /* Bump card border-radius from default 10px to 14px at
                mobile/tablet. At narrow viewport the smaller curve
                (10px on a 400px wide card) reads as "almost sharp" —
