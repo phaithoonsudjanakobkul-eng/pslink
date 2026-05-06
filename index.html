@@ -2495,42 +2495,51 @@
            in the right stack. Click switches preset via _museLoadPreset. */
         .cine-mini-frames { display: none; }
         /* Mini frames — equal-height with Pinned+Aux (3 rows share row 1).
-           Phase 14i: slot height = mf-grid height (full row), slot width =
-           height × 3/4 via aspect-ratio. mf-grid uses flex (NOT grid) +
-           overflow:hidden so the strip shows as many full-size portrait slots
-           as fit the container width — number of visible slots adapts to
-           viewport. At 2560×1440 ~5 slots visible; 1280×720 ~7 slots; 1707
-           ~6. Hidden slots stay in DOM (so JS state for slots 4-10 still
-           updates) but clip via overflow. */
+           Phase 15: container-query auto-fit grid. Slot count adapts to the
+           Mini card's INNER width (not viewport) via @container step rules.
+           Each slot is 1fr column with aspect-ratio 3/4 → portrait, equal
+           width. No hide-on-clip / no half-clipped slot. Hard cap at 10
+           (preset max). At 1366 inner ≈600 → 6 slots; 1707 inner ≈800 → 7;
+           1920 inner ≈900 → 8; 2560 inner ≈1300 → 10. */
         html[data-preset="cinematic"] .cine-mini-frames {
             display: flex !important;
             flex-direction: column !important;
             padding: 14px !important;
             flex: 1 1 0 !important;
             min-height: 0 !important;
+            container-type: inline-size;
         }
         html[data-preset="cinematic"] .cine-mf-grid {
-            display: flex !important;
-            flex-wrap: nowrap !important;
-            flex: 1 1 auto !important;
+            display: grid !important;
+            grid-template-columns: repeat(6, 1fr);
+            grid-auto-rows: minmax(0, 1fr);
             gap: 10px !important;
-            justify-content: space-evenly !important;
-            overflow: hidden !important;
             min-height: 0 !important;
+            overflow: hidden;
         }
-        /* Hide slots 7-10 at desktop/wide so visible slots (1-6) fill row
-           cleanly with no half-clipped slot. justify-content: space-evenly
-           distributes any leftover space evenly between slots + edges so the
-           strip never looks bunched-left or empty-right. */
-        html[data-preset="cinematic"] .cine-mf-chip:nth-child(n+7) {
-            display: none !important;
-        }
-        /* Narrow viewport (≤1499 — work laptop, small notebook): slot natural
-           width is smaller (~110-180px) so 7 slots can fit; reveal slot 7. */
-        @media (max-width: 1499px) {
-            html[data-preset="cinematic"] .cine-mf-chip:nth-child(7) {
-                display: block !important;
+        @container (min-width: 700px) {
+            html[data-preset="cinematic"] .cine-mf-grid {
+                grid-template-columns: repeat(7, 1fr);
             }
+        }
+        @container (min-width: 850px) {
+            html[data-preset="cinematic"] .cine-mf-grid {
+                grid-template-columns: repeat(8, 1fr);
+            }
+        }
+        @container (min-width: 1050px) {
+            html[data-preset="cinematic"] .cine-mf-grid {
+                grid-template-columns: repeat(9, 1fr);
+            }
+        }
+        @container (min-width: 1250px) {
+            html[data-preset="cinematic"] .cine-mf-grid {
+                grid-template-columns: repeat(10, 1fr);
+            }
+        }
+        /* Hard cap — preset has max 10 slots; never render more. */
+        html[data-preset="cinematic"] .cine-mf-chip:nth-child(n+11) {
+            display: none !important;
         }
         html[data-preset="cinematic"] .cine-mf-header {
             display: flex;
@@ -2544,11 +2553,6 @@
             font-weight: 500;
             letter-spacing: 0.08em;
             color: rgba(245, 241, 232, 0.4);
-        }
-        html[data-preset="cinematic"] .cine-mf-grid {
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 10px;
         }
         /* Empty placeholder chip — slots beyond the clip count. Dashed
            hairline + dim letter, no hover lift, no click. Card height stays
@@ -2571,9 +2575,8 @@
         html[data-preset="cinematic"] .cine-mf-chip {
             position: relative;
             aspect-ratio: 3/4;
-            height: 100%;
-            flex: 0 0 auto;
             min-width: 0;
+            min-height: 0;
             border-radius: 10px;
             background: rgba(245, 241, 232, 0.06);
             border: 0.5px solid var(--cine-glass-border);
