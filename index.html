@@ -44448,7 +44448,11 @@ ${_clip(contextSections, 2600)}`;
             try {
                 const ctrl = new AbortController();
                 const timer = setTimeout(() => ctrl.abort(), 15000);
-                const r = await fetch(proxyUrl, { cache:'no-store', signal:ctrl.signal });
+                // Default cache mode — allorigins responds with Cache-Control headers, and our
+                // own 5-min localStorage gate above already prevents over-fetching. Forcing
+                // 'no-store' here bypassed browser cache and made every call hit allorigins
+                // cold, which routinely exceeded 15s for S&P.
+                const r = await fetch(proxyUrl, { signal:ctrl.signal });
                 clearTimeout(timer);
                 if (r.ok) {
                     const raw = await r.json();
