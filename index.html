@@ -37072,59 +37072,6 @@ ${paras}
             try { localStorage.setItem(_VAL_CACHE_KEY, JSON.stringify(_valuationCache)); } catch(e) {}
         }
 
-        // Finnhub `/stock/price-target` moved to Premium tier ($50+/mo) late 2025.
-        // Free tier returns 403 → we set this flag on first 403 of the session and
-        // skip all subsequent calls. Self-heals when user pastes a new key (different
-        // first-8-char fingerprint clears the flag).
-        let _finnhubPremiumDenied = localStorage.getItem('ps_finnhub_premium_denied') === '1';
-        let _finnhubPremiumDeniedKey = localStorage.getItem('ps_finnhub_premium_denied_key') || '';
-
-        // Fetch analyst consensus target price. Cached 7 days — targets
-        // update weekly-to-monthly, no need to spam the endpoint.
-        async function fetchAnalystTarget(symbol) {
-            const now = Date.now();
-            const entry = _valuationCache[symbol];
-            if (entry && entry.target && entry.target.ts && (now - entry.target.ts) < _VAL_TTL_MS) {
-                return entry.target;
-            }
-            const key = getFinnhubKey();
-            if (!key) return null;
-            const keyFp = key.slice(0, 8);
-            if (_finnhubPremiumDenied && _finnhubPremiumDeniedKey !== keyFp) {
-                _finnhubPremiumDenied = false;
-                _finnhubPremiumDeniedKey = '';
-                try { localStorage.removeItem('ps_finnhub_premium_denied'); localStorage.removeItem('ps_finnhub_premium_denied_key'); } catch(e) {}
-            }
-            if (_finnhubPremiumDenied) return null;
-            try {
-                const u = `https://finnhub.io/api/v1/stock/price-target?symbol=${encodeURIComponent(symbol)}&token=${key}`;
-                const res = await fetch(u, { signal: AbortSignal.timeout(8000) });
-                if (res.status === 403) {
-                    _finnhubPremiumDenied = true;
-                    _finnhubPremiumDeniedKey = keyFp;
-                    try {
-                        localStorage.setItem('ps_finnhub_premium_denied', '1');
-                        localStorage.setItem('ps_finnhub_premium_denied_key', keyFp);
-                    } catch(e) {}
-                    console.warn('[Finnhub] /stock/price-target requires Premium tier — analyst target disabled this session');
-                    return null;
-                }
-                if (!res.ok) return null;
-                const data = await res.json();
-                if (!data || data.targetMean == null) return null;
-                const target = {
-                    mean: Number(data.targetMean) || null,
-                    high: Number(data.targetHigh) || null,
-                    low:  Number(data.targetLow)  || null,
-                    ts: now,
-                };
-                _valuationCache[symbol] = _valuationCache[symbol] || {};
-                _valuationCache[symbol].target = target;
-                _saveValuationCache();
-                return target;
-            } catch(e) { return null; }
-        }
-
         // Compute composite score from available factors. Returns
         // { tier, score, confidence, factors } — tier is one of the 5 labels.
         function computeValuationScore(symbol) {
@@ -37132,44 +37079,36 @@ ${paras}
             const current = d.c ?? d.pc ?? null;
             if (!current || current <= 0) return { tier: 'N/A', score: null, confidence: 'none' };
 
-            const entry = _valuationCache[symbol];
-            const target = entry?.target || null;
-
             let weightedScore = 0, totalWeight = 0;
             const factors = {};
 
-            // 1) Analyst target upside — weight 40%
-            if (target && target.mean && target.mean > 0) {
-                const upside = (target.mean - current) / current;        // +0.30 = 30% undervalued vs target
-                const raw = Math.max(-1, Math.min(1, upside * 2));       // map ±50% → ±1
-                weightedScore += raw * 0.40;
-                totalWeight   += 0.40;
-                factors.analyst = { upside, score: raw };
-            }
+            // Weights redistributed from original 4-factor scheme (analyst 40% removed
+            // when Finnhub moved /stock/price-target to Premium tier late 2025).
+            // Original 25/20/15 → now 42/33/25 to keep relative ratios identical.
 
-            // 2) P/E vs 5Y historical average — weight 25%
+            // 1) P/E vs 5Y historical average — weight 42%
             const pe = Number(d.pe) || null;
             const pe5y = Number(d.pe5YearAvg) || null;
             if (pe && pe > 0 && pe5y && pe5y > 0) {
                 const dev = (pe5y - pe) / pe5y;                          // positive = cheaper than history
                 const raw = Math.max(-1, Math.min(1, dev * 1.5));
-                weightedScore += raw * 0.25;
-                totalWeight   += 0.25;
+                weightedScore += raw * 0.42;
+                totalWeight   += 0.42;
                 factors.historical = { pe, pe5y, score: raw };
             }
 
-            // 3) P/E vs sector benchmark — weight 20%
+            // 2) P/E vs sector benchmark — weight 33%
             const industry = d.industry || '';
             const sectorPE = SECTOR_PE_BENCHMARK[industry] || SECTOR_PE_BENCHMARK.default;
             if (pe && pe > 0 && sectorPE) {
                 const dev = (sectorPE - pe) / sectorPE;                  // positive = cheaper than sector
                 const raw = Math.max(-1, Math.min(1, dev * 1.2));
-                weightedScore += raw * 0.20;
-                totalWeight   += 0.20;
+                weightedScore += raw * 0.33;
+                totalWeight   += 0.33;
                 factors.sector = { pe, sectorPE, industry, score: raw };
             }
 
-            // 4) PEG ratio — weight 15%
+            // 3) PEG ratio — weight 25%
             const peg = Number(d.peg) || null;
             if (peg && peg > 0) {
                 let raw;
@@ -37179,8 +37118,8 @@ ${paras}
                 else if (peg < 1.7) raw =  0.0;
                 else if (peg < 2.5) raw = -0.5;
                 else                raw = -1.0;
-                weightedScore += raw * 0.15;
-                totalWeight   += 0.15;
+                weightedScore += raw * 0.25;
+                totalWeight   += 0.25;
                 factors.peg = { peg, score: raw };
             }
 
@@ -37316,12 +37255,9 @@ ${paras}
                         if (_r) { wlDataCache[symbol]._tr = _r; wlDataCache[symbol]._cells = _r.querySelectorAll('td'); }
                         // Patch PINNED logo if this symbol is pinned (fixes first-use blank logos)
                         if (_pinnedSymSet.has(symbol)) _patchPinnedLogo(symbol);
-                        // Valuation fetch — analyst target + compute tier. Cached 7d → fetch is
-                        // usually a no-op. Don't block renderWatchlistRow on this — fire-and-forget.
-                        fetchAnalystTarget(symbol).finally(() => {
-                            computeValuationScore(symbol);
-                            updateValuationCell(symbol);
-                        });
+                        // Valuation tier — computed from P/E + PEG factors already in wlDataCache.
+                        computeValuationScore(symbol);
+                        updateValuationCell(symbol);
                     }
                 } catch(e) {
                     failedSymbols.push(symbol);
@@ -37410,17 +37346,13 @@ ${paras}
             isWlRefreshing = false;
             saveWlCache(); // persist for instant load next time
 
-            // ── Valuation pass: fetch analyst targets + recompute tiers for ALL symbols.
+            // ── Valuation pass: recompute tiers for ALL symbols using P/E + PEG factors.
             // `needsProfile` above only covers stale profiles — cached symbols never
             // hit the throttledAll loop and so never get their valuation refreshed.
-            // This second pass runs fetchAnalystTarget for every watchlist symbol;
-            // the 7-day cache makes most calls a no-op. Low concurrency (3) keeps
-            // well under Finnhub's 60/min rate limit. */
             (async () => {
                 try {
-                    await throttledAll(watchlist, 3, async (symbol) => {
+                    watchlist.forEach(function(symbol) {
                         if (!wlDataCache[symbol]) return;
-                        try { await fetchAnalystTarget(symbol); } catch(e) {}
                         computeValuationScore(symbol);
                         updateValuationCell(symbol);
                     });
@@ -41150,15 +41082,14 @@ ${sourceText}`;
                 } catch { return null; }
             };
 
-            // Fire 5 highest-impact requests (skip insider/upgrades/news to save ~1-2s)
-            const [earnings, recommend, priceTarget, sentiment, earningsCal] = await Promise.all([
+            // Fire 4 highest-impact requests (price-target dropped — Premium-only since late 2025)
+            const [earnings, recommend, sentiment, earningsCal] = await Promise.all([
                 get(`${base}/stock/earnings?symbol=${symbol}&limit=4&token=${fKey}`),
                 get(`${base}/stock/recommendation?symbol=${symbol}&token=${fKey}`),
-                _finnhubPremiumDenied ? Promise.resolve(null) : get(`${base}/stock/price-target?symbol=${symbol}&token=${fKey}`),
                 get(`${base}/news-sentiment?symbol=${symbol}&token=${fKey}`),
                 get(`${base}/calendar/earnings?symbol=${symbol}&from=${new Date().toISOString().slice(0,10)}&to=${new Date(Date.now()+90*864e5).toISOString().slice(0,10)}&token=${fKey}`),
             ]);
-            const insider = null, upgrades = null, newsRaw = null;
+            const priceTarget = null, insider = null, upgrades = null, newsRaw = null;
 
             let out = `\n═══ ${symbol} FUNDAMENTAL & SENTIMENT DATA ═══`;
 
@@ -41878,15 +41809,14 @@ ${sourceText}`;
                 } catch { return null; }
             };
 
-            // Fire 5 highest-impact requests (skip insider/upgrades/news to save ~1-2s)
-            const [earnings, recommend, priceTarget, sentiment, earningsCal] = await Promise.all([
+            // Fire 4 highest-impact requests (price-target dropped — Premium-only since late 2025)
+            const [earnings, recommend, sentiment, earningsCal] = await Promise.all([
                 get(`${base}/stock/earnings?symbol=${symbol}&limit=4&token=${fKey}`),
                 get(`${base}/stock/recommendation?symbol=${symbol}&token=${fKey}`),
-                _finnhubPremiumDenied ? Promise.resolve(null) : get(`${base}/stock/price-target?symbol=${symbol}&token=${fKey}`),
                 get(`${base}/news-sentiment?symbol=${symbol}&token=${fKey}`),
                 get(`${base}/calendar/earnings?symbol=${symbol}&from=${new Date().toISOString().slice(0,10)}&to=${new Date(Date.now()+90*864e5).toISOString().slice(0,10)}&token=${fKey}`),
             ]);
-            const insider = null, upgrades = null, newsRaw = null;
+            const priceTarget = null, insider = null, upgrades = null, newsRaw = null;
 
             let out = `\n═══ ${symbol} FUNDAMENTAL & SENTIMENT DATA ═══`;
 
@@ -56264,15 +56194,13 @@ ${_clip(contextSections, 2600)}`;
                             });
                             out.profile[s] = clean;
                         });
-                        // Valuation cache — analyst targets + computed tiers for fresh-device instant render.
-                        // Fresh device / incognito boot otherwise has to re-fetch 30× /stock/price-target.
+                        // Valuation cache — computed tiers for fresh-device instant render.
+                        // Legacy `target` field kept in payload for backward-compat with old devices
+                        // that still have v.target from before the analyst factor was dropped.
                         Object.keys(_valuationCache || {}).forEach(function(s) {
                             var v = _valuationCache[s];
-                            if (!v || (!v.target && !v.result)) return;
-                            out.valuation[s] = {
-                                target: v.target || null,
-                                result: v.result || null,
-                            };
+                            if (!v || !v.result) return;
+                            out.valuation[s] = { result: v.result };
                         });
                         return out;
                     } catch(e) { return null; }
