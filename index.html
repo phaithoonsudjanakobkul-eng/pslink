@@ -11267,8 +11267,8 @@
     </div>
 
     <!-- Dummy hidden fields to prevent Chrome autofill on real inputs -->
-    <input type="text" style="display:none" aria-hidden="true">
-    <input type="password" style="display:none" aria-hidden="true">
+    <input type="text" autocomplete="off" style="display:none" aria-hidden="true">
+    <input type="password" autocomplete="new-password" style="display:none" aria-hidden="true">
     <body class="min-h-screen pb-20" style="padding-bottom:calc(5rem + var(--sab-min));padding-left:var(--sal);padding-right:var(--sar)">
 <script>
 // Pre-load avatar before first paint to prevent blank flash
@@ -12245,7 +12245,7 @@
                             </div>
                         </div>
                         <div class="flex gap-2 mb-2">
-                            <input id="wz-gist-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')wzApplyGist()">
+                            <input id="wz-gist-token" type="password" autocomplete="new-password" data-lpignore="true" data-form-type="other" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)" onkeydown="if(event.key==='Enter')wzApplyGist()">
                             <button onclick="wzToggleVis('wz-gist-token')" class="px-2 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
                         </div>
                         <button id="wz-gist-apply-btn" onclick="wzApplyGist()" class="w-full text-[11px] font-bold py-2.5 rounded-lg uppercase tracking-wider transition-all active:scale-[0.98]" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;cursor:pointer">APPLY</button>
@@ -12286,7 +12286,7 @@
                             <div>
                                 <label style="color:var(--text-secondary);" class="text-[11px] font-bold block mb-1">Finnhub API Key <span style="color:var(--text-dim);" class="font-normal">(ข้อมูลหุ้น ฟรี)</span></label>
                                 <div class="flex gap-2">
-                                    <input id="wz-finnhub-key" type="password" placeholder="Finnhub API Key" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
+                                    <input id="wz-finnhub-key" type="password" autocomplete="new-password" data-lpignore="true" data-form-type="other" placeholder="Finnhub API Key" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
                                     <button onclick="wzToggleVis('wz-finnhub-key')" class="px-2 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
                                 </div>
                                 <p style="color:var(--text-dim);" class="text-[9px] mt-1"><a href="https://finnhub.io" target="_blank" style="color:#22c55e;" class="underline">finnhub.io</a> → Sign Up (ฟรี) → Dashboard → API Key</p>
@@ -12295,11 +12295,11 @@
                             <div>
                                 <label style="color:var(--text-secondary);" class="text-[11px] font-bold block mb-1">Alpaca API <span style="color:var(--text-dim);" class="font-normal">(WS real-time + chart bars)</span></label>
                                 <div class="flex gap-2 mb-1.5">
-                                    <input id="wz-alpaca-key" type="password" placeholder="Alpaca Key ID" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
+                                    <input id="wz-alpaca-key" type="password" autocomplete="new-password" data-lpignore="true" data-form-type="other" placeholder="Alpaca Key ID" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
                                     <button onclick="wzToggleVis('wz-alpaca-key')" class="px-2 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
                                 </div>
                                 <div class="flex gap-2">
-                                    <input id="wz-alpaca-secret" type="password" placeholder="Alpaca Secret Key" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
+                                    <input id="wz-alpaca-secret" type="password" autocomplete="new-password" data-lpignore="true" data-form-type="other" placeholder="Alpaca Secret Key" class="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-primary);font-family:var(--font-mono)">
                                     <button onclick="wzToggleVis('wz-alpaca-secret')" class="px-2 rounded-lg text-[10px]" style="background:var(--bg-main);border:1px solid var(--border);color:var(--text-dim)">👁</button>
                                 </div>
                                 <p style="color:var(--text-dim);" class="text-[9px] mt-1"><a href="https://alpaca.markets" target="_blank" style="color:#FFCD00;" class="underline">alpaca.markets</a> → Paper Trading → API Keys (ฟรี ไม่ต้องฝากเงิน)</p>
