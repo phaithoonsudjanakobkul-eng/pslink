@@ -6,6 +6,7 @@
  *   PUT  /upload           — receive encrypted blob → write to R2
  *   POST /download         — return encrypted blob from R2
  *   POST /delete           — delete objects from R2
+ *   GET  /yahoo?symbol=…   — CORS proxy for Yahoo Finance chart API (replaces dead allorigins.win)
  *
  * Auth: Authorization: Bearer <R2_AUTH_TOKEN> on every request
  * R2 binding: MEDIA_BUCKET (set in wrangler.toml)
@@ -106,6 +107,37 @@ export default {
 					'ETag': object.etag,
 				},
 			});
+		}
+
+		// GET /yahoo?symbol=^GSPC — CORS proxy for Yahoo Finance v8 chart API
+		// Symbol must already be URL-encoded by caller (e.g. %5EGSPC for ^GSPC, GC%3DF for GC=F)
+		if (path === '/yahoo' && request.method === 'GET') {
+			const symbol = url.searchParams.get('symbol');
+			if (!symbol) return errorResponse('Missing symbol param');
+			let decoded;
+			try { decoded = decodeURIComponent(symbol); } catch (e) { return errorResponse('Invalid symbol encoding'); }
+			if (!/^[A-Z0-9.\-=^]{1,16}$/i.test(decoded)) return errorResponse('Invalid symbol format');
+			const interval = url.searchParams.get('interval') || '1d';
+			const range = url.searchParams.get('range') || '1d';
+			if (!/^[0-9a-z]{1,4}$/.test(interval) || !/^[0-9a-z]{1,4}$/.test(range)) return errorResponse('Invalid interval/range');
+			const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(decoded)}?interval=${interval}&range=${range}`;
+			try {
+				const res = await fetch(upstream, {
+					headers: {
+						'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+						'Accept': 'application/json',
+					},
+					cf: { cacheTtl: 60, cacheEverything: true },
+				});
+				if (!res.ok) return errorResponse(`Yahoo upstream ${res.status}`, 502);
+				const data = await res.text();
+				return corsResponse(data, {
+					status: 200,
+					headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' },
+				});
+			} catch (e) {
+				return errorResponse(`Yahoo proxy failed: ${e.message}`, 502);
+			}
 		}
 
 		// POST /delete — delete objects from R2
