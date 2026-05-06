@@ -33317,24 +33317,6 @@ ${paras}
         const logoDataMeta = {}; // url -> last-used timestamp
         const LOGO_DATA_CACHE_KEY = 'ps_logo_data_cache_v6';
         const LOGO_DATA_CACHE_MAX_ITEMS = 120;
-        // Negative cache — URLs that failed BOTH direct CORS load AND weserv.nl proxy.
-        // Skips re-fetch on next boot to keep console clean (Finnhub has no logos for many ETFs).
-        // 7-day TTL so re-checked occasionally in case Finnhub adds them later.
-        const LOGO_NEG_CACHE_KEY = 'ps_logo_neg_cache_v1';
-        const LOGO_NEG_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-        const logoNegCache = (function() {
-            try {
-                const raw = localStorage.getItem(LOGO_NEG_CACHE_KEY);
-                const obj = raw ? JSON.parse(raw) : {};
-                const now = Date.now();
-                Object.keys(obj).forEach(function(u) { if (now - obj[u] > LOGO_NEG_TTL_MS) delete obj[u]; });
-                return obj;
-            } catch(e) { return {}; }
-        })();
-        function _logoNegMark(url) {
-            logoNegCache[url] = Date.now();
-            try { localStorage.setItem(LOGO_NEG_CACHE_KEY, JSON.stringify(logoNegCache)); } catch(e) {}
-        }
         const LOGO_DATA_CACHE_MAX_ITEM_LEN = 120 * 1024;
         const LOGO_DATA_CACHE_MAX_TOTAL_LEN = 900 * 1024;
         const LOGO_DATA_CACHE_TTL_MS = 45 * 24 * 60 * 60 * 1000;
@@ -33543,7 +33525,7 @@ ${paras}
         }
         function primeLogoDataUrl(url) {
             if (!url || _isValidLogoDataUrl(logoDataUrlCache[url]) || logoDataInflight[url]) return;
-            if (logoNegCache[url]) return; // previously failed both CORS + weserv proxy
+            if (_logoIsFailed(url)) return; // previously failed both CORS + weserv proxy
             _touchLogoDataUsage(url);
             // Auto-crop to visual bounding box, then center in a square canvas
             function _imgToDataUrl(img) {
@@ -33610,7 +33592,7 @@ ${paras}
                         } catch(e) {}
                         resolve();
                     };
-                    proxy.onerror = function() { _logoNegMark(url); resolve(); };
+                    proxy.onerror = function() { _logoMarkFailed(url); resolve(); };
                     var cleanUrl = url.replace(/^https?:\/\//, '');
                     proxy.src = 'https://images.weserv.nl/?url=' + encodeURIComponent(cleanUrl) + '&w=128&h=128&fit=contain&output=png';
                 };
@@ -33619,6 +33601,9 @@ ${paras}
         }
         function resolveLogoSrc(url) {
             if (!url) return '';
+            // Skip both prime (CDN download) and URL passthrough for known-bad URLs.
+            // Returning '' lets the row template render initials directly — no <img>, no CORS error.
+            if (_logoIsFailed(url)) return '';
             _touchLogoDataUsage(url);
             primeLogoDataUrl(url);
             return logoDataUrlCache[url] || url;
