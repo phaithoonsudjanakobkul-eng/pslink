@@ -45065,6 +45065,13 @@ ${_clip(contextSections, 2600)}`;
             _cineEnsureActiveSlotRendered();
             _cineMarkActiveSlot();
             _cineUpdateMuseBackdrop();
+            // Manual chip click → user wants the full interval on this clip, not whatever
+            // remained on the previous tick. Restart the cycle so the next switch is a
+            // full _museClipCycleInterval seconds away.
+            if (typeof _museClipCycleEnabled !== 'undefined' && _museClipCycleEnabled
+                && typeof _museClipCycleStart === 'function') {
+                _museClipCycleStart();
+            }
         }
 
         // Tag the PINNED section label with `cine-live` so the pulse-dot
@@ -45698,6 +45705,12 @@ ${_clip(contextSections, 2600)}`;
             if (typeof _cineEnsureActiveSlotRendered === 'function') _cineEnsureActiveSlotRendered();
             if (typeof _cineMarkActiveSlot === 'function') _cineMarkActiveSlot();
             if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
+            // Reorder shifted clip indices — restart cycle so the timer points at the
+            // freshly-arranged playlist, not the pre-drop ordering.
+            if (typeof _museClipCycleEnabled !== 'undefined' && _museClipCycleEnabled
+                && typeof _museClipCycleStart === 'function') {
+                _museClipCycleStart();
+            }
             if (_museEditOpen) { _museRenderPresetTabs(); _museRenderEditList(); }
             if (typeof _museToast === 'function') _museToast('เรียงลำดับแล้ว');
         }
@@ -46797,6 +46810,11 @@ ${_clip(contextSections, 2600)}`;
         var _museTransCleanTimer = null;   // cleanup 3D/filter inline styles after animation
         var _museAutoRotateEnabled = false;
         var _museAutoRotateDurations = [30, 30, 30, 30, 30, 30]; // seconds per playlist
+        // Clip thumbnail cycle — cinematic-only: rotate hero through every clip's poster image
+        // (no video autoplay, just the cover/thumbnail). Independent of preset auto-rotate.
+        var _museClipCycleEnabled  = false;
+        var _museClipCycleInterval = 5;     // seconds per thumbnail
+        var _museClipCycleTimer    = null;
         function _museCalcAutoSlots() {
             var card = document.getElementById('muse-card');
             var w = card ? card.offsetWidth : 0;
@@ -46933,6 +46951,7 @@ ${_clip(contextSections, 2600)}`;
             _museAutoRotateLoad();
             _museTransitionLoad();
             if (_museAutoRotateEnabled) _museAutoRotateStart();
+            if (_museClipCycleEnabled) _museClipCycleStart();
             // Auto-hide btn-row (expanded only):
             // mouseenter → show + 0.8s timer; if mouse on btn-row when timer fires → reschedule
             // mouseleave card → 0.8s → hide
@@ -47088,6 +47107,9 @@ ${_clip(contextSections, 2600)}`;
                 if (typeof _cineEnsureActiveSlotRendered === 'function') _cineEnsureActiveSlotRendered();
                 if (typeof _cineMarkActiveSlot === 'function') _cineMarkActiveSlot();
                 if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
+                // Newly-added clips may bring a 1-clip playlist over the 2-clip threshold
+                // that activates the cycle — re-evaluate.
+                if (_museClipCycleEnabled && typeof _museClipCycleStart === 'function') _museClipCycleStart();
                 // Fetch thumbnails for the newly-added range (last `added` items)
                 for (var k = _museClips.length - added; k < _museClips.length; k++) {
                     (function(captured) {
@@ -50085,11 +50107,21 @@ ${_clip(contextSections, 2600)}`;
                     _museAutoRotateIncluded = d.included.slice(0, MUSE_PRESET_KEYS.length);
                     while (_museAutoRotateIncluded.length < MUSE_PRESET_KEYS.length) _museAutoRotateIncluded.push(true);
                 }
+                if (typeof d.clipEnabled === 'boolean') _museClipCycleEnabled = d.clipEnabled;
+                if (typeof d.clipInterval === 'number' && d.clipInterval >= 2 && d.clipInterval <= 120) {
+                    _museClipCycleInterval = d.clipInterval;
+                }
             } catch(_) {}
         }
 
         function _museAutoRotateSave() {
-            localStorage.setItem(MUSE_AUTOROTATE_KEY, JSON.stringify({ enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations, included: _museAutoRotateIncluded }));
+            localStorage.setItem(MUSE_AUTOROTATE_KEY, JSON.stringify({
+                enabled: _museAutoRotateEnabled,
+                durations: _museAutoRotateDurations,
+                included: _museAutoRotateIncluded,
+                clipEnabled: _museClipCycleEnabled,
+                clipInterval: _museClipCycleInterval
+            }));
             // Debounce Gist push — settings only, not hot-path
             clearTimeout(_museAutoRotateSaveTimer);
             _museAutoRotateSaveTimer = setTimeout(function() { if (typeof _pushToGist === 'function') _pushToGist(true); }, 1500);
@@ -50149,10 +50181,7 @@ ${_clip(contextSections, 2600)}`;
             if (v < 5) v = 5;
             if (v > 3600) v = 3600;
             _museAutoRotateDurations[idx] = v;
-            // Save to localStorage immediately, debounce Gist push (avoid push on every keystroke)
-            localStorage.setItem(MUSE_AUTOROTATE_KEY, JSON.stringify({ enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations, included: _museAutoRotateIncluded }));
-            clearTimeout(_museAutoRotateSaveTimer);
-            _museAutoRotateSaveTimer = setTimeout(function() { if (typeof _pushToGist === 'function') _pushToGist(true); }, 1500);
+            _museAutoRotateSave();
             // If currently on this preset and timer is running, restart with new duration
             if (_museAutoRotateEnabled && _musePresetIdx === idx) {
                 _museAutoRotateStart();
@@ -50161,10 +50190,63 @@ ${_clip(contextSections, 2600)}`;
 
         function _museAutoRotateSetIncluded(idx, val) {
             _museAutoRotateIncluded[idx] = !!val;
-            localStorage.setItem(MUSE_AUTOROTATE_KEY, JSON.stringify({ enabled: _museAutoRotateEnabled, durations: _museAutoRotateDurations, included: _museAutoRotateIncluded }));
-            clearTimeout(_museAutoRotateSaveTimer);
-            _museAutoRotateSaveTimer = setTimeout(function() { if (typeof _pushToGist === 'function') _pushToGist(true); }, 1500);
+            _museAutoRotateSave();
             _museRenderAutoRotateUI();
+        }
+
+        // ── Clip thumbnail cycle (cinematic-only) ─────────────────────
+        // Walks through every clip in the current playlist, swapping the hero
+        // backdrop to each clip's poster image. Skips video autoplay — uses
+        // _cineSwitchToSlot which stops any playing iframe and shows the cover.
+        function _museClipCycleStart() {
+            if (_museClipCycleTimer) { clearTimeout(_museClipCycleTimer); _museClipCycleTimer = null; }
+            if (!_museClipCycleEnabled) return;
+            if (typeof _museClips === 'undefined' || _museClips.length < 2) return;
+            // Don't tick while user is editing — they'd watch their selection jump under their cursor.
+            if (_museEditOpen) return;
+            var ms = Math.max(2, _museClipCycleInterval) * 1000;
+            _museClipCycleTimer = setTimeout(_museClipCycleNext, ms);
+        }
+        function _museClipCycleStop() {
+            if (_museClipCycleTimer) { clearTimeout(_museClipCycleTimer); _museClipCycleTimer = null; }
+        }
+        function _museClipCycleNext() {
+            _museClipCycleTimer = null;
+            if (!_museClipCycleEnabled) return;
+            if (_museEditOpen) { _museClipCycleStart(); return; }
+            if (typeof _museClips === 'undefined' || _museClips.length < 2) return;
+            var cur = (typeof _museActiveIdx === 'number' && _museActiveIdx >= 0) ? _museActiveIdx : 0;
+            var next = (cur + 1) % _museClips.length;
+            // Cinematic path → use the same slot-switch the OTHER FRAMES chips trigger
+            // (handles page-jump, hero backdrop refresh, persistence). Outside cinematic
+            // we still bump _museActiveIdx so the saved active stays consistent.
+            if (typeof _cineSwitchToSlot === 'function'
+                && document.documentElement.getAttribute('data-preset') === 'cinematic') {
+                _cineSwitchToSlot(next);
+                if (typeof _cineEnsureMiniFrames === 'function') requestAnimationFrame(_cineEnsureMiniFrames);
+            } else {
+                _museActiveIdx = next;
+                if (typeof _museSaveActiveSlot === 'function' && typeof _musePresetIdx === 'number') {
+                    _museSaveActiveSlot(_musePresetIdx, next);
+                }
+            }
+            _museClipCycleStart();
+        }
+        function _museClipCycleToggle() {
+            _museClipCycleEnabled = !_museClipCycleEnabled;
+            _museAutoRotateSave();
+            if (_museClipCycleEnabled) _museClipCycleStart();
+            else _museClipCycleStop();
+            _museRenderAutoRotateUI();
+            _museToast(_museClipCycleEnabled ? 'Cycle clips เปิดแล้ว' : 'Cycle clips ปิดแล้ว');
+        }
+        function _museClipCycleSetInterval(val) {
+            var v = parseInt(val) || 5;
+            if (v < 2) v = 2;
+            if (v > 120) v = 120;
+            _museClipCycleInterval = v;
+            _museAutoRotateSave();
+            if (_museClipCycleEnabled) _museClipCycleStart();
         }
 
         function _museRenderAutoRotateUI() {
@@ -50216,6 +50298,29 @@ ${_clip(contextSections, 2600)}`;
                     + '<span style="font-size:10px;color:var(--text-dim);opacity:0.6;">เปิดสวิตช์ด้านบนเพื่อตั้งเวลาหมุนเวียน</span>'
                     + '</div>';
             }
+            // ── Clip thumbnail cycle (cinematic hero only) ──────────────
+            var cycOn = _museClipCycleEnabled;
+            html += '<div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">'
+                + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:' + (cycOn ? '14px' : '0') + ';">'
+                + '<div>'
+                + '<div style="font-size:14px;font-weight:700;color:var(--text-primary);line-height:1.3;">Cycle clip thumbnails</div>'
+                + '<div style="font-size:10.5px;color:var(--text-dim);margin-top:3px;line-height:1.5;opacity:0.75;">วน Thumbnail ของคลิปใน Playlist นี้ที่ Hero (Cinematic)</div>'
+                + '</div>'
+                + '<label style="position:relative;display:inline-block;width:48px;height:26px;cursor:pointer;flex-shrink:0;">'
+                + '<input type="checkbox" ' + (cycOn ? 'checked' : '') + ' onchange="_museClipCycleToggle()" style="opacity:0;width:0;height:0;position:absolute;">'
+                + '<span style="position:absolute;inset:0;border-radius:13px;transition:background 0.2s;background:' + (cycOn ? 'var(--accent)' : 'rgba(128,128,128,0.18)') + ';border:1px solid ' + (cycOn ? 'var(--accent)' : 'var(--border)') + ';"></span>'
+                + '<span style="position:absolute;top:3px;left:' + (cycOn ? '25px' : '3px') + ';width:20px;height:20px;border-radius:50%;background:white;transition:left 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></span>'
+                + '</label>'
+                + '</div>';
+            if (cycOn) {
+                html += '<div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;">'
+                    + '<span style="font-size:10.5px;color:var(--text-dim);font-weight:600;flex-shrink:0;">เปลี่ยนทุก</span>'
+                    + '<input type="number" min="2" max="120" value="' + _museClipCycleInterval + '" oninput="_museClipCycleSetInterval(this.value)" '
+                    + 'style="flex:1;min-width:0;height:30px;font-size:14px;font-weight:700;padding:0 8px;background:transparent;border:1px solid var(--border);border-radius:8px;outline:none;color:var(--text-primary);text-align:center;font-family:var(--font-mono);">'
+                    + '<span style="font-size:10px;color:var(--text-dim);flex-shrink:0;font-weight:600;opacity:0.75;">วินาที</span>'
+                    + '</div>';
+            }
+            html += '</div>';
             section.innerHTML = html;
         }
 
@@ -50325,6 +50430,8 @@ ${_clip(contextSections, 2600)}`;
                     });
                 });
                 if (_museAutoRotateEnabled) _museAutoRotateStart();
+                // Restart clip-cycle for the new playlist (clip count may have changed)
+                if (_museClipCycleEnabled) _museClipCycleStart();
                 _musePlayTransitionIn();
                 _museTransitionTimer = null;
             }, _tFadeOut);
@@ -50650,6 +50757,7 @@ ${_clip(contextSections, 2600)}`;
             if (backdrop) backdrop.style.display = _museEditOpen ? 'block' : 'none';
             if (_museEditOpen) {
                 _museAutoRotateStop(); // pause auto-rotate while editing
+                _museClipCycleStop(); // pause clip cycle too — selection mustn't jump under the user
                 _museRenderPresetTabs();
                 _museRenderEditList();
                 _museUpdateAddFooter();
@@ -50661,6 +50769,7 @@ ${_clip(contextSections, 2600)}`;
                 }
             } else {
                 if (_museAutoRotateEnabled) _museAutoRotateStart(); // resume when modal closes
+                if (_museClipCycleEnabled) _museClipCycleStart();
             }
         }
 
