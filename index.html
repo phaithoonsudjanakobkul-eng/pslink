@@ -44996,12 +44996,30 @@ ${_clip(contextSections, 2600)}`;
         // Mark the slot whose index matches _museActiveIdx with .cine-active
         // so CSS hero selector targets it (instead of :first-child). Lets
         // OTHER FRAMES chips switch hero without reordering DOM.
+        // Lookup by slot ID (`muse-slot-${i}` where i is the global clip index)
+        // — DOM iteration index would be wrong when _musePageOffset > 0 or when
+        // _museRenderSlots only built a subset (e.g., cinematic muse-card width
+        // → sc≈3, so chip 4+ wouldn't find a matching DOM slot via iteration).
         function _cineMarkActiveSlot() {
             const slots = document.querySelectorAll('#muse-slots > *');
-            const activeIdx = (typeof _museActiveIdx !== 'undefined') ? _museActiveIdx : 0;
-            slots.forEach(function(s, i) {
-                s.classList.toggle('cine-active', i === activeIdx);
-            });
+            slots.forEach(function(s) { s.classList.remove('cine-active'); });
+            if (typeof _museActiveIdx !== 'number' || _museActiveIdx < 0) return;
+            const target = document.getElementById('muse-slot-' + _museActiveIdx);
+            if (target) target.classList.add('cine-active');
+        }
+
+        // Ensure _museActiveIdx is in the currently-rendered page and that the
+        // slot DOM for it actually exists. If out of page, jump _musePageOffset
+        // to the page containing it and re-render. Idempotent.
+        function _cineEnsureActiveSlotRendered() {
+            if (typeof _museActiveIdx !== 'number' || _museActiveIdx < 0) return;
+            if (typeof _museClips === 'undefined' || _museActiveIdx >= _museClips.length) return;
+            const sc = _museGetSlotCount();
+            const targetPage = Math.floor(_museActiveIdx / sc) * sc;
+            const inDom = !!document.getElementById('muse-slot-' + _museActiveIdx);
+            if (inDom && targetPage === _musePageOffset) return; // already in view
+            _musePageOffset = targetPage;
+            _museRenderSlots();
         }
 
         // Switch hero to slot `idx` WITHOUT autoplaying TikTok video
@@ -45029,6 +45047,10 @@ ${_clip(contextSections, 2600)}`;
             if (typeof _museSaveActiveSlot === 'function' && typeof _musePresetIdx === 'number') {
                 _museSaveActiveSlot(_musePresetIdx, idx);
             }
+            // Cinematic muse-card narrows _museGetSlotCount to ~3, so picking chip 4+
+            // would point _museActiveIdx at a slot DOM that doesn't exist yet.
+            // Page-jump first so the slot is in the DOM, THEN mark + paint.
+            _cineEnsureActiveSlotRendered();
             _cineMarkActiveSlot();
             _cineUpdateMuseBackdrop();
         }
@@ -46942,6 +46964,7 @@ ${_clip(contextSections, 2600)}`;
                 if (_museEditOpen) _museRenderEditList();
                 _museUpdateAddFooter();
                 // Refresh Cinematic hero backdrop so it follows the active slot after re-render.
+                if (typeof _cineEnsureActiveSlotRendered === 'function') _cineEnsureActiveSlotRendered();
                 if (typeof _cineMarkActiveSlot === 'function') _cineMarkActiveSlot();
                 if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
                 // Fetch thumbnails for the newly-added range (last `added` items)
@@ -50167,6 +50190,9 @@ ${_clip(contextSections, 2600)}`;
                 // Cinematic hero backdrop must follow restored _museActiveIdx after preset switch.
                 // MutationObserver eventually catches up, but during the fade transition the hero
                 // can paint blank — call directly so it's correct on the first paint.
+                // Page-jump first when the saved active slot is past the auto-calculated visible
+                // page (cinematic muse-card → sc≈3, so saved idx 5 wouldn't be in the DOM).
+                if (typeof _cineEnsureActiveSlotRendered === 'function') _cineEnsureActiveSlotRendered();
                 if (typeof _cineMarkActiveSlot === 'function') _cineMarkActiveSlot();
                 if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
                 if (_museEditOpen) { _museRenderPresetTabs(); _museRenderEditList(); _museUpdateAddFooter(); _museUpdateLockBtn(); }
