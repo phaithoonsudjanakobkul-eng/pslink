@@ -11762,7 +11762,8 @@
                         <button onclick="_museSlotAddClose()" style="width:24px;height:24px;border-radius:50%;border:none;background:var(--bg-card);color:var(--text-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;padding:0;">✕</button>
                     </div>
                     <!-- URL input -->
-                    <input id="muse-slot-add-input" type="text" placeholder="วาง TikTok URL..." maxlength="512"
+                    <input id="muse-slot-add-input" type="text" placeholder="วาง TikTok URL... (วางหลายลิงก์ทีเดียวได้)" maxlength="4096"
+                        onpaste="_museHandlePastedUrls(event,'muse-slot-add-input')"
                         onkeydown="if(event.key==='Enter')_museSlotAddConfirm();if(event.key==='Escape')_museSlotAddClose();"
                         style="width:100%;box-sizing:border-box;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:11.5px;padding:0 13px;outline:none;margin-bottom:12px;transition:border-color 0.15s,outline 0.15s;">
                     <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:16px;">
@@ -12005,7 +12006,8 @@
                                     <span id="muse-clip-count" style="font-size:10px;color:var(--text-dim);font-weight:700;opacity:0.6;">0/5</span>
                                 </div>
                                 <div style="display:flex;gap:8px;">
-                                    <input id="muse-url-input" type="text" placeholder="วาง TikTok URL — https://www.tiktok.com/@user/video/..." maxlength="512"
+                                    <input id="muse-url-input" type="text" placeholder="วาง TikTok URL — วางหลายลิงก์ทีเดียวได้" maxlength="4096"
+                                        onpaste="_museHandlePastedUrls(event,'muse-url-input')"
                                         onkeydown="if(event.key==='Enter')_museAddClip()"
                                         style="flex:1;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:11px;padding:0 12px;outline:none;min-width:0;transition:border-color 0.15s,opacity 0.15s;">
                                     <button id="muse-add-btn" onclick="_museAddClip()" style="height:36px;padding:0 18px;border-radius:9px;background:var(--accent);border:none;cursor:pointer;color:white;font-size:11px;font-weight:700;flex-shrink:0;letter-spacing:0.03em;transition:background 0.2s,opacity 0.15s;">+ Add</button>
@@ -46894,6 +46896,77 @@ ${_clip(contextSections, 2600)}`;
             return m ? m[1] : null;
         }
 
+        // Extract every TikTok video URL from a free-text blob (multi-paste support).
+        // Browsers strip \n in <input type=text>, so we scan the raw clipboardData on paste
+        // AND fall back to scanning the input value (which becomes space-separated).
+        function _museExtractTikTokUrls(text) {
+            if (!text) return [];
+            var re = /https?:\/\/(?:www\.|m\.)?tiktok\.com\/@[^\/?#\s]+\/video\/\d+(?:[?#][^\s]*)?/g;
+            return text.match(re) || [];
+        }
+
+        // Add a list of TikTok URLs at once. Skips duplicates (same video id) and over-cap entries.
+        // Returns { added, skipped, hitCap } so callers can show a single accurate toast.
+        function _museAddTikTokUrls(urls) {
+            var added = 0, skipped = 0, hitCap = false;
+            var existingIds = {};
+            for (var j = 0; j < _museClips.length; j++) {
+                var eid = _museParseTikTokId(_museClips[j].url || '');
+                if (eid) existingIds[eid] = 1;
+            }
+            for (var i = 0; i < urls.length; i++) {
+                if (_museClips.length >= _MUSE_MAX_CLIPS) { hitCap = true; break; }
+                var url = (urls[i] || '').trim();
+                var id = _museParseTikTokId(url);
+                if (!id) { skipped++; continue; }
+                if (existingIds[id]) { skipped++; continue; }
+                existingIds[id] = 1;
+                var label = 'Clip ' + (_museClips.length + 1);
+                _museClips.push({ url: url, label: label, duration: 0, thumbnail: '', replay: false });
+                added++;
+            }
+            if (added > 0) {
+                _museSaveCurrentPreset();
+                var newIdx = _museClips.length - 1;
+                var sc = _museGetSlotCount();
+                _musePageOffset = Math.floor(newIdx / sc) * sc;
+                _museRenderSlots();
+                if (_museEditOpen) _museRenderEditList();
+                _museUpdateAddFooter();
+                // Fetch thumbnails for the newly-added range (last `added` items)
+                for (var k = _museClips.length - added; k < _museClips.length; k++) {
+                    (function(captured) {
+                        _museFetchThumbnail(_museClips[captured], function() {
+                            _museUpdateSlotCover(captured);
+                            if (_museEditOpen) _museRenderEditList();
+                        });
+                    })(k);
+                }
+            }
+            return { added: added, skipped: skipped, hitCap: hitCap };
+        }
+
+        // onpaste handler — runs BEFORE the browser strips newlines, so multi-line pastes work.
+        // If the clipboard contains 2+ TikTok URLs, batch-add them and clear the input.
+        // For single URL, fall through to default paste behavior (user clicks +Add or hits Enter).
+        function _museHandlePastedUrls(e, inputId) {
+            var cd = e.clipboardData || window.clipboardData;
+            if (!cd) return;
+            var raw = cd.getData('text');
+            if (!raw) return;
+            var urls = _museExtractTikTokUrls(raw);
+            if (urls.length < 2) return; // single URL → default paste
+            e.preventDefault();
+            var res = _museAddTikTokUrls(urls);
+            var inp = document.getElementById(inputId);
+            if (inp) inp.value = '';
+            var msg = 'เพิ่ม ' + res.added + ' คลิป';
+            if (res.skipped > 0) msg += ' (ข้าม ' + res.skipped + ')';
+            if (res.hitCap) msg += ' — เต็มแล้ว ' + _MUSE_MAX_CLIPS + '/' + _MUSE_MAX_CLIPS;
+            _museToast(msg);
+            if (inputId === 'muse-slot-add-input') _museSlotAddClose();
+        }
+
         function _museSlotDragStart(e, idx) {
             _museDragSrcIdx = idx;
             e.dataTransfer.effectAllowed = 'move';
@@ -47259,8 +47332,20 @@ ${_clip(contextSections, 2600)}`;
                 _museSlotAddClose();
                 return;
             }
-            var url = input.value.trim();
-            if (!url) { input.focus(); return; }
+            var raw = input.value.trim();
+            if (!raw) { input.focus(); return; }
+            // Multi-URL fallback: if input already holds multiple URLs (browser-stripped paste, or hand-typed)
+            var urls = _museExtractTikTokUrls(raw);
+            if (urls.length >= 2) {
+                _museSlotAddClose();
+                var rMul = _museAddTikTokUrls(urls);
+                var msg = 'เพิ่ม ' + rMul.added + ' คลิป';
+                if (rMul.skipped > 0) msg += ' (ข้าม ' + rMul.skipped + ')';
+                if (rMul.hitCap) msg += ' — เต็มแล้ว ' + _MUSE_MAX_CLIPS + '/' + _MUSE_MAX_CLIPS;
+                _museToast(msg);
+                return;
+            }
+            var url = urls[0] || raw;
             var id = _museParseTikTokId(url);
             if (!id) {
                 input.style.borderColor = 'var(--danger,#f23645)';
@@ -50535,8 +50620,10 @@ ${_clip(contextSections, 2600)}`;
         }
 
         function _museFetchThumbnail(clip, cb) {
-            var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://www.tiktok.com/oembed?url=' + encodeURIComponent(clip.url));
-            fetch(proxyUrl).then(function(r) { return r.json(); }).then(function(data) {
+            // TikTok oEmbed sends Access-Control-Allow-Origin: * — call directly, no proxy needed.
+            // (corsproxy.io returns 403 as of 2026 — broken proxy was the original "URL doesn't work" symptom.)
+            var oembedUrl = 'https://www.tiktok.com/oembed?url=' + encodeURIComponent(clip.url);
+            fetch(oembedUrl).then(function(r) { return r.json(); }).then(function(data) {
                 if (data && data.thumbnail_url) {
                     clip.thumbnail = data.thumbnail_url;
                     if (data.title && clip.label.match(/^Clip \d+$/)) clip.label = data.title.substring(0, 40);
@@ -50567,8 +50654,17 @@ ${_clip(contextSections, 2600)}`;
             if (!clip) return;
             var btn = document.getElementById('muse-dur-fetch-' + idx);
             if (btn) { btn.textContent = '...'; btn.disabled = true; btn.style.opacity = '0.5'; }
-            var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(clip.url);
-            fetch(proxyUrl).then(function(r) { return r.text(); }).then(function(html) {
+            // HTML page scrape needs a proxy (no CORS on tiktok.com page). corsproxy.io is dead (403);
+            // allorigins.win works as of 2026. Try allorigins first, fall back to codetabs.
+            var primaryProxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(clip.url);
+            var fallbackProxy = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(clip.url);
+            function _scrape(proxyUrl, isLast) {
+                return fetch(proxyUrl).then(function(r) {
+                    if (!r.ok) throw new Error('proxy ' + r.status);
+                    return r.text();
+                });
+            }
+            _scrape(primaryProxy).catch(function() { return _scrape(fallbackProxy, true); }).then(function(html) {
                 var dur = 0;
                 // 1. og:video:duration meta tag (various attribute orders)
                 var ogM = html.match(/property="og:video:duration"\s+content="(\d+)"/)
