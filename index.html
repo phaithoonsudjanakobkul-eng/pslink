@@ -50503,8 +50503,19 @@ ${_clip(contextSections, 2600)}`;
                 _museToast('Playlist เต็มแล้ว (' + _MUSE_MAX_CLIPS + ')');
                 return;
             }
-            var url = input.value.trim();
-            if (!url) return;
+            var raw = input.value.trim();
+            if (!raw) return;
+            var urls = _museExtractTikTokUrls(raw);
+            if (urls.length >= 2) {
+                var rMul = _museAddTikTokUrls(urls);
+                input.value = '';
+                var msg = 'เพิ่ม ' + rMul.added + ' คลิป';
+                if (rMul.skipped > 0) msg += ' (ข้าม ' + rMul.skipped + ')';
+                if (rMul.hitCap) msg += ' — เต็มแล้ว ' + _MUSE_MAX_CLIPS + '/' + _MUSE_MAX_CLIPS;
+                _museToast(msg);
+                return;
+            }
+            var url = urls[0] || raw;
             var id = _museParseTikTokId(url);
             if (!id) {
                 input.style.outline = '2px solid var(--danger,#f23645)';
