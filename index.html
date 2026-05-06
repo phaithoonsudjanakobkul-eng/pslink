@@ -36928,8 +36928,6 @@ ${paras}
                     }
                     // Outside all sessions (e.g. overnight 20:00–04:00 ET): skip
                 });
-
-                if (updated > 0) console.log('[PRE-MKT] Alpaca snapshot updated ' + updated + '/' + watchlist.length);
             } catch(e) {
                 // Silent — extended hours is best-effort
             }
@@ -43961,7 +43959,6 @@ ${_clip(contextSections, 2600)}`;
                 localStorage.setItem(_selfPrevKey, _selfMid.toString());
                 localStorage.setItem(_selfPrevDate, todayStr);
                 prevMid = _selfMid;
-                console.log('[FX] Day rolled → prev_close from self-tracking:', _selfMid.toFixed(4));
             } else if (_selfPrevDt === todayStr && sane(_selfPrev)) {
                 prevMid = _selfPrev;
             }
@@ -44202,7 +44199,6 @@ ${_clip(contextSections, 2600)}`;
             // ── Apply retail spread ───────────────────────────────────────────
             const sellRate = midRate * SELL_SPREAD;
             const buyRate  = midRate * BUY_SPREAD;
-            console.log('[FX] sell:', sellRate.toFixed(4), 'buy:', buyRate.toFixed(4), '['+src+']');
 
             rateEl.textContent    = sellRate.toFixed(2);
             rateInvEl.textContent = buyRate.toFixed(2);
@@ -44247,10 +44243,6 @@ ${_clip(contextSections, 2600)}`;
 
             if (baseMid && sane(baseMid) && midRate) {
                 const pct = ((midRate - baseMid) / baseMid) * 100;
-                const _pSrc = (_selfPrevDt === todayStr && sane(_selfPrev)) ? 'self-track'
-                            : sane(_prevCached) ? 'ERAPI/OpenER'
-                            : sane(_prevTdCached) ? 'TwelveData-API' : 'fallback(fxPrevRate)';
-                console.log('[FX] midRate:', midRate.toFixed(4), '| prevClose:', baseMid.toFixed(4), '| pct:', pct.toFixed(4) + '%', '| prevSrc:', _pSrc);
                 fmtPct(pct, changeEl);
                 fmtPct(pct, changeInvEl);
             } else {
@@ -44459,7 +44451,6 @@ ${_clip(contextSections, 2600)}`;
                     if (j?.ethereum?.usd_24h_change != null) { localStorage.setItem('ps_mkt_chg_eth', j.ethereum.usd_24h_change.toString()); _mktChg.eth = j.ethereum.usd_24h_change; }
                 }
                 localStorage.setItem(tKey, Date.now().toString());
-                console.log('[Ticker] crypto BTC:', j?.bitcoin?.usd, 'ETH:', j?.ethereum?.usd);
             } catch(e) { console.warn('[Ticker] crypto:', e.message); }
         }
 
@@ -44521,7 +44512,6 @@ ${_clip(contextSections, 2600)}`;
             if (!_mktPrices.eth) { const c = localStorage.getItem('ps_mkt_eth'); if (c) _mktPrices.eth = parseFloat(c); }
             if (_mktChg.btc == null) { const c = localStorage.getItem('ps_mkt_chg_btc'); if (c) _mktChg.btc = parseFloat(c); }
             if (_mktChg.eth == null) { const c = localStorage.getItem('ps_mkt_chg_eth'); if (c) _mktChg.eth = parseFloat(c); }
-            console.log('[Ticker] prices:', JSON.stringify(_mktPrices));
             })();
             try { return await _mktRefreshInFlight; } finally { _mktRefreshInFlight = null; }
         }
@@ -53948,7 +53938,6 @@ ${_clip(contextSections, 2600)}`;
 
         async function syncFromGist(isInitialLoad = false) {
             const token = getGistToken();
-            console.log(`[Gist DIAG] syncFromGist(${isInitialLoad}) — token:${token?'SET':'EMPTY'} _isSaving:${_isSaving} _isSyncing:${_isSyncing} _gistInitialSyncComplete:${_gistInitialSyncComplete}`);
             if (!token) { document.getElementById('gist-modal').classList.remove('hidden'); return; }
             if (location.protocol === 'file:') {
                 showGistStatus('⚠ เปิดจาก file:// — ต้อง host บน https:// เพื่อ sync Gist', 'text-amber-400');
@@ -54003,10 +53992,8 @@ ${_clip(contextSections, 2600)}`;
                 }
                 if (!content) { showGistStatus('ไม่มีข้อมูลใน Gist', 'text-gray-400'); return; }
 
-                console.log(`[Gist DIAG] content downloaded: ${(content.length/1024).toFixed(1)} KB, first 80 chars: ${content.slice(0,80)}`);
                 if (isInitialLoad) _splashStatus('ถอดรหัสข้อมูล...');
                 const data = await _gistDecrypt(token, content);
-                console.log(`[Gist DIAG] decrypted — records:${Array.isArray(data?.records)?data.records.length:'N/A'} watchlist:${Array.isArray(data?.watchlist)?data.watchlist.length:'N/A'} ts:${data?.lastModifiedTs} hasApiKeys:${!!data?.apiKeys}`);
                 const prevRecordsSig = (() => { try { return JSON.stringify(records || []); } catch(e) { return ''; } })();
 
                 // Support both array format (legacy) and object format
@@ -54039,12 +54026,10 @@ ${_clip(contextSections, 2600)}`;
                                 const _localRecRaw = localStorage.getItem('ps_records');
                                 records = _localRecRaw ? (() => { try { return JSON.parse(_localRecRaw); } catch(e) { return data.records; } })() : data.records;
                                 _wlMergedExtras = true; // schedule push so Gist gets the local changes
-                                console.log('[Gist] Dirty flag — keeping local records, will push to Gist');
                             } else if (_gistIsNewer) {
                                 // Gist written more recently than our last push → use Gist directly
                                 // (cross-device sync, or fresh device with no push history)
                                 records = data.records;
-                                if (_hasSyncHistory) console.log(`[Gist] Cross-device sync — using Gist records (gistTs=${_gistTs}, localPushTs=${_localPushTs})`);
                             } else if (_hasSyncHistory) {
                                 // Same device, Gist matches our last push — merge local-only months
                                 // (e.g. records imported via importRecordsOnly that didn't push yet)
@@ -54055,7 +54040,6 @@ ${_clip(contextSections, 2600)}`;
                                 if (_extraRec.length > 0) {
                                     records = [...data.records, ..._extraRec];
                                     _wlMergedExtras = true;
-                                    console.log('[Gist] Merged', _extraRec.length, 'local-only record month(s):', _extraRec.map(r => r.id));
                                 } else {
                                     records = data.records;
                                 }
@@ -54075,11 +54059,9 @@ ${_clip(contextSections, 2600)}`;
                                 const _localWl = _localWlRaw ? (() => { try { return JSON.parse(_localWlRaw); } catch(e) { return data.watchlist; } })() : data.watchlist;
                                 watchlist = Array.isArray(_localWl) ? _localWl : data.watchlist;
                                 _wlMergedExtras = true;
-                                console.log('[Gist] Dirty flag — keeping local watchlist, will push to Gist');
                             } else if (_gistIsNewer) {
                                 // Gist is newer — use Gist directly (cross-device or fresh device)
                                 watchlist = data.watchlist;
-                                if (_hasSyncHistory) console.log(`[Gist] Cross-device sync — using Gist watchlist (gistTs=${_gistTs})`);
                             } else if (_hasSyncHistory) {
                                 // Same device, Gist matches our last push — merge local-only stocks
                                 const _localWlRaw = localStorage.getItem('ps_watchlist');
@@ -54089,7 +54071,6 @@ ${_clip(contextSections, 2600)}`;
                                 if (_extras.length > 0) {
                                     watchlist = [...data.watchlist, ..._extras];
                                     _wlMergedExtras = true;
-                                    console.log('[Gist] Merged', _extras.length, 'local-only stock(s) into watchlist:', _extras);
                                 } else {
                                     watchlist = data.watchlist;
                                 }
@@ -54432,7 +54413,6 @@ ${_clip(contextSections, 2600)}`;
                     // MUSE playlists + active preset + collapse state
                     if (data.museData) {
                         const md = data.museData;
-                        console.log(`[Gist DIAG] MUSE block — isInitialLoad:${isInitialLoad} _museInited:${_museInited} gist:{ layoutMode:${md.layoutMode}, slotCount:${md.slotCount}, presetIdx:${md.activePresetIdx}, collapsed:${md.collapsed} } local:{ layout:${localStorage.getItem(MUSE_LAYOUT_KEY)}, slotCount:${localStorage.getItem(MUSE_SLOT_COUNT_KEY)}, presetIdx:${localStorage.getItem(MUSE_PRESET_IDX_KEY)}, collapsed:${localStorage.getItem(MUSE_COLLAPSED_KEY)} } inMem:{ layout:${_museLayoutMode}, slots:${_museSlotCount} }`);
                         if (Array.isArray(md.presets)) {
                             for (let i = 0; i < MUSE_PRESET_KEYS.length; i++) {
                                 const presetData = i < md.presets.length ? md.presets[i] : [];
@@ -54461,9 +54441,6 @@ ${_clip(contextSections, 2600)}`;
                         if (typeof md.layoutMode === 'number' && (isInitialLoad || localStorage.getItem(MUSE_LAYOUT_KEY) === null)) {
                             _museLayoutMode = md.layoutMode;
                             try { localStorage.setItem(MUSE_LAYOUT_KEY, String(md.layoutMode)); } catch(e) {}
-                            console.log(`[Gist DIAG] MUSE layoutMode SET → ${md.layoutMode}`);
-                        } else {
-                            console.log(`[Gist DIAG] MUSE layoutMode SKIPPED — typeof:${typeof md.layoutMode} isInit:${isInitialLoad} lsVal:${localStorage.getItem(MUSE_LAYOUT_KEY)}`);
                         }
                         if (md.autoRotate && (isInitialLoad || localStorage.getItem(MUSE_AUTOROTATE_KEY) === null)) {
                             _museAutoRotateEnabled = !!md.autoRotate.enabled;
@@ -54480,9 +54457,6 @@ ${_clip(contextSections, 2600)}`;
                         if (typeof md.slotCount === 'number' && (isInitialLoad || localStorage.getItem(MUSE_SLOT_COUNT_KEY) === null)) {
                             _museSlotCount = md.slotCount;
                             try { localStorage.setItem(MUSE_SLOT_COUNT_KEY, String(md.slotCount)); } catch(e) {}
-                            console.log(`[Gist DIAG] MUSE slotCount SET → ${md.slotCount}`);
-                        } else {
-                            console.log(`[Gist DIAG] MUSE slotCount SKIPPED — typeof:${typeof md.slotCount} isInit:${isInitialLoad} lsVal:${localStorage.getItem(MUSE_SLOT_COUNT_KEY)}`);
                         }
                         // Re-apply if card already initialized (Gist sync on running session)
                         if (_museInited) {
@@ -54490,7 +54464,6 @@ ${_clip(contextSections, 2600)}`;
                             _museCollapsed = localStorage.getItem(MUSE_COLLAPSED_KEY) === '1';
                             _museLayoutMode = parseInt(localStorage.getItem(MUSE_LAYOUT_KEY) || '0') || 0;
                             _museSlotCount  = parseInt(localStorage.getItem(MUSE_SLOT_COUNT_KEY) || '0') || 0;
-                            console.log(`[Gist DIAG] MUSE _museInited re-apply — layout:${_museLayoutMode} slots:${_museSlotCount} presetIdx:${_musePresetIdx} collapsed:${_museCollapsed}`);
                             // Respect password lock — auto-switch to first unlocked preset
                             var _syncPws = _museGetPws();
                             if (_syncPws[_musePresetIdx] && !_museUnlockedPresets.has(_musePresetIdx)) {
@@ -54668,7 +54641,6 @@ ${_clip(contextSections, 2600)}`;
                     _lastSavedHash = _dataHash();
                 }
                 try { localStorage.setItem('ps_gist_sync_ts', String(Date.now())); } catch(e) {}
-                console.log(`[Gist DIAG] syncFromGist SUCCESS — records:${records.length} watchlist:${watchlist.length}`);
                 showGistStatus('SYNCED ✓', 'text-emerald-500');
             } catch(e) {
                 console.error('[Gist DIAG] syncFromGist EXCEPTION:', e?.message || e);
@@ -54780,7 +54752,6 @@ ${_clip(contextSections, 2600)}`;
 
                 // Option B: Show success → reload → Splash → syncFromGist(isInitialLoad=true) → enter app
                 const keyNames = keysRestored > 0 ? ` (${keysRestored} API keys)` : '';
-                console.log(`[Gist DIAG] _applyGistToken success — keysRestored:${keysRestored}, about to reload`);
                 if (statusEl) { statusEl.textContent = `Connected ✓${keyNames}`; statusEl.style.color = '#10b981'; }
                 if (btn) { btn.textContent = 'Setup เสร็จสมบูรณ์ ✓'; btn.style.background = '#10b981'; btn.disabled = true; }
                 _reloading = true;           // tell finally to leave the button alone — page reloads shortly
@@ -56311,7 +56282,6 @@ ${_clip(contextSections, 2600)}`;
             // Block push before initial syncFromGist(true) completes — prevents corrupting Gist
             // with empty local state (records=[], watchlist=[]) before we know what's in Gist
             if (!_gistInitialSyncComplete) {
-                console.warn('[Gist] _pushToGist blocked: initial sync not yet complete, queuing');
                 _pendingSave = true; return;
             }
             if (_isSyncing) { _pendingSave = true; return; } // syncFromGist in progress — queue (don't pre-encrypt: data not yet loaded)
@@ -56337,7 +56307,6 @@ ${_clip(contextSections, 2600)}`;
             _lastGistPushTime = now;
             const token = getGistToken();
             const exportData = _buildExportData();
-            console.log(`[Gist DIAG] _pushToGist payload — muse:{ layout:${exportData.museData?.layoutMode}, slots:${exportData.museData?.slotCount} } records:${exportData.records?.length}`);
             let _rateLimited = false;
             try {
                 const encContent = await _gistEncrypt(token, exportData);
