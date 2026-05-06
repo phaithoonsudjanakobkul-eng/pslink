@@ -2295,6 +2295,130 @@
             }
         }
 
+        /* ============================================================
+           CINEMATIC RESPONSIVE — Tablet (≤1023) + Mobile (≤640)
+           ============================================================
+           Desktop layout (≥1024) intentionally untouched. At ≤1023 the
+           desktop 4-col + subgrid layout breaks down (Hero col 1 = 25%
+           shrinks to ~256px on iPad portrait — too narrow for the muse
+           photo to read as a hero). Strategy: stack the whole dashboard
+           into 1-col, Hero becomes a banner with explicit aspect-ratio,
+           Right-column children become natural-height blocks (no flex
+           1 1 0 distribution because there's no parent height to share),
+           Mini frames card gets a fixed height so the JS slot-count
+           adapter has a predictable container to measure.
+           ============================================================ */
+        @media (max-width: 1023px) {
+            /* Dashboard: 1-col stack, no row1 100vh height controller */
+            html[data-preset="cinematic"] #dash-content:not(.hidden) {
+                grid-template-columns: 1fr !important;
+                grid-template-rows: auto auto auto auto auto !important;
+                grid-template-areas:
+                    "muse"
+                    "side"
+                    "fin"
+                    "charts"
+                    "footer" !important;
+                column-gap: 14px !important;
+                row-gap: 14px !important;
+            }
+            /* Bottom finance row: un-subgrid → Tailwind grid-cols-*
+               drives column count again (md:grid-cols-2 at 768-1023,
+               default grid-cols-1 below 768). */
+            html[data-preset="cinematic"] #ddr-fin {
+                display: block !important;
+            }
+            html[data-preset="cinematic"] #dash-fin-row {
+                display: grid !important;
+            }
+            /* Hero: 16/9 banner instead of full-viewport-height column.
+               min-height removed so very narrow viewports don't force
+               a 540px tall hero squeezing everything else off-screen. */
+            html[data-preset="cinematic"] #ddr-muse {
+                display: block !important;
+            }
+            html[data-preset="cinematic"] #muse-card {
+                height: auto !important;
+                aspect-ratio: 16/9 !important;
+                min-height: unset !important;
+                width: 100% !important;
+            }
+            /* Right column children: drop flex 1 1 0 (was equal-height
+               distribution under a fixed-height row 1). At stack mode
+               #ddr-row1 has no parent height, so flex 1 1 0 collapses
+               children to 0px — switch to content-driven height. */
+            html[data-preset="cinematic"] #profile-wl-console,
+            html[data-preset="cinematic"] .cine-profile-row,
+            html[data-preset="cinematic"] .cine-mini-frames {
+                flex: 0 0 auto !important;
+            }
+            /* Profile row: stack 1-col across full ≤1023 range
+               (extends the existing ≤900 stack rule at line ~1880). */
+            html[data-preset="cinematic"] .cine-profile-row {
+                grid-template-columns: 1fr !important;
+            }
+            html[data-preset="cinematic"] .cine-profile-row > #profile-card-main,
+            html[data-preset="cinematic"] .cine-profile-row > #cine-payday-card,
+            html[data-preset="cinematic"] .cine-profile-row > #cine-month-card {
+                grid-column: auto !important;
+                order: unset !important;
+            }
+            /* Profile card: drop overflow:hidden so address text doesn't
+               clip when the card is full-width on tablet/mobile. */
+            html[data-preset="cinematic"] #profile-card-main {
+                overflow: visible !important;
+                min-height: unset !important;
+            }
+            html[data-preset="cinematic"] #profile-photo-wrap {
+                width: clamp(180px, 28vw, 280px) !important;
+            }
+            /* Pinned watchlist: keep 4-col template (already gated at
+               ≤1279 elsewhere — no override needed here). max-height cap
+               relaxes so list scrolls less aggressively at tablet width. */
+            html[data-preset="cinematic"] #profile-wl-console {
+                max-height: 320px !important;
+            }
+            /* Mini frames: fixed height so JS slot-count adapter
+               (_cineUpdateMiniSlotCount) has a predictable parent
+               height to derive slot dimensions from. */
+            html[data-preset="cinematic"] .cine-mini-frames {
+                height: 220px !important;
+                min-height: 0 !important;
+            }
+            /* Aux cards: drop the 180px min-height that was sized for
+               desktop column width — at full-width tablet/mobile the
+               number is plenty tall on its own. */
+            html[data-preset="cinematic"] .cine-payday-card,
+            html[data-preset="cinematic"] .cine-month-card {
+                min-height: unset !important;
+            }
+        }
+
+        /* Mobile-only fine-tuning (≤640) — narrower Hero aspect, tighter
+           paddings, smaller aux numbers, shorter Mini frames row. */
+        @media (max-width: 640px) {
+            /* Hero: 4/3 instead of 16/9 — at 375 viewport 16/9 = 211px
+               which reads thin; 4/3 gives ~280px, more cinematic. */
+            html[data-preset="cinematic"] #muse-card {
+                aspect-ratio: 4/3 !important;
+            }
+            html[data-preset="cinematic"] .cine-payday-card,
+            html[data-preset="cinematic"] .cine-month-card {
+                padding: 12px 14px 10px !important;
+            }
+            html[data-preset="cinematic"] .cine-payday-num,
+            html[data-preset="cinematic"] .cine-month-num {
+                font-size: clamp(48px, 11vw, 80px) !important;
+            }
+            html[data-preset="cinematic"] .cine-mini-frames {
+                height: 180px !important;
+                padding: 12px !important;
+            }
+            html[data-preset="cinematic"] #profile-photo-wrap {
+                width: clamp(140px, 36vw, 220px) !important;
+            }
+        }
+
         /* Typography: hero numbers in Fraunces, labels in mono caps */
         html[data-preset="cinematic"] #tab-dashboard .dash-value {
             font-family: 'Fraunces', Georgia, serif !important;
