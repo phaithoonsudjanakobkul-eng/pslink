@@ -2961,6 +2961,31 @@
         html[data-preset="cinematic"] .cine-mf-chip[draggable="true"] {
             cursor: grab;
         }
+        /* Cinematic clip-cycle entrance animations.
+           Re-fires every time .cine-active is freshly added — i.e., whenever the
+           hero swaps to a new slot via _cineMarkActiveSlot. Mode is selected by
+           html[data-cine-trans]. 'none' = unset (no rule matches). */
+        @keyframes cineCycleFade {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        @keyframes cineCycleSlide {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes cineCycleZoom {
+            from { opacity: 0; transform: scale(1.05); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        html[data-cine-trans="fade"][data-preset="cinematic"]  #muse-slots > .cine-active {
+            animation: cineCycleFade 0.5s ease both;
+        }
+        html[data-cine-trans="slide"][data-preset="cinematic"] #muse-slots > .cine-active {
+            animation: cineCycleSlide 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+        html[data-cine-trans="zoom"][data-preset="cinematic"]  #muse-slots > .cine-active {
+            animation: cineCycleZoom 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
         html[data-preset="cinematic"] .cine-mf-chip.is-dnd-src {
             opacity: 0.35 !important;
             transform: scale(0.96);
@@ -45013,10 +45038,19 @@ ${_clip(contextSections, 2600)}`;
         // _museRenderSlots only built a subset (e.g., cinematic muse-card width
         // → sc≈3, so chip 4+ wouldn't find a matching DOM slot via iteration).
         function _cineMarkActiveSlot() {
-            const slots = document.querySelectorAll('#muse-slots > *');
-            slots.forEach(function(s) { s.classList.remove('cine-active'); });
-            if (typeof _museActiveIdx !== 'number' || _museActiveIdx < 0) return;
+            if (typeof _museActiveIdx !== 'number' || _museActiveIdx < 0) {
+                document.querySelectorAll('#muse-slots > .cine-active').forEach(function(s) {
+                    s.classList.remove('cine-active');
+                });
+                return;
+            }
             const target = document.getElementById('muse-slot-' + _museActiveIdx);
+            // Skip when already active — prevents the entrance animation from re-firing
+            // on every _museRenderSlots / _cineUpdateMuseBackdrop pass.
+            if (target && target.classList.contains('cine-active')) return;
+            document.querySelectorAll('#muse-slots > .cine-active').forEach(function(s) {
+                s.classList.remove('cine-active');
+            });
             if (target) target.classList.add('cine-active');
         }
 
@@ -45706,7 +45740,9 @@ ${_clip(contextSections, 2600)}`;
             if (typeof _cineMarkActiveSlot === 'function') _cineMarkActiveSlot();
             if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
             // Reorder shifted clip indices — restart cycle so the timer points at the
-            // freshly-arranged playlist, not the pre-drop ordering.
+            // freshly-arranged playlist, not the pre-drop ordering. Shuffle queue indices
+            // are now stale → refill on next pick.
+            if (typeof _museClipShuffleQueue !== 'undefined') _museClipShuffleQueue = [];
             if (typeof _museClipCycleEnabled !== 'undefined' && _museClipCycleEnabled
                 && typeof _museClipCycleStart === 'function') {
                 _museClipCycleStart();
@@ -46815,6 +46851,9 @@ ${_clip(contextSections, 2600)}`;
         var _museClipCycleEnabled  = false;
         var _museClipCycleInterval = 5;     // seconds per thumbnail
         var _museClipCycleTimer    = null;
+        var _museClipCycleShuffle  = false;          // pick random next instead of sequential
+        var _museClipCycleTrans    = 'fade';         // 'none' | 'fade' | 'slide' | 'zoom'
+        var _museClipShuffleQueue  = [];             // Fisher-Yates queue (runtime, not persisted)
         function _museCalcAutoSlots() {
             var card = document.getElementById('muse-card');
             var w = card ? card.offsetWidth : 0;
@@ -50111,7 +50150,14 @@ ${_clip(contextSections, 2600)}`;
                 if (typeof d.clipInterval === 'number' && d.clipInterval >= 2 && d.clipInterval <= 120) {
                     _museClipCycleInterval = d.clipInterval;
                 }
+                if (typeof d.clipShuffle === 'boolean') _museClipCycleShuffle = d.clipShuffle;
+                if (typeof d.clipTrans === 'string'
+                    && ['none','fade','slide','zoom'].indexOf(d.clipTrans) >= 0) {
+                    _museClipCycleTrans = d.clipTrans;
+                }
             } catch(_) {}
+            // Apply transition attribute on <html> so CSS rules wire up immediately.
+            if (typeof _museApplyCineTrans === 'function') _museApplyCineTrans();
         }
 
         function _museAutoRotateSave() {
@@ -50120,7 +50166,9 @@ ${_clip(contextSections, 2600)}`;
                 durations: _museAutoRotateDurations,
                 included: _museAutoRotateIncluded,
                 clipEnabled: _museClipCycleEnabled,
-                clipInterval: _museClipCycleInterval
+                clipInterval: _museClipCycleInterval,
+                clipShuffle: _museClipCycleShuffle,
+                clipTrans: _museClipCycleTrans
             }));
             // Debounce Gist push — settings only, not hot-path
             clearTimeout(_museAutoRotateSaveTimer);
@@ -50198,6 +50246,43 @@ ${_clip(contextSections, 2600)}`;
         // Walks through every clip in the current playlist, swapping the hero
         // backdrop to each clip's poster image. Skips video autoplay — uses
         // _cineSwitchToSlot which stops any playing iframe and shows the cover.
+        function _museApplyCineTrans() {
+            // 'none' → remove attribute so no animation rule matches.
+            if (!_museClipCycleTrans || _museClipCycleTrans === 'none') {
+                document.documentElement.removeAttribute('data-cine-trans');
+            } else {
+                document.documentElement.setAttribute('data-cine-trans', _museClipCycleTrans);
+            }
+        }
+        // Pick the next clip index. Sequential: (cur+1) % len. Shuffle: drain a
+        // pre-shuffled queue (Fisher-Yates), refill when empty so every clip plays
+        // once before any repeats — avoids the "same clip 3 times in a row" feel
+        // that pure Math.random gives on small playlists.
+        function _museClipPickNext() {
+            var len = (typeof _museClips !== 'undefined') ? _museClips.length : 0;
+            if (len < 2) return -1;
+            var cur = (typeof _museActiveIdx === 'number' && _museActiveIdx >= 0) ? _museActiveIdx : 0;
+            if (_museClipCycleShuffle) {
+                if (!_museClipShuffleQueue || _museClipShuffleQueue.length === 0) {
+                    var arr = [];
+                    for (var i = 0; i < len; i++) if (i !== cur) arr.push(i);
+                    for (var k = arr.length - 1; k > 0; k--) {
+                        var j = Math.floor(Math.random() * (k + 1));
+                        var tmp = arr[k]; arr[k] = arr[j]; arr[j] = tmp;
+                    }
+                    _museClipShuffleQueue = arr;
+                }
+                // Edge case: queue may contain stale indices if clips were deleted/reordered
+                // between refills. Clamp + skip out-of-range entries.
+                var pick = _museClipShuffleQueue.shift();
+                while (typeof pick === 'number' && (pick < 0 || pick >= len || pick === cur)) {
+                    if (_museClipShuffleQueue.length === 0) return (cur + 1) % len; // safety
+                    pick = _museClipShuffleQueue.shift();
+                }
+                return pick;
+            }
+            return (cur + 1) % len;
+        }
         function _museClipCycleStart() {
             if (_museClipCycleTimer) { clearTimeout(_museClipCycleTimer); _museClipCycleTimer = null; }
             if (!_museClipCycleEnabled) return;
@@ -50215,8 +50300,8 @@ ${_clip(contextSections, 2600)}`;
             if (!_museClipCycleEnabled) return;
             if (_museEditOpen) { _museClipCycleStart(); return; }
             if (typeof _museClips === 'undefined' || _museClips.length < 2) return;
-            var cur = (typeof _museActiveIdx === 'number' && _museActiveIdx >= 0) ? _museActiveIdx : 0;
-            var next = (cur + 1) % _museClips.length;
+            var next = _museClipPickNext();
+            if (next < 0) return;
             // Cinematic path → use the same slot-switch the OTHER FRAMES chips trigger
             // (handles page-jump, hero backdrop refresh, persistence). Outside cinematic
             // we still bump _museActiveIdx so the saved active stays consistent.
@@ -50234,6 +50319,7 @@ ${_clip(contextSections, 2600)}`;
         }
         function _museClipCycleToggle() {
             _museClipCycleEnabled = !_museClipCycleEnabled;
+            _museClipShuffleQueue = []; // reset queue so shuffle starts fresh
             _museAutoRotateSave();
             if (_museClipCycleEnabled) _museClipCycleStart();
             else _museClipCycleStop();
@@ -50247,6 +50333,19 @@ ${_clip(contextSections, 2600)}`;
             _museClipCycleInterval = v;
             _museAutoRotateSave();
             if (_museClipCycleEnabled) _museClipCycleStart();
+        }
+        function _museClipCycleToggleShuffle() {
+            _museClipCycleShuffle = !_museClipCycleShuffle;
+            _museClipShuffleQueue = []; // refill on next pick
+            _museAutoRotateSave();
+            _museRenderAutoRotateUI();
+        }
+        function _museClipCycleSetTrans(mode) {
+            if (['none','fade','slide','zoom'].indexOf(mode) < 0) return;
+            _museClipCycleTrans = mode;
+            _museApplyCineTrans();
+            _museAutoRotateSave();
+            _museRenderAutoRotateUI();
         }
 
         function _museRenderAutoRotateUI() {
@@ -50313,12 +50412,45 @@ ${_clip(contextSections, 2600)}`;
                 + '</label>'
                 + '</div>';
             if (cycOn) {
-                html += '<div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;">'
+                // Interval row
+                html += '<div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;">'
                     + '<span style="font-size:10.5px;color:var(--text-dim);font-weight:600;flex-shrink:0;">เปลี่ยนทุก</span>'
                     + '<input type="number" min="2" max="120" value="' + _museClipCycleInterval + '" oninput="_museClipCycleSetInterval(this.value)" '
                     + 'style="flex:1;min-width:0;height:30px;font-size:14px;font-weight:700;padding:0 8px;background:transparent;border:1px solid var(--border);border-radius:8px;outline:none;color:var(--text-primary);text-align:center;font-family:var(--font-mono);">'
                     + '<span style="font-size:10px;color:var(--text-dim);flex-shrink:0;font-weight:600;opacity:0.75;">วินาที</span>'
                     + '</div>';
+                // Shuffle row
+                var shOn = _museClipCycleShuffle;
+                html += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:10px;">'
+                    + '<div style="display:flex;align-items:center;gap:10px;">'
+                    + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:' + (shOn ? 'var(--accent)' : 'var(--text-dim)') + ';flex-shrink:0;"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>'
+                    + '<div>'
+                    + '<div style="font-size:11.5px;font-weight:700;color:var(--text-primary);line-height:1.2;">Shuffle</div>'
+                    + '<div style="font-size:9.5px;color:var(--text-dim);margin-top:2px;line-height:1.4;opacity:0.7;">สุ่มลำดับคลิป (Fisher-Yates ครบทุกตัวก่อนวนรอบใหม่)</div>'
+                    + '</div>'
+                    + '</div>'
+                    + '<label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer;flex-shrink:0;">'
+                    + '<input type="checkbox" ' + (shOn ? 'checked' : '') + ' onchange="_museClipCycleToggleShuffle()" style="opacity:0;width:0;height:0;position:absolute;">'
+                    + '<span style="position:absolute;inset:0;border-radius:11px;transition:background 0.2s;background:' + (shOn ? 'var(--accent)' : 'rgba(128,128,128,0.18)') + ';border:1px solid ' + (shOn ? 'var(--accent)' : 'var(--border)') + ';"></span>'
+                    + '<span style="position:absolute;top:2px;left:' + (shOn ? '20px' : '2px') + ';width:16px;height:16px;border-radius:50%;background:white;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>'
+                    + '</label>'
+                    + '</div>';
+                // Transition picker — segmented buttons
+                var transModes = [
+                    ['none',  'None'],
+                    ['fade',  'Fade'],
+                    ['slide', 'Slide'],
+                    ['zoom',  'Zoom']
+                ];
+                html += '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;">'
+                    + '<div style="font-size:10.5px;color:var(--text-dim);font-weight:600;margin-bottom:8px;letter-spacing:0.04em;">TRANSITION</div>'
+                    + '<div style="display:flex;background:var(--bg-card2,rgba(0,0,0,0.15));border-radius:9px;padding:2px;gap:1px;border:1px solid var(--border);">';
+                for (var t = 0; t < transModes.length; t++) {
+                    var key = transModes[t][0], lbl = transModes[t][1];
+                    var sel = (_museClipCycleTrans || 'fade') === key;
+                    html += '<button onclick="_museClipCycleSetTrans(\'' + key + '\')" style="flex:1;height:28px;border-radius:7px;border:1px solid ' + (sel ? 'color-mix(in srgb,var(--accent) 35%,var(--border))' : 'transparent') + ';cursor:pointer;font-size:10px;font-weight:700;letter-spacing:0.04em;transition:all 0.15s;background:' + (sel ? 'color-mix(in srgb,var(--accent) 14%,transparent)' : 'transparent') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-dim)') + ';">' + lbl + '</button>';
+                }
+                html += '</div></div>';
             }
             html += '</div>';
             section.innerHTML = html;
@@ -50430,7 +50562,9 @@ ${_clip(contextSections, 2600)}`;
                     });
                 });
                 if (_museAutoRotateEnabled) _museAutoRotateStart();
-                // Restart clip-cycle for the new playlist (clip count may have changed)
+                // Restart clip-cycle for the new playlist (clip count may have changed).
+                // Different playlist → queue indices are stale; refill on next pick.
+                _museClipShuffleQueue = [];
                 if (_museClipCycleEnabled) _museClipCycleStart();
                 _musePlayTransitionIn();
                 _museTransitionTimer = null;
