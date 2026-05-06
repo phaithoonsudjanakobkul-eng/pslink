@@ -50164,9 +50164,18 @@ ${_clip(contextSections, 2600)}`;
                 _museActiveIdx = _museClips.length > 0 ? Math.min(_savedActive, _museClips.length - 1) : -1;
                 _museRenderSlots();
                 _museApplyLayout();
+                // Cinematic hero backdrop must follow restored _museActiveIdx after preset switch.
+                // MutationObserver eventually catches up, but during the fade transition the hero
+                // can paint blank — call directly so it's correct on the first paint.
+                if (typeof _cineMarkActiveSlot === 'function') _cineMarkActiveSlot();
+                if (typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
                 if (_museEditOpen) { _museRenderPresetTabs(); _museRenderEditList(); _museUpdateAddFooter(); _museUpdateLockBtn(); }
                 _museClips.forEach(function(c, i) {
-                    if (!c.thumbnail && c.type !== 'image') _museFetchThumbnail(c, function() { _museUpdateSlotCover(i); });
+                    if (!c.thumbnail && c.type !== 'image') _museFetchThumbnail(c, function() {
+                        _museUpdateSlotCover(i);
+                        // Re-pull backdrop once the active slot's thumbnail finishes loading.
+                        if (i === _museActiveIdx && typeof _cineUpdateMuseBackdrop === 'function') _cineUpdateMuseBackdrop();
+                    });
                 });
                 if (_museAutoRotateEnabled) _museAutoRotateStart();
                 _musePlayTransitionIn();
