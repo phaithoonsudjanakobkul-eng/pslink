@@ -37072,6 +37072,13 @@ ${paras}
             try { localStorage.setItem(_VAL_CACHE_KEY, JSON.stringify(_valuationCache)); } catch(e) {}
         }
 
+        // Finnhub `/stock/price-target` moved to Premium tier ($50+/mo) late 2025.
+        // Free tier returns 403 → we set this flag on first 403 of the session and
+        // skip all subsequent calls. Self-heals when user pastes a new key (different
+        // first-8-char fingerprint clears the flag).
+        let _finnhubPremiumDenied = localStorage.getItem('ps_finnhub_premium_denied') === '1';
+        let _finnhubPremiumDeniedKey = localStorage.getItem('ps_finnhub_premium_denied_key') || '';
+
         // Fetch analyst consensus target price. Cached 7 days — targets
         // update weekly-to-monthly, no need to spam the endpoint.
         async function fetchAnalystTarget(symbol) {
@@ -37082,9 +37089,26 @@ ${paras}
             }
             const key = getFinnhubKey();
             if (!key) return null;
+            const keyFp = key.slice(0, 8);
+            if (_finnhubPremiumDenied && _finnhubPremiumDeniedKey !== keyFp) {
+                _finnhubPremiumDenied = false;
+                _finnhubPremiumDeniedKey = '';
+                try { localStorage.removeItem('ps_finnhub_premium_denied'); localStorage.removeItem('ps_finnhub_premium_denied_key'); } catch(e) {}
+            }
+            if (_finnhubPremiumDenied) return null;
             try {
                 const u = `https://finnhub.io/api/v1/stock/price-target?symbol=${encodeURIComponent(symbol)}&token=${key}`;
                 const res = await fetch(u, { signal: AbortSignal.timeout(8000) });
+                if (res.status === 403) {
+                    _finnhubPremiumDenied = true;
+                    _finnhubPremiumDeniedKey = keyFp;
+                    try {
+                        localStorage.setItem('ps_finnhub_premium_denied', '1');
+                        localStorage.setItem('ps_finnhub_premium_denied_key', keyFp);
+                    } catch(e) {}
+                    console.warn('[Finnhub] /stock/price-target requires Premium tier — analyst target disabled this session');
+                    return null;
+                }
                 if (!res.ok) return null;
                 const data = await res.json();
                 if (!data || data.targetMean == null) return null;
@@ -41130,7 +41154,7 @@ ${sourceText}`;
             const [earnings, recommend, priceTarget, sentiment, earningsCal] = await Promise.all([
                 get(`${base}/stock/earnings?symbol=${symbol}&limit=4&token=${fKey}`),
                 get(`${base}/stock/recommendation?symbol=${symbol}&token=${fKey}`),
-                get(`${base}/stock/price-target?symbol=${symbol}&token=${fKey}`),
+                _finnhubPremiumDenied ? Promise.resolve(null) : get(`${base}/stock/price-target?symbol=${symbol}&token=${fKey}`),
                 get(`${base}/news-sentiment?symbol=${symbol}&token=${fKey}`),
                 get(`${base}/calendar/earnings?symbol=${symbol}&from=${new Date().toISOString().slice(0,10)}&to=${new Date(Date.now()+90*864e5).toISOString().slice(0,10)}&token=${fKey}`),
             ]);
@@ -41858,7 +41882,7 @@ ${sourceText}`;
             const [earnings, recommend, priceTarget, sentiment, earningsCal] = await Promise.all([
                 get(`${base}/stock/earnings?symbol=${symbol}&limit=4&token=${fKey}`),
                 get(`${base}/stock/recommendation?symbol=${symbol}&token=${fKey}`),
-                get(`${base}/stock/price-target?symbol=${symbol}&token=${fKey}`),
+                _finnhubPremiumDenied ? Promise.resolve(null) : get(`${base}/stock/price-target?symbol=${symbol}&token=${fKey}`),
                 get(`${base}/news-sentiment?symbol=${symbol}&token=${fKey}`),
                 get(`${base}/calendar/earnings?symbol=${symbol}&from=${new Date().toISOString().slice(0,10)}&to=${new Date(Date.now()+90*864e5).toISOString().slice(0,10)}&token=${fKey}`),
             ]);
