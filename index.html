@@ -44434,26 +44434,25 @@ ${_clip(contextSections, 2600)}`;
         const _mktChg   = {}; // { sp500: -0.3, gold: 1.2, ... } percent change
         let _mktIdx = 0;       // current rotation index
 
-        // Fetch single Yahoo Finance symbol via CORS proxy (5-min cache)
-        // corsproxy.io first, allorigins.win fallback (corsproxy.io serves broken
-        // gzip for Yahoo as of 2026 — see comment at _museFetchClipDuration).
+        // Fetch single Yahoo Finance symbol via CORS proxy (5-min cache).
+        // allorigins.win/get is the only reliable Yahoo proxy as of 2026 — it wraps the
+        // body in { contents: "<json string>" }. corsproxy.io is dead for Yahoo
+        // (returns broken gzip with status 200, see comment at _museFetchClipDuration)
+        // and was removed to stop the per-call JSON-parse noise in console.
         async function _fetchYahoo(assetId, encodedSym) {
             const cKey = 'ps_mkt_' + assetId, tKey = 'ps_mkt_ts_' + assetId, gKey = 'ps_mkt_chg_' + assetId;
             const age = Date.now() - parseInt(localStorage.getItem(tKey) || '0');
             if (age < _mktCacheTTL) { const c = localStorage.getItem(cKey); if (c) return parseFloat(c); }
             const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodedSym + '?interval=1d&range=1d';
-            const proxies = [
-                'https://corsproxy.io/?' + encodeURIComponent(yahooUrl),
-                'https://api.allorigins.win/raw?url=' + encodeURIComponent(yahooUrl),
-            ];
-            for (const proxyUrl of proxies) {
-                try {
-                    const ctrl = new AbortController();
-                    const timer = setTimeout(() => ctrl.abort(), 8000);
-                    const r = await fetch(proxyUrl, { cache:'no-store', signal:ctrl.signal });
-                    clearTimeout(timer);
-                    if (!r.ok) continue;
-                    const j = await r.json();
+            const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(yahooUrl);
+            try {
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), 8000);
+                const r = await fetch(proxyUrl, { cache:'no-store', signal:ctrl.signal });
+                clearTimeout(timer);
+                if (r.ok) {
+                    const raw = await r.json();
+                    const j = JSON.parse(raw.contents);
                     const meta     = j?.chart?.result?.[0]?.meta;
                     const price    = meta?.regularMarketPrice;
                     const prevClose = meta?.chartPreviousClose ?? meta?.previousClose ?? meta?.regularMarketPreviousClose;
@@ -44467,8 +44466,8 @@ ${_clip(contextSections, 2600)}`;
                         }
                         return price;
                     }
-                } catch(e) { console.warn('[Ticker]', assetId, proxyUrl.split('?')[0], e.message); }
-            }
+                }
+            } catch(e) { console.warn('[Ticker]', assetId, e.message); }
             const c = localStorage.getItem(cKey); return c ? parseFloat(c) : null;
         }
 
@@ -44537,10 +44536,15 @@ ${_clip(contextSections, 2600)}`;
         }
 
         async function _mktRefresh() {
-            // Yahoo: 4 symbols in parallel (each with own 5-min cache)
+            // Yahoo: 4 symbols sequentially — public CORS proxies (corsproxy.io / allorigins.win)
+            // throttle concurrent requests, so parallel fetches cause timeouts. Each call hits
+            // its own 5-min cache so steady-state cost is near-zero; only fresh boots actually
+            // make 4 network round-trips (~2-8s total, acceptable for splash).
             const yahooAssets = _MKT_ASSETS.filter(a => a.sym);
-            const results = await Promise.all(yahooAssets.map(a => _fetchYahoo(a.id, a.sym)));
-            yahooAssets.forEach((a, i) => { if (results[i] != null) _mktPrices[a.id] = results[i]; });
+            for (const a of yahooAssets) {
+                const price = await _fetchYahoo(a.id, a.sym);
+                if (price != null) _mktPrices[a.id] = price;
+            }
             // Restore Yahoo chg from cache if _fetchYahoo hit cache path
             yahooAssets.forEach(a => { if (_mktChg[a.id] == null) { const c = localStorage.getItem('ps_mkt_chg_' + a.id); if (c) _mktChg[a.id] = parseFloat(c); } });
             // CoinGecko: BTC + ETH in 1 request
