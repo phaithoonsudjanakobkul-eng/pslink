@@ -2466,6 +2466,29 @@
             html[data-preset="cinematic"] .cine-month-card {
                 min-height: unset !important;
             }
+            /* Profile info section: hide entirely when notes are empty.
+               At desktop the photo-on-right + info-on-left split looks
+               fine with empty info (photo dominates). At mobile stack
+               mode an empty info panel below the photo banner reads as
+               "broken card" — just hide it. `:has()` + `:empty` are
+               supported in Chromium 105+ and Safari 15.4+. */
+            html[data-preset="cinematic"] #profile-card-main:has(#profile-display-notes:empty) > div:first-child {
+                display: none !important;
+            }
+        }
+
+        /* Mobile-only (≤767) — Mini frames hidden + finance forced 1-col.
+           The muse-preset switcher is a desktop-centric feature (4-6
+           thumbnails in a row); on mobile it renders as an empty pill
+           or as horizontal-scroll strip foreign to the dashboard
+           rhythm. Hide it; user switches preset via Settings if needed. */
+        @media (max-width: 767px) {
+            html[data-preset="cinematic"] .cine-mini-frames {
+                display: none !important;
+            }
+            html[data-preset="cinematic"] #dash-fin-row {
+                grid-template-columns: 1fr !important;
+            }
         }
 
         /* Mobile-only fine-tuning (≤640) — narrower Hero aspect, tighter
@@ -2484,20 +2507,12 @@
             html[data-preset="cinematic"] .cine-month-num {
                 font-size: clamp(48px, 11vw, 80px) !important;
             }
-            html[data-preset="cinematic"] .cine-mini-frames {
-                height: 180px !important;
-                padding: 12px !important;
-            }
             html[data-preset="cinematic"] #profile-photo-wrap {
                 aspect-ratio: 4/3 !important;
             }
-            /* Force 1-col finance grid at mobile (defensive — Tailwind
-               md:grid-cols-2 only kicks at ≥768 so technically not
-               needed at ≤640, but belt-and-suspenders against any
-               other rule that might force 2-col at narrow viewport). */
-            html[data-preset="cinematic"] #dash-fin-row {
-                grid-template-columns: 1fr !important;
-            }
+            /* (Mini frames height + finance 1-col rules removed — both
+               handled by the ≤767 block above which hides Mini entirely
+               and forces #dash-fin-row to 1-col.) */
         }
 
         /* Typography: hero numbers in Fraunces, labels in mono caps */
@@ -3329,26 +3344,13 @@
             html[data-preset="cinematic"] .cmh-price { font-size: 60px; }
         }
 
-        /* Mobile fallback: collapse to single column under 900px */
-        @media (max-width: 899px) {
-            html[data-preset="cinematic"] #dash-content:not(.hidden) {
-                grid-template-columns: 1fr !important;
-                grid-template-areas:
-                    "muse"
-                    "side"
-                    "fin"
-                    "charts";
-            }
-            html[data-preset="cinematic"] #dash-fin-row {
-                grid-template-columns: repeat(2, 1fr) !important;
-            }
-            html[data-preset="cinematic"] #dash-charts-row {
-                grid-template-columns: 1fr !important;
-            }
-            html[data-preset="cinematic"] #muse-card {
-                min-height: 380px;
-            }
-        }
+        /* Legacy "Mobile fallback" @media (max-width: 899px) block REMOVED
+           2026-05-06 — superseded by the @media (max-width: 1023px) +
+           (max-width: 640px) responsive blocks earlier in this file (search
+           "CINEMATIC RESPONSIVE — Tablet"). The legacy rules
+           (#dash-fin-row repeat(2, 1fr), #muse-card min-height:380px) were
+           winning by source order and forcing 2-col finance at mobile +
+           pinning Hero to 380px tall regardless of aspect-ratio. */
 
         /* ===== Cinematic — Records Tab ===== */
         html[data-preset="cinematic"] #tab-edit {
